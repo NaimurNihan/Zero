@@ -50,7 +50,7 @@ function formatBytes(bytes: number): string {
 
 const API_BASE = "/api";
 
-export default function Home() {
+export default function AudioToSrtTab() {
   const [file, setFile] = useState<File | null>(null);
   const [language, setLanguage] = useState<string>("auto");
   const [isDragging, setIsDragging] = useState(false);
@@ -61,7 +61,11 @@ export default function Home() {
 
   function pickFile(f: File | null | undefined) {
     if (!f) return;
-    if (!f.type.startsWith("audio/") && !f.type.startsWith("video/") && !/\.(mp3|wav|m4a|ogg|webm|flac|aac|mp4|mpeg|mpga|opus)$/i.test(f.name)) {
+    if (
+      !f.type.startsWith("audio/") &&
+      !f.type.startsWith("video/") &&
+      !/\.(mp3|wav|m4a|ogg|webm|flac|aac|mp4|mpeg|mpga|opus)$/i.test(f.name)
+    ) {
       toast({
         title: "Unsupported file",
         description: "Please choose an audio file (mp3, wav, m4a, ogg, webm, flac, mp4).",
@@ -155,7 +159,7 @@ export default function Home() {
   }
 
   return (
-    <div className="relative min-h-screen w-full overflow-hidden bg-gradient-to-br from-background via-background to-muted">
+    <div className="audio-to-srt-scope relative w-full overflow-hidden bg-gradient-to-br from-background via-background to-muted">
       {/* Decorative gradient orbs */}
       <div className="pointer-events-none absolute -top-40 -left-32 h-96 w-96 rounded-full bg-primary/20 blur-3xl" />
       <div className="pointer-events-none absolute top-1/3 -right-32 h-96 w-96 rounded-full bg-accent/20 blur-3xl" />
@@ -163,7 +167,7 @@ export default function Home() {
 
       <div className="relative mx-auto max-w-5xl px-4 sm:px-6 py-8 sm:py-10">
         {/* TOP HEADER CARD */}
-        <Card className="mb-8 p-3 sm:p-4 border-card-border shadow-lg backdrop-blur-xl bg-card/80">
+        <Card className="mb-8 p-3 sm:p-4 shadow-lg backdrop-blur-xl bg-card/80">
           <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3 lg:gap-4">
             {/* Brand */}
             <div className="flex items-center gap-3 min-w-0">
@@ -214,7 +218,7 @@ export default function Home() {
                 onClick={handleGenerate}
                 disabled={!file || loading}
                 size="default"
-                className="min-w-[160px] bg-gradient-to-r from-primary to-accent hover:opacity-95 shadow-md shadow-primary/30"
+                className="min-w-[160px] bg-gradient-to-r from-primary to-accent hover:opacity-95 shadow-md shadow-primary/30 text-white"
               >
                 {loading ? (
                   <>
@@ -233,7 +237,7 @@ export default function Home() {
         </Card>
 
         {/* HERO + UPLOAD CARD */}
-        <Card className="overflow-hidden border-card-border shadow-xl bg-card/90 backdrop-blur-xl">
+        <Card className="overflow-hidden shadow-xl bg-card/90 backdrop-blur-xl">
           {/* Hero strip inside the card */}
           <div className="relative px-6 sm:px-10 pt-10 pb-6 text-center bg-gradient-to-b from-primary/5 to-transparent">
             <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-medium text-primary mb-4">
@@ -322,7 +326,7 @@ export default function Home() {
         </Card>
 
         {srt && (
-          <Card className="mt-6 p-6 sm:p-8 shadow-xl border-card-border bg-card/90 backdrop-blur-xl">
+          <Card className="mt-6 p-6 sm:p-8 shadow-xl bg-card/90 backdrop-blur-xl">
             <div className="flex items-center justify-between mb-4 gap-4 flex-wrap">
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="h-5 w-5 text-green-500" />
@@ -334,7 +338,7 @@ export default function Home() {
                 </Button>
                 <Button
                   onClick={handleDownload}
-                  className="bg-gradient-to-r from-primary to-accent hover:opacity-95 shadow-md shadow-primary/30"
+                  className="bg-gradient-to-r from-primary to-accent hover:opacity-95 shadow-md shadow-primary/30 text-white"
                 >
                   <Download className="h-4 w-4 mr-2" />
                   Download .srt

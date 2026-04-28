@@ -81,6 +81,23 @@
   --radius: 0.5rem;
 }
 
+/* Scoped theme for the Audio To SRT tab — purple/cyan gradient look */
+.audio-to-srt-scope {
+  --primary: 262 83% 58%;
+  --primary-foreground: 0 0% 100%;
+  --accent: 199 89% 48%;
+  --accent-foreground: 0 0% 100%;
+  --ring: 262 83% 58%;
+}
+.dark .audio-to-srt-scope,
+.audio-to-srt-scope.dark {
+  --primary: 262 83% 65%;
+  --primary-foreground: 0 0% 100%;
+  --accent: 199 89% 55%;
+  --accent-foreground: 0 0% 100%;
+  --ring: 262 83% 65%;
+}
+
 .dark {
   --background: 220 18% 10%;
   --foreground: 220 10% 88%;
