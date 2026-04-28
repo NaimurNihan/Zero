@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { Plus, Search, FileText, RotateCcw, X, ScanSearch, Download, Trash2, Sun, Moon, Scissors, Copy, Folder, FolderOpen, ArchiveRestore, ChevronDown, ChevronRight } from "lucide-react";
+import { Plus, Search, FileText, RotateCcw, X, ScanSearch, Download, Trash2, Sun, Moon, Scissors, Copy, Folder, FolderOpen, ArchiveRestore, ChevronDown, ChevronRight, MoreVertical, Play } from "lucide-react";
 interface TaskRow { checked: boolean; values: string[]; }
 interface Project {
   id: string;
@@ -167,8 +167,9 @@ interface SrtNoteTabProps {
   incomingText?: string;
   incomingName?: string;
   incomingKey?: number;
+  onRunToAiAudio?: (lines: string[], label?: string) => void;
 }
-export default function SrtNoteTab({ incomingText, incomingName, incomingKey }: SrtNoteTabProps = {}) {
+export default function SrtNoteTab({ incomingText, incomingName, incomingKey, onRunToAiAudio }: SrtNoteTabProps = {}) {
   const initialStateRef = useRef<SavedState | null>(null);
   if (initialStateRef.current === null) initialStateRef.current = readSavedState();
   const initialState = initialStateRef.current;
@@ -186,6 +187,16 @@ export default function SrtNoteTab({ incomingText, incomingName, incomingKey }: 
   const [trashDragOver, setTrashDragOver] = useState(false);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [taskOpen, setTaskOpen] = useState(false);
+  const [openMenu, setOpenMenu] = useState<string | null>(null);
+  useEffect(() => {
+    if (!openMenu) return;
+    const onClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest("[data-card-menu]")) setOpenMenu(null);
+    };
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, [openMenu]);
   const editorRefs = useRef<(HTMLDivElement | null)[]>([]);
   const historyRef = useRef<{ [k: number]: string[] }>({});
   const nameInputRef = useRef<HTMLInputElement | null>(null);
@@ -473,20 +484,58 @@ export default function SrtNoteTab({ incomingText, incomingName, incomingKey }: 
                   <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${ptuCount !== lineCount ? "text-red-500 bg-red-100 dark:bg-red-950" : "text-muted-foreground bg-muted"}`}>{ptuCount} ptu</span>
                 </div>
                 <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                  <button onClick={() => handleCopy(idx)} title="Copy all text"
-                    className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
-                    <Copy size={14} />
+                  <button
+                    title="Run: send to Ai Audio, split, and load pool"
+                    onClick={() => {
+                      const text = activeProject?.langs[idx]?.content ?? "";
+                      const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
+                      if (lines.length === 0) return;
+                      onRunToAiAudio?.(lines, lang.label);
+                    }}
+                    className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <Play size={14} />
                   </button>
-                  <button onClick={() => handleSplit(idx)} title="Split into sub-cards (every 20 lines)"
-                    className={`p-1.5 rounded-md hover:bg-muted transition-colors ${splitView[`${activeId}:${idx}`] ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground"}`}>
-                    <Scissors size={14} />
-                  </button>
-                  <button onClick={() => handleUndo(idx)} title="Undo" className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
-                    <RotateCcw size={14} />
-                  </button>
-                  <button onClick={() => handleClear(idx)} title="Clear" className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-destructive transition-colors">
-                    <X size={14} />
-                  </button>
+                  <div className="relative" data-card-menu>
+                    <button
+                      onClick={() => {
+                        const key = `${activeId}:${idx}`;
+                        setOpenMenu((cur) => (cur === key ? null : key));
+                      }}
+                      title="More actions"
+                      className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      <MoreVertical size={14} />
+                    </button>
+                    {openMenu === `${activeId}:${idx}` && (
+                      <div className="absolute right-0 top-full mt-1 z-30 min-w-[160px] rounded-md border border-border bg-popover shadow-md py-1">
+                        <button
+                          onClick={() => { handleCopy(idx); setOpenMenu(null); }}
+                          className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-foreground hover:bg-muted transition-colors"
+                        >
+                          <Copy size={14} /> Copy all text
+                        </button>
+                        <button
+                          onClick={() => { handleSplit(idx); setOpenMenu(null); }}
+                          className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm transition-colors hover:bg-muted ${splitView[`${activeId}:${idx}`] ? "text-primary" : "text-foreground"}`}
+                        >
+                          <Scissors size={14} /> Split into sub-cards
+                        </button>
+                        <button
+                          onClick={() => { handleUndo(idx); setOpenMenu(null); }}
+                          className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-foreground hover:bg-muted transition-colors"
+                        >
+                          <RotateCcw size={14} /> Undo
+                        </button>
+                        <button
+                          onClick={() => { handleClear(idx); setOpenMenu(null); }}
+                          className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-destructive hover:bg-muted transition-colors"
+                        >
+                          <X size={14} /> Clear
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             );

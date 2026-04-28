@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { type Subtitle, formatSrt } from "@/lib/srt";
 import SrtEditorTab from "@/tabs/SrtEditorTab";
 import SrtMakerTab from "@/tabs/SrtMakerTab";
@@ -128,7 +128,8 @@ export default function App() {
   const [noteIncomingName, setNoteIncomingName] = useState("");
   const [noteIncomingKey, setNoteIncomingKey] = useState(0);
   const [cuttingIncomingAudio, setCuttingIncomingAudio] = useState<{ files: File[]; key: number }>({ files: [], key: 0 });
-  const [spliterIncomingAudio, setSpliterIncomingAudio] = useState<{ files: File[]; key: number }>({ files: [], key: 0 });
+  const [spliterIncomingAudio, setSpliterIncomingAudio] = useState<{ files: File[]; key: number; autoSplit?: boolean }>({ files: [], key: 0 });
+  const autoRunRef = useRef(false);
   const [cuttingPlusIncomingVideos, setCuttingPlusIncomingVideos] = useState<{ files: File[]; key: number; autoLoad?: boolean; extras?: number[] }>({ files: [], key: 0 });
   const [speedIncomingVideos, setSpeedIncomingVideos] = useState<{ files: File[]; key: number }>({ files: [], key: 0 });
   const [speedIncomingAudio, setSpeedIncomingAudio] = useState<{ files: File[]; key: number }>({ files: [], key: 0 });
@@ -171,6 +172,20 @@ export default function App() {
       setSplitterIncomingKey((k) => k + 1);
     }
   }, [subtitles]);
+
+  useEffect(() => {
+    const onPoolLoaded = (e: Event) => {
+      if (!autoRunRef.current) return;
+      const detail = (e as CustomEvent<{ done: number; total: number }>).detail;
+      if (!detail || detail.done === 0) {
+        autoRunRef.current = false;
+        return;
+      }
+      window.dispatchEvent(new CustomEvent("srt-tools:aiaudio-load-spliter"));
+    };
+    window.addEventListener("srt-tools:aiaudio-pool-loaded", onPoolLoaded);
+    return () => window.removeEventListener("srt-tools:aiaudio-pool-loaded", onPoolLoaded);
+  }, []);
 
   const handleSelectTab = (id: Tab) => {
     setActiveTab(id);
@@ -261,6 +276,21 @@ export default function App() {
           incomingText={noteIncomingText}
           incomingName={noteIncomingName}
           incomingKey={noteIncomingKey}
+          onRunToAiAudio={(lines, label) => {
+            autoRunRef.current = true;
+            window.dispatchEvent(
+              new CustomEvent("srt-tools:aiaudio-set-content", {
+                detail: { lines, label },
+              }),
+            );
+            handleSelectTab("aiAudio");
+            window.setTimeout(() => {
+              window.dispatchEvent(new CustomEvent("srt-tools:aiaudio-cut"));
+              window.setTimeout(() => {
+                window.dispatchEvent(new CustomEvent("srt-tools:aiaudio-load-pool"));
+              }, 250);
+            }, 250);
+          }}
         />
       </div>
 
@@ -298,7 +328,9 @@ export default function App() {
       <div style={{ display: activeTab === "aiAudio" ? "flex" : "none" }} className="flex-col flex-1 overflow-y-auto">
         <AiAudioTab
           onSendToSpliter={(files) => {
-            setSpliterIncomingAudio({ files, key: Date.now() });
+            const autoSplit = autoRunRef.current;
+            autoRunRef.current = false;
+            setSpliterIncomingAudio({ files, key: Date.now(), autoSplit });
             handleSelectTab("audio");
           }}
         />
@@ -311,10 +343,6 @@ export default function App() {
           onSendToCutting={(files) => {
             setCuttingIncomingAudio({ files, key: Date.now() });
             handleSelectTab("cutting");
-          }}
-          onSendToSpeed={(files) => {
-            setSpeedIncomingAudio({ files, key: Date.now() });
-            handleSelectTab("speed");
           }}
         />
       </div>

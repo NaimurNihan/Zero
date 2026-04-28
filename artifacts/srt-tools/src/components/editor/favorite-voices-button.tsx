@@ -9,6 +9,8 @@ import type { EdgeVoice } from "./voice-picker";
 type FavoriteVoicesButtonProps = {
   selectedVoice: string | null;
   onSelect: (voice: string | null) => void;
+  className?: string;
+  iconClassName?: string;
 };
 
 const localeDisplay = (() => {
@@ -53,7 +55,7 @@ function getVoiceShortName(v: EdgeVoice): string {
   return last.replace(/Neural$/, "").replace(/Multilingual$/, " (Multi)");
 }
 
-export function FavoriteVoicesButton({ selectedVoice, onSelect }: FavoriteVoicesButtonProps) {
+export function FavoriteVoicesButton({ selectedVoice, onSelect, className, iconClassName }: FavoriteVoicesButtonProps) {
   const [voices, setVoices] = useState<EdgeVoice[] | null>(null);
   const [open, setOpen] = useState(false);
   const { favorites, removeFavorite } = useFavoriteVoices();
@@ -87,14 +89,14 @@ export function FavoriteVoicesButton({ selectedVoice, onSelect }: FavoriteVoices
         <Button
           variant="outline"
           size="icon"
-          className="h-9 w-9 relative"
+          className={className ?? "h-9 w-9 relative"}
           title="Favorite voices"
           aria-label="Favorite voices"
           data-testid="button-favorite-voices"
         >
           <Star
             strokeWidth={count > 0 ? 1.5 : 2}
-            className={`h-4 w-4 ${count > 0 ? "fill-amber-400 text-amber-500" : "text-muted-foreground"}`}
+            className={`${iconClassName ?? "h-4 w-4"} ${count > 0 ? "fill-amber-400 text-amber-500" : "text-muted-foreground"}`}
           />
         </Button>
       </PopoverTrigger>

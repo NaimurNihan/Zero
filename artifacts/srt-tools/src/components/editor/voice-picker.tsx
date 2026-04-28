@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronDown, Search, Mic, Check, Sparkles, Loader2, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -19,6 +19,7 @@ export type EdgeVoice = {
 type VoicePickerProps = {
   selectedVoice: string | null;
   onSelect: (voice: string | null) => void;
+  trigger?: React.ReactNode;
 };
 
 const localeDisplay = (() => {
@@ -67,7 +68,7 @@ function getVoiceShortName(voice: EdgeVoice): string {
   return last.replace(/Neural$/, "").replace(/Multilingual$/, " (Multi)");
 }
 
-export function VoicePicker({ selectedVoice, onSelect }: VoicePickerProps) {
+export function VoicePicker({ selectedVoice, onSelect, trigger }: VoicePickerProps) {
   const [voices, setVoices] = useState<EdgeVoice[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -183,16 +184,18 @@ export function VoicePicker({ selectedVoice, onSelect }: VoicePickerProps) {
   return (
     <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-9 gap-2 max-w-[260px] truncate"
-          data-testid="button-voice-picker"
-        >
-          <Mic className="h-3.5 w-3.5 shrink-0 text-primary" />
-          <span className="truncate text-xs font-medium">{triggerLabel}</span>
-          <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-60" />
-        </Button>
+        {trigger ?? (
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-9 gap-2 max-w-[260px] truncate"
+            data-testid="button-voice-picker"
+          >
+            <Mic className="h-3.5 w-3.5 shrink-0 text-primary" />
+            <span className="truncate text-xs font-medium">{triggerLabel}</span>
+            <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-60" />
+          </Button>
+        )}
       </PopoverTrigger>
       <PopoverContent
         className="w-[340px] p-0 overflow-hidden"

@@ -1,11 +1,30 @@
-import React, { useState, useRef, useEffect, KeyboardEvent } from "react";
-import { Copy, Scissors, Undo, Play, Square, Loader2, Download, ListMusic, RotateCcw, CloudDownload, Music, X, FolderInput } from "lucide-react";
+import React, { useState, useRef, useEffect, KeyboardEvent, useMemo } from "react";
+import { Copy, Scissors, Undo, Play, Square, Loader2, Download, ListMusic, RotateCcw, CloudDownload, Music, X, FolderInput, Lock, Unlock, Star, Mic, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { VoicePicker } from "./voice-picker";
+import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { VoicePicker, EdgeVoice } from "./voice-picker";
 import { FavoriteVoicesButton } from "./favorite-voices-button";
+import { useVoices, getVoiceShortDisplay } from "@/hooks/use-voices";
 
 const VOICE_STORAGE_KEY = "tts-selected-voice";
+const VOICE_BY_LABEL_STORAGE_KEY = "tts-voice-by-label";
+const LOCKED_LABELS_STORAGE_KEY = "tts-locked-labels";
+const VOICE_SLOTS_STORAGE_KEY = "tts-voice-slot-labels";
+const SLOT_COUNT = 5;
+
+function findVoiceForLabel(label: string, map: Record<string, string>): string | null {
+  if (!label) return null;
+  const direct = map[label];
+  if (direct) return direct;
+  const target = label.trim().toLowerCase();
+  if (!target) return null;
+  for (const [k, v] of Object.entries(map)) {
+    if (k.trim().toLowerCase() === target) return v;
+  }
+  return null;
+}
 
 function escapeHtml(text: string) {
   return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -229,23 +248,19 @@ function AudioPool({ lines, selectedVoice, onSendToSpliter }: AudioPoolProps) {
       setLoadProgress({ done: 0, total: 0 });
       return;
     }
-    const validEntries = lines
-      .map((l, i) => ({ text: l, i }))
-      .filter((x) => x.text.trim() && !poolAudioRef.current[x.i]);
+    const validEntries = lines.map((l, i) => ({ text: l, i })).filter((x) => x.text.trim());
     if (validEntries.length === 0) { toast.error("No lines"); return; }
     loadPoolRef.current = true;
     setIsLoadingPool(true);
     setLoadProgress({ done: 0, total: validEntries.length });
-
-    const CONCURRENCY = 6;
     let done = 0;
+    const CONCURRENCY = 4;
     let cursor = 0;
-
     const worker = async () => {
       while (loadPoolRef.current) {
-        const myIdx = cursor++;
-        if (myIdx >= validEntries.length) break;
-        const entry = validEntries[myIdx];
+        const idx = cursor++;
+        if (idx >= validEntries.length) break;
+        const entry = validEntries[idx];
         try {
           await fetchAudio(entry.i, entry.text);
           done++;
@@ -256,17 +271,18 @@ function AudioPool({ lines, selectedVoice, onSendToSpliter }: AudioPoolProps) {
         }
       }
     };
-
-    const workers = Array.from(
-      { length: Math.min(CONCURRENCY, validEntries.length) },
-      () => worker()
+    await Promise.all(
+      Array.from({ length: Math.min(CONCURRENCY, validEntries.length) }, () => worker())
     );
-    await Promise.all(workers);
-
     loadPoolRef.current = false;
     setIsLoadingPool(false);
     if (done === validEntries.length) toast.success(`All ${done} saved to audio pool!`);
     else toast.success(`${done} saved to audio pool`);
+    window.dispatchEvent(
+      new CustomEvent("srt-tools:aiaudio-pool-loaded", {
+        detail: { done, total: validEntries.length },
+      })
+    );
   };
 
   const playSingle = async (index: number) => {
@@ -386,6 +402,21 @@ function AudioPool({ lines, selectedVoice, onSendToSpliter }: AudioPoolProps) {
       toast.error("Failed to send audio to Spliter");
     }
   };
+
+  const loadPoolFnRef = useRef(loadPool);
+  loadPoolFnRef.current = loadPool;
+  const loadSpliterFnRef = useRef(loadSpliter);
+  loadSpliterFnRef.current = loadSpliter;
+  useEffect(() => {
+    const onLoad = () => { loadPoolFnRef.current(); };
+    const onLoadSpliter = () => { loadSpliterFnRef.current(); };
+    window.addEventListener("srt-tools:aiaudio-load-pool", onLoad);
+    window.addEventListener("srt-tools:aiaudio-load-spliter", onLoadSpliter);
+    return () => {
+      window.removeEventListener("srt-tools:aiaudio-load-pool", onLoad);
+      window.removeEventListener("srt-tools:aiaudio-load-spliter", onLoadSpliter);
+    };
+  }, []);
 
   const total = validLines.length;
   const cached = Object.keys(poolAudio).length;
@@ -537,6 +568,159 @@ function AudioPool({ lines, selectedVoice, onSendToSpliter }: AudioPoolProps) {
   );
 }
 
+interface VoiceSlotPillProps {
+  index: number;
+  label: string;
+  voice: string | null;
+  locked: boolean;
+  isActive: boolean;
+  allVoices: EdgeVoice[] | null;
+  onLabelChange: (s: string) => void;
+  onVoiceChange: (v: string | null) => void;
+  onToggleLock: () => void;
+  onClear: () => void;
+}
+
+function VoiceSlotPill({
+  index,
+  label,
+  voice,
+  locked,
+  isActive,
+  allVoices,
+  onLabelChange,
+  onVoiceChange,
+  onToggleLock,
+  onClear,
+}: VoiceSlotPillProps) {
+  const [open, setOpen] = useState(false);
+  const [localLabel, setLocalLabel] = useState(label);
+
+  useEffect(() => {
+    setLocalLabel(label);
+  }, [label]);
+
+  const voiceShort = useMemo(() => {
+    if (!voice) return null;
+    if (!allVoices) return voice;
+    const v = allVoices.find((x) => x.ShortName === voice);
+    return v ? getVoiceShortDisplay(v) : voice;
+  }, [voice, allVoices]);
+
+  const trimmed = label.trim();
+  const displayLabel = trimmed || `Slot ${index + 1}`;
+  const hasContent = !!trimmed || !!voice;
+
+  const commitLabel = () => {
+    const next = localLabel.trim();
+    if (next !== label.trim()) {
+      onLabelChange(next);
+    }
+  };
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          title={
+            hasContent
+              ? `${displayLabel}${voiceShort ? ` · ${voiceShort}` : " · no voice"}${locked ? " (locked)" : ""}`
+              : `Configure slot ${index + 1}`
+          }
+          className={`group relative inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider px-2 py-1 rounded-md border transition-colors min-w-[88px] max-w-[170px] ${
+            isActive
+              ? "bg-emerald-100 border-emerald-500 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400 shadow-sm"
+              : voice && trimmed
+              ? "bg-emerald-50/70 border-emerald-300/70 text-emerald-700/90 dark:bg-emerald-950/40 dark:text-emerald-400/80 hover:brightness-110"
+              : trimmed
+              ? "bg-muted border-border text-muted-foreground hover:bg-accent"
+              : "bg-muted/30 border-dashed border-border text-muted-foreground/70 hover:bg-muted"
+          }`}
+          data-testid={`button-voice-slot-${index}`}
+        >
+          {locked && <Lock className="h-2.5 w-2.5 shrink-0" />}
+          {isActive && <Star className="h-2.5 w-2.5 fill-current shrink-0" />}
+          <span className="truncate">{displayLabel}</span>
+          {voiceShort && (
+            <>
+              <span className="opacity-50">·</span>
+              <span className="normal-case tracking-normal font-medium truncate">
+                {voiceShort}
+              </span>
+            </>
+          )}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-72 p-3" align="start">
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">
+              Slot {index + 1} name
+            </label>
+            <Input
+              value={localLabel}
+              onChange={(e) => setLocalLabel(e.target.value)}
+              onBlur={commitLabel}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  commitLabel();
+                  (e.target as HTMLInputElement).blur();
+                }
+              }}
+              placeholder="e.g. ARABIC, ENGLISH..."
+              className="h-8 text-xs"
+              data-testid={`input-voice-slot-label-${index}`}
+            />
+            <p className="text-[10px] text-muted-foreground">
+              Match a card's name. The matching slot's voice is used automatically.
+            </p>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">
+              Voice
+            </label>
+            <VoicePicker
+              selectedVoice={voice}
+              onSelect={(v) => onVoiceChange(v)}
+            />
+          </div>
+          <div className="flex items-center justify-between gap-2 pt-2 border-t border-border">
+            <button
+              type="button"
+              onClick={onToggleLock}
+              disabled={!trimmed}
+              className={`inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded-md border transition-colors ${
+                locked
+                  ? "bg-emerald-500/10 border-emerald-500/40 text-emerald-600 dark:text-emerald-400"
+                  : "bg-transparent border-border text-muted-foreground hover:bg-accent"
+              } disabled:opacity-40 disabled:cursor-not-allowed`}
+              data-testid={`button-voice-slot-lock-${index}`}
+            >
+              {locked ? <Lock className="h-3 w-3" /> : <Unlock className="h-3 w-3" />}
+              {locked ? "Locked" : "Lock"}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                onClear();
+                setLocalLabel("");
+                setOpen(false);
+              }}
+              disabled={!hasContent}
+              className="text-[11px] text-muted-foreground hover:text-red-600 px-2 py-1 rounded-md hover:bg-red-50 dark:hover:bg-red-950/40 disabled:opacity-40 disabled:cursor-not-allowed"
+              data-testid={`button-voice-slot-clear-${index}`}
+            >
+              Clear
+            </button>
+          </div>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 interface EditorProps {
   onSendToSpliter?: (files: File[]) => void;
 }
@@ -546,6 +730,7 @@ export function Editor({ onSendToSpliter }: EditorProps = {}) {
   const [history, setHistory] = useState<string[][]>([[""]]);
   const [historyIndex, setHistoryIndex] = useState(0);
   const [isCutView, setIsCutView] = useState(false);
+  const [cardLabel, setCardLabel] = useState<string>("Original");
   const [playingIndex, setPlayingIndex] = useState<number | null>(null);
   const [loadingIndex, setLoadingIndex] = useState<number | null>(null);
   const [downloadingIndex, setDownloadingIndex] = useState<number | null>(null);
@@ -554,6 +739,62 @@ export function Editor({ onSendToSpliter }: EditorProps = {}) {
     const stored = localStorage.getItem(VOICE_STORAGE_KEY);
     return stored && stored !== "null" ? stored : null;
   });
+  const [voiceByLabel, setVoiceByLabel] = useState<Record<string, string>>(() => {
+    if (typeof window === "undefined") return {};
+    try {
+      const stored = localStorage.getItem(VOICE_BY_LABEL_STORAGE_KEY);
+      if (!stored) return {};
+      const parsed = JSON.parse(stored);
+      if (parsed && typeof parsed === "object") {
+        const out: Record<string, string> = {};
+        for (const [k, v] of Object.entries(parsed)) {
+          if (typeof v === "string" && v) out[k] = v;
+        }
+        return out;
+      }
+      return {};
+    } catch {
+      return {};
+    }
+  });
+  const [lockedLabels, setLockedLabels] = useState<Record<string, boolean>>(() => {
+    if (typeof window === "undefined") return {};
+    try {
+      const stored = localStorage.getItem(LOCKED_LABELS_STORAGE_KEY);
+      if (!stored) return {};
+      const parsed = JSON.parse(stored);
+      if (parsed && typeof parsed === "object") {
+        const out: Record<string, boolean> = {};
+        for (const [k, v] of Object.entries(parsed)) {
+          if (v === true) out[k] = true;
+        }
+        return out;
+      }
+      return {};
+    } catch {
+      return {};
+    }
+  });
+  const [voiceSlotLabels, setVoiceSlotLabels] = useState<string[]>(() => {
+    const empty = Array.from({ length: SLOT_COUNT }, () => "");
+    if (typeof window === "undefined") return empty;
+    try {
+      const stored = localStorage.getItem(VOICE_SLOTS_STORAGE_KEY);
+      if (!stored) return empty;
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed)) {
+        const out = parsed
+          .slice(0, SLOT_COUNT)
+          .map((x) => (typeof x === "string" ? x : ""));
+        while (out.length < SLOT_COUNT) out.push("");
+        return out;
+      }
+      return empty;
+    } catch {
+      return empty;
+    }
+  });
+  const allVoices = useVoices();
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioUrlRef = useRef<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -566,6 +807,149 @@ export function Editor({ onSendToSpliter }: EditorProps = {}) {
       localStorage.removeItem(VOICE_STORAGE_KEY);
     }
   }, [selectedVoice]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      localStorage.setItem(VOICE_BY_LABEL_STORAGE_KEY, JSON.stringify(voiceByLabel));
+    } catch {
+      // ignore quota errors
+    }
+  }, [voiceByLabel]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      localStorage.setItem(LOCKED_LABELS_STORAGE_KEY, JSON.stringify(lockedLabels));
+    } catch {
+      // ignore quota errors
+    }
+  }, [lockedLabels]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      localStorage.setItem(VOICE_SLOTS_STORAGE_KEY, JSON.stringify(voiceSlotLabels));
+    } catch {
+      // ignore quota errors
+    }
+  }, [voiceSlotLabels]);
+
+  const updateSlotLabel = React.useCallback(
+    (index: number, newLabel: string) => {
+      setVoiceSlotLabels((prev) => {
+        const oldLabel = (prev[index] ?? "").trim();
+        const next = [...prev];
+        next[index] = newLabel;
+        if (oldLabel && oldLabel !== newLabel.trim()) {
+          // Migrate the saved voice / lock from the old label to the new one
+          setVoiceByLabel((prevMap) => {
+            const nextMap = { ...prevMap };
+            const savedVoice = nextMap[oldLabel];
+            if (savedVoice) {
+              delete nextMap[oldLabel];
+              if (newLabel.trim()) nextMap[newLabel.trim()] = savedVoice;
+            }
+            return nextMap;
+          });
+          setLockedLabels((prevLocked) => {
+            const nextLocked = { ...prevLocked };
+            const wasLocked = nextLocked[oldLabel];
+            if (wasLocked !== undefined) {
+              delete nextLocked[oldLabel];
+              if (newLabel.trim()) nextLocked[newLabel.trim()] = wasLocked;
+            }
+            return nextLocked;
+          });
+        }
+        return next;
+      });
+    },
+    [],
+  );
+
+  const setSlotVoice = React.useCallback(
+    (index: number, voice: string | null) => {
+      const label = (voiceSlotLabels[index] ?? "").trim();
+      if (!label) {
+        toast.error("Set a name for this slot first");
+        return;
+      }
+      setVoiceByLabel((prev) => {
+        const next = { ...prev };
+        if (voice) next[label] = voice;
+        else delete next[label];
+        return next;
+      });
+      if (label.toLowerCase() === cardLabel.trim().toLowerCase()) {
+        setSelectedVoice(voice);
+      }
+    },
+    [voiceSlotLabels, cardLabel],
+  );
+
+  const toggleSlotLock = React.useCallback(
+    (index: number) => {
+      const label = (voiceSlotLabels[index] ?? "").trim();
+      if (!label) return;
+      setLockedLabels((prev) => {
+        const next = { ...prev };
+        if (next[label]) {
+          delete next[label];
+          toast.success(`Unlocked voice for ${label}`);
+        } else {
+          next[label] = true;
+          toast.success(`Locked voice for ${label}`);
+        }
+        return next;
+      });
+    },
+    [voiceSlotLabels],
+  );
+
+  const clearSlot = React.useCallback(
+    (index: number) => {
+      const label = (voiceSlotLabels[index] ?? "").trim();
+      setVoiceSlotLabels((prev) => {
+        const next = [...prev];
+        next[index] = "";
+        return next;
+      });
+      if (label) {
+        setVoiceByLabel((prev) => {
+          const next = { ...prev };
+          delete next[label];
+          return next;
+        });
+        setLockedLabels((prev) => {
+          const next = { ...prev };
+          delete next[label];
+          return next;
+        });
+      }
+    },
+    [voiceSlotLabels],
+  );
+
+  const handleVoiceSelect = React.useCallback(
+    (voice: string | null) => {
+      setSelectedVoice(voice);
+      if (lockedLabels[cardLabel]) {
+        // Locked: keep the saved binding for this label untouched.
+        return;
+      }
+      setVoiceByLabel((prev) => {
+        const next = { ...prev };
+        if (voice) {
+          next[cardLabel] = voice;
+        } else {
+          delete next[cardLabel];
+        }
+        return next;
+      });
+    },
+    [cardLabel, lockedLabels],
+  );
 
   const stopPlayback = React.useCallback(() => {
     if (audioRef.current) {
@@ -585,6 +969,38 @@ export function Editor({ onSendToSpliter }: EditorProps = {}) {
 
   useEffect(() => {
     return () => { stopPlayback(); };
+  }, [stopPlayback]);
+
+  useEffect(() => {
+    const onSetContent = (e: Event) => {
+      const detail = (e as CustomEvent<{ lines: string[]; label?: string }>).detail;
+      if (!detail || !Array.isArray(detail.lines)) return;
+      const lines = detail.lines.length > 0 ? detail.lines : [""];
+      setContent(lines);
+      setHistory([lines]);
+      setHistoryIndex(0);
+      if (typeof detail.label === "string" && detail.label.trim()) {
+        const label = detail.label;
+        setCardLabel(label);
+        setVoiceByLabel((prevMap) => {
+          const saved = findVoiceForLabel(label, prevMap);
+          if (saved) {
+            setSelectedVoice(saved);
+          }
+          return prevMap;
+        });
+      }
+    };
+    const onCut = () => {
+      stopPlayback();
+      setIsCutView(true);
+    };
+    window.addEventListener("srt-tools:aiaudio-set-content", onSetContent);
+    window.addEventListener("srt-tools:aiaudio-cut", onCut);
+    return () => {
+      window.removeEventListener("srt-tools:aiaudio-set-content", onSetContent);
+      window.removeEventListener("srt-tools:aiaudio-cut", onCut);
+    };
   }, [stopPlayback]);
 
   const downloadLine = async (index: number, text: string) => {
@@ -786,6 +1202,7 @@ export function Editor({ onSendToSpliter }: EditorProps = {}) {
     setHistory([[""]]);
     setHistoryIndex(0);
     setIsCutView(false);
+    setCardLabel("Original");
     toast.success("All cancelled");
   };
 
@@ -794,12 +1211,66 @@ export function Editor({ onSendToSpliter }: EditorProps = {}) {
 
   return (
     <div className="flex flex-col h-full max-w-4xl mx-auto w-full p-6 gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      {/* Top card with Favorites and Language Search */}
-      <div className="bg-card border border-border rounded-xl shadow-sm px-4 py-2.5 flex items-center justify-between gap-2">
-        <span className="text-sm font-semibold text-foreground tracking-wide">AI Voice</span>
+      {/* Top card: AI Voice slots + voice picker */}
+      <div className="bg-card border border-border rounded-xl shadow-sm px-4 py-2.5 flex flex-col gap-2">
+        {/* Row 1: AI Voice label */}
         <div className="flex items-center gap-2">
-          <VoicePicker selectedVoice={selectedVoice} onSelect={setSelectedVoice} />
-          <FavoriteVoicesButton selectedVoice={selectedVoice} onSelect={setSelectedVoice} />
+          <span className="text-sm font-semibold text-foreground tracking-wide shrink-0">AI Voice</span>
+        </div>
+        {/* Row 2: Slot pills + compact voice picker + compact favorites */}
+        <div className="flex items-center gap-2 flex-wrap min-w-0">
+          {voiceSlotLabels.map((slotLabel, i) => {
+            const trimmed = slotLabel.trim();
+            const slotVoice = trimmed ? findVoiceForLabel(trimmed, voiceByLabel) : null;
+            const isLocked = trimmed
+              ? !!(lockedLabels[trimmed] ||
+                  Object.keys(lockedLabels).some(
+                    (k) => k.trim().toLowerCase() === trimmed.toLowerCase() && lockedLabels[k],
+                  ))
+              : false;
+            const isActive =
+              !!trimmed &&
+              trimmed.toLowerCase() === cardLabel.trim().toLowerCase();
+            return (
+              <VoiceSlotPill
+                key={i}
+                index={i}
+                label={slotLabel}
+                voice={slotVoice}
+                locked={isLocked}
+                isActive={isActive}
+                allVoices={allVoices}
+                onLabelChange={(s) => updateSlotLabel(i, s)}
+                onVoiceChange={(v) => setSlotVoice(i, v)}
+                onToggleLock={() => toggleSlotLock(i)}
+                onClear={() => clearSlot(i)}
+              />
+            );
+          })}
+          <VoicePicker
+            selectedVoice={selectedVoice}
+            onSelect={handleVoiceSelect}
+            trigger={
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 gap-1 px-2 max-w-[200px] truncate text-[10px] font-semibold uppercase tracking-wider rounded-md"
+                data-testid="button-voice-picker"
+              >
+                <Mic className="h-3 w-3 shrink-0 text-primary" />
+                <span className="truncate normal-case tracking-normal font-medium text-[11px]">
+                  {selectedVoice ? selectedVoice.split("-").slice(-1)[0].replace(/Neural$/, "") : "Auto"}
+                </span>
+                <ChevronDown className="h-3 w-3 shrink-0 opacity-60" />
+              </Button>
+            }
+          />
+          <FavoriteVoicesButton
+            selectedVoice={selectedVoice}
+            onSelect={handleVoiceSelect}
+            className="h-7 w-7 relative rounded-md"
+            iconClassName="h-3.5 w-3.5"
+          />
         </div>
       </div>
 
@@ -807,7 +1278,7 @@ export function Editor({ onSendToSpliter }: EditorProps = {}) {
       <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden flex-1 flex flex-col min-h-0">
         <div className="shrink-0 flex items-center justify-between px-4 py-3 border-b border-border bg-card rounded-t-xl">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-foreground uppercase tracking-wider">Original</span>
+            <span className="text-xs font-semibold text-foreground uppercase tracking-wider">{cardLabel}</span>
             <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">
               {totalLines} {totalLines === 1 ? "line" : "lines"}
             </span>

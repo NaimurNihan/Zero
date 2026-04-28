@@ -3,25 +3,27 @@ import { useAudioAnalysis } from "@/hooks/useAudioAnalysis";
 import UploadBox from "@/tabs/trimmer/UploadBox";
 import AudioCard from "@/tabs/trimmer/AudioCard";
 import DownloadPanel from "@/tabs/trimmer/DownloadPanel";
-import { Scissors, Trash2, FolderInput, Download, Zap } from "lucide-react";
+import { Scissors, Trash2, FolderInput, Download, Check } from "lucide-react";
 import JSZip from "jszip";
 
 type SplitStage = "idle" | "preview" | "trimming" | "done";
 
 interface VoiceTrimmerTabProps {
   onSendToCutting?: (files: File[]) => void;
-  onSendToSpeed?: (files: File[]) => void;
-  incomingAudioFiles?: { files: File[]; key: number };
+  incomingAudioFiles?: { files: File[]; key: number; autoSplit?: boolean };
 }
 
-export default function VoiceTrimmerTab({ onSendToCutting, onSendToSpeed, incomingAudioFiles }: VoiceTrimmerTabProps = {}) {
+export default function VoiceTrimmerTab({ onSendToCutting, incomingAudioFiles }: VoiceTrimmerTabProps = {}) {
   const { audioFiles, addFiles, removeFile, trimAllFiles, resetTrim } = useAudioAnalysis();
   const [splitStage, setSplitStage] = useState<SplitStage>("idle");
   const [loaded, setLoaded] = useState(false);
-  const [loadedSpeed, setLoadedSpeed] = useState(false);
+  const [zipDownloaded, setZipDownloaded] = useState(false);
+  const [zipAnimating, setZipAnimating] = useState(false);
   const lastIncomingKeyRef = useRef<number | null>(null);
   const audioFilesRef = useRef(audioFiles);
   audioFilesRef.current = audioFiles;
+  const autoSplitPendingRef = useRef<{ key: number; expected: number } | null>(null);
+  const autoSplitConfirmTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!incomingAudioFiles || incomingAudioFiles.files.length === 0) return;
@@ -30,10 +32,39 @@ export default function VoiceTrimmerTab({ onSendToCutting, onSendToSpeed, incomi
     resetTrim();
     setSplitStage("idle");
     setLoaded(false);
-    setLoadedSpeed(false);
     audioFilesRef.current.forEach((f) => removeFile(f.id));
     addFiles(incomingAudioFiles.files);
+    if (incomingAudioFiles.autoSplit) {
+      autoSplitPendingRef.current = {
+        key: incomingAudioFiles.key,
+        expected: incomingAudioFiles.files.length,
+      };
+    }
   }, [incomingAudioFiles, addFiles, removeFile, resetTrim]);
+
+  useEffect(() => {
+    const pending = autoSplitPendingRef.current;
+    if (!pending) return;
+    if (splitStage !== "idle") return;
+    const readyNow = audioFiles.filter((f) => f.status === "ready" && !f.isTrimmed).length;
+    if (readyNow < pending.expected) return;
+    autoSplitPendingRef.current = null;
+    setSplitStage("preview");
+    autoSplitConfirmTimerRef.current = window.setTimeout(async () => {
+      autoSplitConfirmTimerRef.current = null;
+      setSplitStage("trimming");
+      await trimAllFiles();
+      setSplitStage("done");
+    }, 5000);
+  }, [audioFiles, splitStage, trimAllFiles]);
+
+  useEffect(() => {
+    return () => {
+      if (autoSplitConfirmTimerRef.current !== null) {
+        window.clearTimeout(autoSplitConfirmTimerRef.current);
+      }
+    };
+  }, []);
 
   const readyCount = audioFiles.filter((f) => f.status === "ready" && !f.isTrimmed).length;
   const trimmedCount = audioFiles.filter((f) => f.isTrimmed).length;
@@ -52,12 +83,15 @@ export default function VoiceTrimmerTab({ onSendToCutting, onSendToSpeed, incomi
     resetTrim();
     setSplitStage("idle");
     setLoaded(false);
+    setZipDownloaded(false);
+    setZipAnimating(false);
     audioFiles.forEach((f) => removeFile(f.id));
   };
 
   const handleDownloadZip = async () => {
     const trimmed = audioFiles.filter((f) => f.isTrimmed && f.trimmedBlob);
     if (trimmed.length === 0) return;
+    setZipAnimating(true);
     const zip = new JSZip();
     for (const f of trimmed) {
       const baseName = f.name.replace(/\.[^.]+$/, "") + "_trimmed.wav";
@@ -72,30 +106,20 @@ export default function VoiceTrimmerTab({ onSendToCutting, onSendToSpeed, incomi
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
-  };
-
-  const buildTrimmedFiles = (): File[] => {
-    const trimmed = audioFiles.filter((f) => f.isTrimmed && f.trimmedBlob);
-    return trimmed.map((f) => {
-      const baseName = f.name.replace(/\.[^.]+$/, "") + "_trimmed.wav";
-      return new File([f.trimmedBlob as Blob], baseName, { type: "audio/wav" });
-    });
+    setZipDownloaded(true);
+    window.setTimeout(() => setZipAnimating(false), 700);
   };
 
   const handleLoadToCutting = () => {
     if (!onSendToCutting) return;
-    const files = buildTrimmedFiles();
-    if (files.length === 0) return;
+    const trimmed = audioFiles.filter((f) => f.isTrimmed && f.trimmedBlob);
+    if (trimmed.length === 0) return;
+    const files: File[] = trimmed.map((f) => {
+      const baseName = f.name.replace(/\.[^.]+$/, "") + "_trimmed.wav";
+      return new File([f.trimmedBlob as Blob], baseName, { type: "audio/wav" });
+    });
     onSendToCutting(files);
     setLoaded(true);
-  };
-
-  const handleLoadToSpeed = () => {
-    if (!onSendToSpeed) return;
-    const files = buildTrimmedFiles();
-    if (files.length === 0) return;
-    onSendToSpeed(files);
-    setLoadedSpeed(true);
   };
 
   const splitLabel =
@@ -136,15 +160,41 @@ export default function VoiceTrimmerTab({ onSendToCutting, onSendToSpeed, incomi
           {splitStage === "done" && trimmedCount > 0 && (
             <button
               onClick={handleDownloadZip}
-              title={`Download all ${trimmedCount} trimmed audios as ZIP`}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white transition-all"
+              title={
+                zipDownloaded
+                  ? "ZIP downloaded — click to download again"
+                  : `Download all ${trimmedCount} trimmed audios as ZIP`
+              }
+              className="zip-btn flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white"
               style={{
-                background: "linear-gradient(90deg, hsl(265,85%,58%), hsl(295,85%,55%))",
-                boxShadow: "0 1px 4px rgba(168,85,247,0.30)",
+                background: zipDownloaded
+                  ? "linear-gradient(90deg, hsl(142,72%,42%), hsl(155,75%,40%))"
+                  : "linear-gradient(90deg, hsl(265,85%,58%), hsl(295,85%,55%))",
+                boxShadow: zipDownloaded
+                  ? "0 2px 10px rgba(34,197,94,0.45)"
+                  : "0 1px 4px rgba(168,85,247,0.30)",
+                transform: zipAnimating ? "scale(0.92)" : "scale(1)",
+                transition:
+                  "transform 0.18s cubic-bezier(0.34,1.56,0.64,1), background 0.35s ease, box-shadow 0.35s ease",
+                animation: zipAnimating ? "zipPulse 0.7s ease" : undefined,
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = zipAnimating
+                  ? "scale(0.92)"
+                  : "scale(1.06)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = zipAnimating
+                  ? "scale(0.92)"
+                  : "scale(1)";
               }}
             >
-              <Download className="w-3 h-3" />
-              ZIP
+              {zipDownloaded ? (
+                <Check className="w-3 h-3" />
+              ) : (
+                <Download className="w-3 h-3" />
+              )}
+              {zipDownloaded ? "ZIP ✓" : "ZIP"}
             </button>
           )}
           {splitStage === "done" && trimmedCount > 0 && onSendToCutting && (
@@ -171,34 +221,7 @@ export default function VoiceTrimmerTab({ onSendToCutting, onSendToSpeed, incomi
               }}
             >
               <FolderInput className="w-3 h-3" />
-              {loaded ? "Loaded ✓" : "Cutting++"}
-            </button>
-          )}
-          {splitStage === "done" && trimmedCount > 0 && onSendToSpeed && (
-            <button
-              onClick={handleLoadToSpeed}
-              title="Send all trimmed audios to Speed +- Audio Pool"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
-              style={{
-                background: loadedSpeed ? "hsl(142,70%,40%)" : "hsl(38,92%,50%)",
-                color: "white",
-                boxShadow: loadedSpeed
-                  ? "0 1px 4px rgba(34,197,94,0.30)"
-                  : "0 1px 4px rgba(245,158,11,0.30)",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = loadedSpeed
-                  ? "hsl(142,70%,34%)"
-                  : "hsl(38,92%,44%)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = loadedSpeed
-                  ? "hsl(142,70%,40%)"
-                  : "hsl(38,92%,50%)";
-              }}
-            >
-              <Zap className="w-3 h-3" />
-              {loadedSpeed ? "Loaded ✓" : "Speed +-"}
+              {loaded ? "Loaded ✓" : "Load to Cutting++"}
             </button>
           )}
           <button
