@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import PassKeyLock from "@/components/PassKeyLock";
 import { type Subtitle, formatSrt } from "@/lib/srt";
 import SrtEditorTab from "@/tabs/SrtEditorTab";
 import SrtMakerTab from "@/tabs/SrtMakerTab";
@@ -149,6 +150,14 @@ export default function App() {
     if (saved === "dark" || saved === "light") return saved;
     return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
   });
+  const [unlocked, setUnlocked] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      return localStorage.getItem("srt-tools-unlocked") === "1";
+    } catch {
+      return false;
+    }
+  });
 
   useEffect(() => {
     const root = document.documentElement;
@@ -225,6 +234,11 @@ export default function App() {
       <header className="bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800 sticky top-0 z-20 shrink-0">
         <div className="px-4">
           <div className="max-w-5xl mx-auto flex items-center gap-3 py-3">
+            <PassKeyLock
+              unlocked={unlocked}
+              onUnlock={() => setUnlocked(true)}
+              onLock={() => setUnlocked(false)}
+            />
             <div className="flex items-center justify-center w-8 h-8 bg-blue-600 rounded-lg shrink-0">
               <svg className="w-4.5 h-4.5 text-white" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M14.5 2.5a2 2 0 00-2-2h-1a2 2 0 00-2 2v1h5v-1zm-5 3v1.5a.5.5 0 01-.5.5H7.5A2.5 2.5 0 005 10v9a2.5 2.5 0 002.5 2.5h9A2.5 2.5 0 0019 19v-9a2.5 2.5 0 00-2.5-2.5H15a.5.5 0 01-.5-.5V5.5h-5z" />
@@ -258,10 +272,13 @@ export default function App() {
             {TABS.map((tab, idx) => (
               <button
                 key={tab.id}
-                onClick={() => handleSelectTab(tab.id)}
+                onClick={() => unlocked && handleSelectTab(tab.id)}
+                disabled={!unlocked}
                 style={[4, 5, 8].includes(idx) ? { marginLeft: "1.5rem" } : undefined}
                 className={`flex items-center gap-1 px-2 py-2.5 text-[0.525rem] sm:text-[0.6125rem] font-medium border-b-2 transition-colors whitespace-nowrap shrink-0 ${
-                  activeTab === tab.id
+                  !unlocked
+                    ? "border-transparent text-gray-300 dark:text-gray-600 cursor-not-allowed"
+                    : activeTab === tab.id
                     ? "border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-400"
                     : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300 dark:hover:border-gray-600"
                 }`}
@@ -274,6 +291,20 @@ export default function App() {
           </nav>
         </div>
       </header>
+
+      <div className={`flex flex-col flex-1 overflow-hidden relative ${!unlocked ? "pointer-events-none select-none" : ""}`}>
+        {!unlocked && (
+          <div className="absolute inset-0 z-10 bg-white/60 dark:bg-gray-900/70 backdrop-blur-sm flex items-center justify-center">
+            <div className="flex flex-col items-center gap-3 text-center px-4">
+              <svg className="w-10 h-10 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 11c0-1.657 1.343-3 3-3s3 1.343 3 3v2H6v-2a3 3 0 016 0zM5 13h14v8H5v-8z" />
+              </svg>
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                Enter pass key at the top to unlock
+              </p>
+            </div>
+          </div>
+        )}
 
       {/* SRT Maker — always mounted, hidden when inactive */}
       <div style={{ display: activeTab === "maker" ? "flex" : "none" }} className="flex-col flex-1 overflow-y-auto">
@@ -416,6 +447,7 @@ export default function App() {
           />
         )}
       </main>
+      </div>
     </div>
   );
 }

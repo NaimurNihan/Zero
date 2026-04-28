@@ -851,3 +851,12 @@
 /* Arbitrary tab-root light surfaces */
 :where(.dark) .bg-\[\#f5f7fa\] { background-color: hsl(220 18% 9%); }
 :where(.dark) .bg-\[\#f6f7fb\] { background-color: hsl(220 18% 9%); }
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-4px); }
+  40% { transform: translateX(4px); }
+  60% { transform: translateX(-3px); }
+  80% { transform: translateX(3px); }
+}
+.animate-shake { animation: shake 0.4s ease-in-out; }
