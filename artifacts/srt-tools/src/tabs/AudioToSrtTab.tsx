@@ -19,7 +19,6 @@ import {
   CheckCircle2,
   Languages,
   AudioLines,
-  KeyRound,
 } from "lucide-react";
 
 const API_KEYS = [
@@ -176,7 +175,7 @@ export default function AudioToSrtTab() {
 
       <div className="relative mx-auto max-w-5xl px-4 sm:px-6 py-8 sm:py-10">
         {/* TOP HEADER CARD */}
-        <Card className="mb-8 p-3 sm:p-4 shadow-lg backdrop-blur-xl bg-card/80">
+        <Card className="mb-6 p-3 sm:p-4 shadow-lg backdrop-blur-xl bg-card/80">
           <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3 lg:gap-4">
             {/* Brand */}
             <div className="flex items-center gap-3 min-w-0">
@@ -187,20 +186,33 @@ export default function AudioToSrtTab() {
                 <h1 className="text-base sm:text-lg font-bold tracking-tight leading-tight">
                   AUDIO <span className="text-primary">TO</span> SRT
                 </h1>
-                <div className="hidden sm:flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                  <Sparkles className="h-3 w-3 text-primary" />
-                  Powered by Whisper AI
-                </div>
               </div>
             </div>
 
-            {/* Spacer / center badge for desktop */}
-            <div className="hidden lg:flex flex-1 justify-center">
-              <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-4 py-1.5 text-sm text-primary">
-                <Sparkles className="h-3.5 w-3.5" />
-                <span className="font-medium">Powered by Whisper AI</span>
-              </div>
+            {/* API Key buttons (moved from 2nd card) */}
+            <div className="flex items-center gap-2 lg:ml-2">
+              {API_KEYS.map((k) => {
+                const active = k.index === keyIndex;
+                return (
+                  <Button
+                    key={k.label}
+                    type="button"
+                    variant={active ? "default" : "outline"}
+                    onClick={() => setKeyIndex(k.index)}
+                    size="sm"
+                    className={
+                      active
+                        ? "min-w-[44px] bg-gradient-to-r from-primary to-accent text-white shadow-md shadow-primary/30"
+                        : "min-w-[44px]"
+                    }
+                  >
+                    {k.label}
+                  </Button>
+                );
+              })}
             </div>
+
+            <div className="hidden lg:flex flex-1" />
 
             {/* Controls: language + generate */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 lg:flex-shrink-0">
@@ -245,49 +257,9 @@ export default function AudioToSrtTab() {
           </div>
         </Card>
 
-        {/* API KEY SELECTOR CARD */}
-        <Card className="mb-6 p-4 sm:p-5 shadow-lg backdrop-blur-xl bg-card/80">
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
-            <div className="flex items-center gap-3">
-              <div className="flex-shrink-0 h-10 w-10 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-md shadow-primary/30">
-                <KeyRound className="h-5 w-5 text-primary-foreground" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold leading-tight">API Key</p>
-                <p className="text-xs text-muted-foreground">
-                  Active key: <span className="font-medium text-foreground">{API_KEYS[keyIndex].label}</span>
-                </p>
-              </div>
-            </div>
-
-            <div className="flex-1" />
-
-            <div className="flex items-center gap-2">
-              {API_KEYS.map((k) => {
-                const active = k.index === keyIndex;
-                return (
-                  <Button
-                    key={k.label}
-                    type="button"
-                    variant={active ? "default" : "outline"}
-                    onClick={() => setKeyIndex(k.index)}
-                    className={
-                      active
-                        ? "min-w-[56px] bg-gradient-to-r from-primary to-accent text-white shadow-md shadow-primary/30"
-                        : "min-w-[56px]"
-                    }
-                  >
-                    {k.label}
-                  </Button>
-                );
-              })}
-            </div>
-          </div>
-        </Card>
-
         {/* UPLOAD CARD */}
         <Card className="overflow-hidden shadow-xl bg-card/90 backdrop-blur-xl">
-          <div className="p-5 sm:p-8">
+          <div className="p-3 sm:p-4">
             <div
               onDragOver={(e) => {
                 e.preventDefault();
@@ -300,7 +272,7 @@ export default function AudioToSrtTab() {
                 pickFile(e.dataTransfer.files?.[0]);
               }}
               onClick={() => inputRef.current?.click()}
-              className={`relative cursor-pointer rounded-2xl border-2 border-dashed p-8 sm:p-12 text-center transition-all ${
+              className={`relative cursor-pointer rounded-2xl border-2 border-dashed p-4 sm:p-5 text-center transition-all ${
                 isDragging
                   ? "border-primary bg-primary/10 scale-[1.01]"
                   : "border-border hover:border-primary/50 hover:bg-primary/5"
@@ -314,14 +286,14 @@ export default function AudioToSrtTab() {
                 onChange={(e) => pickFile(e.target.files?.[0])}
               />
               {file ? (
-                <div className="flex items-center justify-between gap-4 text-left">
-                  <div className="flex items-center gap-4 min-w-0">
-                    <div className="flex-shrink-0 h-14 w-14 rounded-2xl bg-gradient-to-br from-primary to-accent text-primary-foreground flex items-center justify-center shadow-md shadow-primary/30">
-                      <FileAudio className="h-7 w-7" />
+                <div className="flex items-center justify-between gap-3 text-left">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="flex-shrink-0 h-11 w-11 rounded-xl bg-gradient-to-br from-primary to-accent text-primary-foreground flex items-center justify-center shadow-md shadow-primary/30">
+                      <FileAudio className="h-5 w-5" />
                     </div>
                     <div className="min-w-0">
-                      <p className="font-semibold truncate text-base">{file.name}</p>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="font-semibold truncate text-sm">{file.name}</p>
+                      <p className="text-xs text-muted-foreground">
                         {formatBytes(file.size)} · Ready to transcribe
                       </p>
                     </div>
@@ -339,17 +311,19 @@ export default function AudioToSrtTab() {
                   </Button>
                 </div>
               ) : (
-                <div>
-                  <div className="relative mx-auto h-20 w-20 mb-5">
-                    <div className="absolute inset-0 rounded-full bg-primary/20 blur-xl" />
-                    <div className="relative h-20 w-20 rounded-full bg-gradient-to-br from-primary to-accent text-primary-foreground flex items-center justify-center shadow-lg shadow-primary/30">
-                      <Upload className="h-9 w-9" />
+                <div className="flex items-center justify-center gap-4 flex-wrap">
+                  <div className="relative h-12 w-12 flex-shrink-0">
+                    <div className="absolute inset-0 rounded-full bg-primary/20 blur-lg" />
+                    <div className="relative h-12 w-12 rounded-full bg-gradient-to-br from-primary to-accent text-primary-foreground flex items-center justify-center shadow-md shadow-primary/30">
+                      <Upload className="h-5 w-5" />
                     </div>
                   </div>
-                  <p className="text-lg font-semibold">Click to upload or drag and drop</p>
-                  <p className="text-sm text-muted-foreground mt-1.5">
-                    MP3, WAV, M4A, OGG, WEBM, FLAC, MP4 — up to 30 MB
-                  </p>
+                  <div className="text-left">
+                    <p className="text-sm font-semibold">Click to upload or drag and drop</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      MP3, WAV, M4A, OGG, WEBM, FLAC, MP4 — up to 30 MB
+                    </p>
+                  </div>
                 </div>
               )}
             </div>
