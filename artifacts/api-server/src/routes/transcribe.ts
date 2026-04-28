@@ -52,7 +52,18 @@ const fallbackClient =
     ? new OpenAI({ baseURL: fallbackBaseURL, apiKey: fallbackApiKey })
     : null;
 
-const transcriptionClient = useGroq ? groqClients[0] : fallbackClient!;
+function pickTranscriptionClient(keyIndex?: number): OpenAI {
+  if (!useGroq) return fallbackClient!;
+  if (
+    typeof keyIndex === "number" &&
+    Number.isInteger(keyIndex) &&
+    keyIndex >= 0 &&
+    keyIndex < groqClients.length
+  ) {
+    return groqClients[keyIndex];
+  }
+  return groqClients[0];
+}
 
 // NOTE: whisper-large-v3-turbo does NOT support word-level timestamps on Groq.
 // We use whisper-large-v3 specifically because it returns per-word timing, which
@@ -370,6 +381,13 @@ router.post("/transcribe", upload.single("audio"), async (req, res) => {
     const language = typeof req.body?.language === "string" && req.body.language.trim().length > 0
       ? req.body.language.trim()
       : undefined;
+
+    const keyIndexRaw = req.body?.keyIndex;
+    const keyIndex =
+      typeof keyIndexRaw === "string" && keyIndexRaw.trim().length > 0
+        ? parseInt(keyIndexRaw, 10)
+        : undefined;
+    const transcriptionClient = pickTranscriptionClient(keyIndex);
 
     const originalName = req.file.originalname || "audio.mp3";
 

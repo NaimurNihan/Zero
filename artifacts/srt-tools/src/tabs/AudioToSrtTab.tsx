@@ -19,7 +19,14 @@ import {
   CheckCircle2,
   Languages,
   AudioLines,
+  KeyRound,
 } from "lucide-react";
+
+const API_KEYS = [
+  { index: 0, label: "A" },
+  { index: 1, label: "B" },
+  { index: 2, label: "C" },
+];
 
 const LANGUAGES = [
   { value: "auto", label: "Auto detect" },
@@ -56,6 +63,7 @@ export default function AudioToSrtTab() {
   const [isDragging, setIsDragging] = useState(false);
   const [loading, setLoading] = useState(false);
   const [srt, setSrt] = useState<string>("");
+  const [keyIndex, setKeyIndex] = useState<number>(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -95,6 +103,7 @@ export default function AudioToSrtTab() {
       if (language && language !== "auto") {
         form.append("language", language);
       }
+      form.append("keyIndex", String(keyIndex));
 
       const res = await fetch(`${API_BASE}/transcribe`, {
         method: "POST",
@@ -236,24 +245,49 @@ export default function AudioToSrtTab() {
           </div>
         </Card>
 
-        {/* HERO + UPLOAD CARD */}
-        <Card className="overflow-hidden shadow-xl bg-card/90 backdrop-blur-xl">
-          {/* Hero strip inside the card */}
-          <div className="relative px-6 sm:px-10 pt-10 pb-6 text-center bg-gradient-to-b from-primary/5 to-transparent">
-            <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-medium text-primary mb-4">
-              <Sparkles className="h-3 w-3" />
-              <span>Fast · Accurate · Multilingual</span>
+        {/* API KEY SELECTOR CARD */}
+        <Card className="mb-6 p-4 sm:p-5 shadow-lg backdrop-blur-xl bg-card/80">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
+            <div className="flex items-center gap-3">
+              <div className="flex-shrink-0 h-10 w-10 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-md shadow-primary/30">
+                <KeyRound className="h-5 w-5 text-primary-foreground" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold leading-tight">API Key</p>
+                <p className="text-xs text-muted-foreground">
+                  Active key: <span className="font-medium text-foreground">{API_KEYS[keyIndex].label}</span>
+                </p>
+              </div>
             </div>
-            <h2 className="text-3xl sm:text-5xl font-bold tracking-tight bg-gradient-to-br from-foreground via-foreground to-foreground/60 bg-clip-text text-transparent">
-              Audio to SRT
-            </h2>
-            <p className="mt-3 text-muted-foreground sm:text-lg max-w-xl mx-auto">
-              Upload an audio file and get a perfectly timed subtitle file in seconds.
-            </p>
-          </div>
 
-          {/* Upload area */}
-          <div className="px-5 sm:px-10 pb-8 sm:pb-10">
+            <div className="flex-1" />
+
+            <div className="flex items-center gap-2">
+              {API_KEYS.map((k) => {
+                const active = k.index === keyIndex;
+                return (
+                  <Button
+                    key={k.label}
+                    type="button"
+                    variant={active ? "default" : "outline"}
+                    onClick={() => setKeyIndex(k.index)}
+                    className={
+                      active
+                        ? "min-w-[56px] bg-gradient-to-r from-primary to-accent text-white shadow-md shadow-primary/30"
+                        : "min-w-[56px]"
+                    }
+                  >
+                    {k.label}
+                  </Button>
+                );
+              })}
+            </div>
+          </div>
+        </Card>
+
+        {/* UPLOAD CARD */}
+        <Card className="overflow-hidden shadow-xl bg-card/90 backdrop-blur-xl">
+          <div className="p-5 sm:p-8">
             <div
               onDragOver={(e) => {
                 e.preventDefault();
@@ -315,9 +349,6 @@ export default function AudioToSrtTab() {
                   <p className="text-lg font-semibold">Click to upload or drag and drop</p>
                   <p className="text-sm text-muted-foreground mt-1.5">
                     MP3, WAV, M4A, OGG, WEBM, FLAC, MP4 — up to 30 MB
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-4">
-                    Pick a language above for best accuracy, or let it auto-detect.
                   </p>
                 </div>
               )}
