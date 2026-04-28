@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, KeyboardEvent, useMemo } from "react";
-import { Copy, Scissors, Undo, Play, Square, Loader2, Download, ListMusic, RotateCcw, CloudDownload, Music, X, FolderInput, Lock, Unlock, Star, Mic, ChevronDown } from "lucide-react";
+import { Copy, Scissors, Undo, Play, Square, Loader2, Download, ListMusic, RotateCcw, CloudDownload, Music, X, FolderInput, Lock, Unlock, Star, Mic, ChevronDown, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -403,18 +403,33 @@ function AudioPool({ lines, selectedVoice, onSendToSpliter }: AudioPoolProps) {
     }
   };
 
+  const silentResetPool = () => {
+    loadPoolRef.current = false;
+    setIsLoadingPool(false);
+    setLoadProgress({ done: 0, total: 0 });
+    stopAll();
+    Object.values(poolAudioRef.current).forEach((e) => URL.revokeObjectURL(e.url));
+    poolAudioRef.current = {};
+    setPoolAudio({});
+  };
+
   const loadPoolFnRef = useRef(loadPool);
   loadPoolFnRef.current = loadPool;
   const loadSpliterFnRef = useRef(loadSpliter);
   loadSpliterFnRef.current = loadSpliter;
+  const silentResetPoolFnRef = useRef(silentResetPool);
+  silentResetPoolFnRef.current = silentResetPool;
   useEffect(() => {
     const onLoad = () => { loadPoolFnRef.current(); };
     const onLoadSpliter = () => { loadSpliterFnRef.current(); };
+    const onReset = () => { silentResetPoolFnRef.current(); };
     window.addEventListener("srt-tools:aiaudio-load-pool", onLoad);
     window.addEventListener("srt-tools:aiaudio-load-spliter", onLoadSpliter);
+    window.addEventListener("srt-tools:aiaudio-reset-pool", onReset);
     return () => {
       window.removeEventListener("srt-tools:aiaudio-load-pool", onLoad);
       window.removeEventListener("srt-tools:aiaudio-load-spliter", onLoadSpliter);
+      window.removeEventListener("srt-tools:aiaudio-reset-pool", onReset);
     };
   }, []);
 
@@ -1206,6 +1221,15 @@ export function Editor({ onSendToSpliter }: EditorProps = {}) {
     toast.success("All cancelled");
   };
 
+  const handleClearAll = () => {
+    stopPlayback();
+    setContent([""]);
+    setHistory([[""]]);
+    setHistoryIndex(0);
+    window.dispatchEvent(new CustomEvent("srt-tools:aiaudio-reset-pool"));
+    toast.success("All cleared");
+  };
+
   const totalLines = content.length;
   const totalPtu = (content.join("\n").match(/[.?।]/g) || []).length;
 
@@ -1213,9 +1237,18 @@ export function Editor({ onSendToSpliter }: EditorProps = {}) {
     <div className="flex flex-col h-full max-w-4xl mx-auto w-full p-6 gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Top card: AI Voice slots + voice picker */}
       <div className="bg-card border border-border rounded-xl shadow-sm px-4 py-2.5 flex flex-col gap-2">
-        {/* Row 1: AI Voice label */}
-        <div className="flex items-center gap-2">
+        {/* Row 1: AI Voice label + Clear All button */}
+        <div className="flex items-center justify-between gap-2">
           <span className="text-sm font-semibold text-foreground tracking-wide shrink-0">AI Voice</span>
+          <button
+            type="button"
+            onClick={handleClearAll}
+            title="Clear all text and audio"
+            data-testid="button-clear-all"
+            className="flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1 rounded-full bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-950 transition-all border border-red-200 dark:border-red-900"
+          >
+            <Trash2 size={11} /> Clear All
+          </button>
         </div>
         {/* Row 2: Slot pills + compact voice picker + compact favorites */}
         <div className="flex items-center gap-2 flex-wrap min-w-0">
