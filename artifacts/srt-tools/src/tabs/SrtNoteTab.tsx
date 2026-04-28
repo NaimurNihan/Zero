@@ -79,12 +79,20 @@ function extractLines(el: HTMLDivElement): string {
   if (children.length === 0) return "";
   return children.map((c) => c.innerText.replace(/\n$/, "")).join("\n");
 }
+const LEADING_BULLET_RE = /^\s*(?:\(\s*\d+\s*\)|\[\s*\d+\s*\]|\{\s*\d+\s*\}|\d+\s*[.)])\s*/;
+function stripLeadingBullet(line: string): string {
+  let out = line;
+  while (LEADING_BULLET_RE.test(out)) {
+    out = out.replace(LEADING_BULLET_RE, "");
+  }
+  return out;
+}
 function normalizePastedLines(text: string): string[] {
   return text
     .replace(/\r\n/g, "\n")
     .replace(/\r/g, "\n")
     .split("\n")
-    .map((line) => line.trim())
+    .map((line) => stripLeadingBullet(line.trim()).trim())
     .filter(Boolean);
 }
 function copyOriginalSelectionWithNumbers(e: ReactClipboardEvent<HTMLElement>, startLine: number) {
