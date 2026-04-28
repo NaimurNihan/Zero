@@ -249,7 +249,14 @@ export default function SrtNoteTab({ incomingText, incomingName, incomingKey, on
     const prev = hist.pop()!;
     setProjects((p) => p.map((proj) => { if (proj.id !== activeId) return proj; const langs = [...proj.langs]; langs[idx] = { ...langs[idx], content: prev }; return { ...proj, langs }; }));
   }, [activeId]);
-  const handleCopy = useCallback((idx: number) => { navigator.clipboard.writeText(activeProject?.langs[idx]?.content ?? "").catch(() => {}); }, [activeProject]);
+  const handleCopy = useCallback((idx: number) => {
+    const lang = activeProject?.langs[idx];
+    const content = lang?.content ?? "";
+    const text = lang?.label === "Original"
+      ? content.split("\n").map((line, i) => `${i + 1}. ${line}`).join("\n")
+      : content;
+    navigator.clipboard.writeText(text).catch(() => {});
+  }, [activeProject]);
   const handleClear = useCallback((idx: number) => { updateContent(idx, ""); }, [activeId]);
   const handleEdit = useCallback((idx: number) => { editorRefs.current[idx]?.focus(); }, []);
   const handleFind = useCallback((idx: number) => { const k = `${activeId}:${idx}`; setShowFind((prev) => ({ ...prev, [k]: !prev[k] })); }, [activeId]);
@@ -442,7 +449,10 @@ export default function SrtNoteTab({ incomingText, incomingName, incomingKey, on
                 setCopiedChunks((prev) => { const n = { ...prev }; delete n[copyKey]; return n; });
                 return;
               }
-              const text = chunk.join("\n");
+              const isOriginal = langs[langIdx]?.label === "Original";
+              const text = isOriginal
+                ? chunk.map((line, i) => `${startLine + i}. ${line}`).join("\n")
+                : chunk.join("\n");
               navigator.clipboard.writeText(text).catch(() => {});
               setCopiedChunks((prev) => ({ ...prev, [copyKey]: true }));
             };
