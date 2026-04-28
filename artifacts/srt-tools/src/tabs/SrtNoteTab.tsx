@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, type ClipboardEvent as ReactClipboardEvent } from "react";
 import { Plus, Search, FileText, RotateCcw, X, ScanSearch, Download, Trash2, Sun, Moon, Scissors, Copy, Folder, FolderOpen, ArchiveRestore, ChevronDown, ChevronRight, MoreVertical, Play } from "lucide-react";
 interface TaskRow { checked: boolean; values: string[]; }
 interface Project {
@@ -87,13 +87,40 @@ function normalizePastedLines(text: string): string[] {
     .map((line) => line.trim())
     .filter(Boolean);
 }
+function copyOriginalSelectionWithNumbers(e: ReactClipboardEvent<HTMLElement>, startLine: number) {
+  const sel = window.getSelection();
+  if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return;
+  const range = sel.getRangeAt(0);
+  const editor = e.currentTarget;
+  if (!editor.contains(range.commonAncestorContainer)) return;
+  const children = Array.from(editor.children) as HTMLElement[];
+  const parts: string[] = [];
+  for (let i = 0; i < children.length; i++) {
+    const child = children[i];
+    if (!range.intersectsNode(child)) continue;
+    const childRange = document.createRange();
+    childRange.selectNodeContents(child);
+    if (child === range.startContainer || child.contains(range.startContainer)) {
+      try { childRange.setStart(range.startContainer, range.startOffset); } catch {}
+    }
+    if (child === range.endContainer || child.contains(range.endContainer)) {
+      try { childRange.setEnd(range.endContainer, range.endOffset); } catch {}
+    }
+    const text = childRange.toString();
+    parts.push(`${startLine + i}. ${text}`);
+  }
+  if (parts.length === 0) return;
+  e.clipboardData.setData("text/plain", parts.join("\n"));
+  e.preventDefault();
+}
 interface LineEditorProps {
   editorKey: string; value: string;
   onChange: (v: string) => void;
   placeholder: string;
   divRef: (el: HTMLDivElement | null) => void;
+  onCopy?: (e: ReactClipboardEvent<HTMLDivElement>) => void;
 }
-function LineEditor({ editorKey, value, onChange, placeholder, divRef }: LineEditorProps) {
+function LineEditor({ editorKey, value, onChange, placeholder, divRef, onCopy }: LineEditorProps) {
   const innerRef = useRef<HTMLDivElement | null>(null);
   const internalChange = useRef(false);
   useEffect(() => {
@@ -157,7 +184,7 @@ function LineEditor({ editorKey, value, onChange, placeholder, divRef }: LineEdi
       ref={(el) => { innerRef.current = el; divRef(el); if (el && el.innerHTML === "") el.innerHTML = buildHtml(value.split("\n")); }}
       key={editorKey} contentEditable suppressContentEditableWarning
       data-line-editor data-placeholder={placeholder}
-      onInput={handleInput} onKeyDown={handleKeyDown} onPaste={handlePaste}
+      onInput={handleInput} onKeyDown={handleKeyDown} onPaste={handlePaste} onCopy={onCopy}
       className="flex-1 min-h-0 overflow-y-auto outline-none px-5 pt-4 pb-14 text-sm text-foreground"
       style={{ minHeight: 0, scrollPaddingBottom: "3.5rem" }}
     />
@@ -471,7 +498,14 @@ export default function SrtNoteTab({ incomingText, incomingName, incomingKey, on
                     <Copy size={12} />
                   </button>
                 </div>
-                <div data-line-editor className="flex-1 min-h-0 overflow-y-auto px-4 py-3 text-sm text-foreground" style={{ counterReset: `line-num ${startLine - 1}` }}>
+                <div
+                  data-line-editor
+                  className="flex-1 min-h-0 overflow-y-auto px-4 py-3 text-sm text-foreground"
+                  style={{ counterReset: `line-num ${startLine - 1}` }}
+                  onCopy={(e) => {
+                    if (langs[langIdx]?.label === "Original") copyOriginalSelectionWithNumbers(e, startLine);
+                  }}
+                >
                   {chunk.length === 0 ? (
                     <div className="opacity-25">—</div>
                   ) : (
@@ -623,7 +657,8 @@ export default function SrtNoteTab({ incomingText, incomingName, incomingKey, on
                     <LineEditor key={`${activeId}-${idx}`} editorKey={`${activeId}-${idx}`}
                       value={lang.content} onChange={(v) => updateContent(idx, v)}
                       placeholder={`Enter ${lang.label} subtitle text here...`}
-                      divRef={(el) => { editorRefs.current[idx] = el; }} />
+                      divRef={(el) => { editorRefs.current[idx] = el; }}
+                      onCopy={lang.label === "Original" ? (e) => copyOriginalSelectionWithNumbers(e, 1) : undefined} />
                   )}
                 </div>
               ))}
