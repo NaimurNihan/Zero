@@ -562,30 +562,34 @@ export default function SrtNoteTab({ incomingText, incomingName, incomingKey, on
                       <MoreVertical size={14} />
                     </button>
                     {openMenu === `${activeId}:${idx}` && (
-                      <div className="absolute right-0 top-full mt-1 z-30 min-w-[160px] rounded-md border border-border bg-popover shadow-md py-1">
+                      <div className="absolute right-0 top-full mt-1 z-30 flex items-center gap-1 rounded-md border border-border bg-popover shadow-md p-1">
                         <button
                           onClick={() => { handleCopy(idx); setOpenMenu(null); }}
-                          className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-foreground hover:bg-muted transition-colors"
+                          title="Copy all text"
+                          className="p-1.5 rounded-md text-foreground hover:bg-muted transition-colors"
                         >
-                          <Copy size={14} /> Copy all text
+                          <Copy size={16} />
                         </button>
                         <button
                           onClick={() => { handleSplit(idx); setOpenMenu(null); }}
-                          className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm transition-colors hover:bg-muted ${splitView[`${activeId}:${idx}`] ? "text-primary" : "text-foreground"}`}
+                          title="Split into sub-cards"
+                          className={`p-1.5 rounded-md transition-colors hover:bg-muted ${splitView[`${activeId}:${idx}`] ? "text-primary" : "text-foreground"}`}
                         >
-                          <Scissors size={14} /> Split into sub-cards
+                          <Scissors size={16} />
                         </button>
                         <button
                           onClick={() => { handleUndo(idx); setOpenMenu(null); }}
-                          className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-foreground hover:bg-muted transition-colors"
+                          title="Undo"
+                          className="p-1.5 rounded-md text-foreground hover:bg-muted transition-colors"
                         >
-                          <RotateCcw size={14} /> Undo
+                          <RotateCcw size={16} />
                         </button>
                         <button
                           onClick={() => { handleClear(idx); setOpenMenu(null); }}
-                          className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-destructive hover:bg-muted transition-colors"
+                          title="Clear"
+                          className="p-1.5 rounded-md text-destructive hover:bg-muted transition-colors"
                         >
-                          <X size={14} /> Clear
+                          <X size={16} />
                         </button>
                       </div>
                     )}
