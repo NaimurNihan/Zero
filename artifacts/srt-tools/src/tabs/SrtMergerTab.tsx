@@ -131,21 +131,6 @@ function stripWrapperBraces(line: string): string {
   return line.replace(/^\s*[\{\[\(]\s*([\s\S]*?)\s*[\}\]\)]\s*$/, "$1");
 }
 
-function cleanPastedSentences(text: string): string {
-  return text
-    .split("\n")
-    .map((l) => stripWrapperBraces(stripLeadingNumber(l)).trim())
-    .filter((l) => l.length > 0)
-    .join("\n");
-}
-
-function cleanSentenceBlock(text: string): string {
-  return text
-    .split("\n")
-    .map((l) => stripLeadingNumber(l))
-    .join("\n");
-}
-
 function generateSRT(entries: SRTEntry[], sentences: string[]): string {
   const lines: string[] = [];
   const count = Math.min(entries.length, sentences.length);
@@ -189,7 +174,7 @@ export default function SrtMergerTab({ setSubtitles, setFilename, onGenerated, o
   const handleAddMore = () => {
     const newLines = addMoreText
       .split("\n")
-      .map((s) => stripLeadingNumber(s).trim())
+      .map((s) => s.trim())
       .filter((s) => s.length > 0);
     if (newLines.length === 0) return;
     setSentenceHistory((h) => [...h, sentenceText]);
@@ -202,6 +187,22 @@ export default function SrtMergerTab({ setSubtitles, setFilename, onGenerated, o
     toast({ title: `${newLines.length} sentences added`, description: "Appended to existing list" });
   };
 
+  const handleCleanSentences = () => {
+    const cleaned = sentenceText
+      .split("\n")
+      .map((l) => stripWrapperBraces(stripLeadingNumber(l)).trim())
+      .filter((l) => l.length > 0)
+      .join("\n");
+    if (cleaned === sentenceText) {
+      toast({ title: "Already clean", description: "Nothing to remove" });
+      return;
+    }
+    setSentenceHistory((h) => [...h, sentenceText]);
+    setSentenceText(cleaned);
+    setIsGenerated(false);
+    toast({ title: "Cleaned", description: "Numbers & brackets removed" });
+  };
+
   const handleUndo = () => {
     if (sentenceHistory.length === 0) return;
     const prev = sentenceHistory[sentenceHistory.length - 1];
@@ -212,7 +213,7 @@ export default function SrtMergerTab({ setSubtitles, setFilename, onGenerated, o
 
   const sentences = sentenceText
     .split("\n")
-    .map((s) => stripLeadingNumber(s).trim())
+    .map((s) => s.trim())
     .filter((s) => s.length > 0);
 
   const outputEntries = srtEntries.slice(0, sentences.length).map((entry, i) => ({
@@ -585,10 +586,19 @@ export default function SrtMergerTab({ setSubtitles, setFilename, onGenerated, o
                   {sentences.length} lines
                 </span>
               )}
+              {sentenceText && (
+                <button
+                  onClick={handleCleanSentences}
+                  title="Remove leading numbers like (1), 1., [2] and wrapper brackets like { }"
+                  className="text-xs text-emerald-600 hover:text-emerald-700 font-medium border border-emerald-200 hover:border-emerald-400 bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded transition-colors"
+                >
+                  ✨ Clean
+                </button>
+              )}
               {sentenceHistory.length > 0 && (
                 <button
                   onClick={handleUndo}
-                  title="Undo last added batch"
+                  title="Undo last change"
                   className="text-xs text-blue-500 hover:text-blue-600 font-medium transition-colors"
                 >
                   ⟲ Undo
@@ -620,19 +630,6 @@ export default function SrtMergerTab({ setSubtitles, setFilename, onGenerated, o
                 <Textarea
                   value={sentenceText}
                   onChange={(e) => setSentenceText(e.target.value)}
-                  onPaste={(e) => {
-                    const pasted = e.clipboardData.getData("text");
-                    if (!pasted) return;
-                    const cleaned = cleanPastedSentences(pasted);
-                    if (cleaned === pasted) return;
-                    e.preventDefault();
-                    const target = e.currentTarget;
-                    const start = target.selectionStart ?? sentenceText.length;
-                    const end = target.selectionEnd ?? sentenceText.length;
-                    const before = sentenceText.slice(0, start);
-                    const after = sentenceText.slice(end);
-                    setSentenceText(before + cleaned + after);
-                  }}
                   placeholder=""
                   className="absolute inset-0 w-full h-full text-sm resize-none border-gray-200 dark:border-gray-700 focus:border-emerald-400 focus:ring-emerald-400 bg-transparent"
                 />
@@ -645,19 +642,6 @@ export default function SrtMergerTab({ setSubtitles, setFilename, onGenerated, o
                   <Textarea
                     value={addMoreText}
                     onChange={(e) => setAddMoreText(e.target.value)}
-                    onPaste={(e) => {
-                      const pasted = e.clipboardData.getData("text");
-                      if (!pasted) return;
-                      const cleaned = cleanPastedSentences(pasted);
-                      if (cleaned === pasted) return;
-                      e.preventDefault();
-                      const target = e.currentTarget;
-                      const start = target.selectionStart ?? addMoreText.length;
-                      const end = target.selectionEnd ?? addMoreText.length;
-                      const before = addMoreText.slice(0, start);
-                      const after = addMoreText.slice(end);
-                      setAddMoreText(before + cleaned + after);
-                    }}
                     placeholder={"Paste next batch here...\nOne sentence per line"}
                     className="min-h-[120px] text-sm resize-none border-gray-200 dark:border-gray-700 focus:border-emerald-400 focus:ring-emerald-400"
                     onKeyDown={(e) => {
