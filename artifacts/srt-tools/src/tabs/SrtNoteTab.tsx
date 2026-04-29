@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect, type ClipboardEvent as ReactClipboardEvent } from "react";
-import { Plus, Search, FileText, RotateCcw, X, ScanSearch, Download, Trash2, Sun, Moon, Scissors, Copy, Folder, FolderOpen, ArchiveRestore, ChevronDown, ChevronRight, MoreVertical, Play } from "lucide-react";
+import { Plus, Search, FileText, RotateCcw, X, ScanSearch, Download, Trash2, Scissors, Copy, Folder, FolderOpen, ArchiveRestore, ChevronDown, ChevronRight, MoreVertical, Play, Menu, PanelLeftOpen } from "lucide-react";
 interface TaskRow { checked: boolean; values: string[]; }
 interface Project {
   id: string;
@@ -218,13 +218,14 @@ export default function SrtNoteTab({ incomingText, incomingName, incomingKey, on
   const [splitView, setSplitView] = useState<{ [k: string]: boolean }>({});
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState("");
-  const [darkMode, setDarkMode] = useState(initialState.darkMode);
+  const darkMode = initialState.darkMode;
   const [copiedChunks, setCopiedChunks] = useState<{ [key: string]: boolean }>(initialState.copiedChunks);
   const [trashOpen, setTrashOpen] = useState(false);
   const [trashDragOver, setTrashDragOver] = useState(false);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [taskOpen, setTaskOpen] = useState(false);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const [sidebarHidden, setSidebarHidden] = useState(false);
   useEffect(() => {
     if (!openMenu) return;
     const onClick = (e: MouseEvent) => {
@@ -237,7 +238,6 @@ export default function SrtNoteTab({ incomingText, incomingName, incomingKey, on
   const editorRefs = useRef<(HTMLDivElement | null)[]>([]);
   const historyRef = useRef<{ [k: number]: string[] }>({});
   const nameInputRef = useRef<HTMLInputElement | null>(null);
-  useEffect(() => { document.documentElement.classList.toggle("dark", darkMode); }, [darkMode]);
   useEffect(() => {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ projects, activeId, darkMode, copiedChunks }));
   }, [projects, activeId, darkMode, copiedChunks]);
@@ -362,6 +362,16 @@ export default function SrtNoteTab({ incomingText, incomingName, incomingKey, on
   }, [nameInput, activeId]);
   return (
     <div className="flex h-screen w-full overflow-hidden bg-background">
+      {sidebarHidden && (
+        <button
+          onClick={() => setSidebarHidden(false)}
+          title="Show sidebar"
+          className="absolute top-3 left-3 z-30 p-1.5 rounded-md border border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground transition-colors shadow-sm"
+        >
+          <PanelLeftOpen size={16} />
+        </button>
+      )}
+      {!sidebarHidden && (
       <aside className="w-64 shrink-0 flex flex-col h-full bg-[hsl(var(--sidebar))] border-r border-[hsl(var(--sidebar-border))]">
         <div className="px-4 pt-5 pb-3 border-b border-[hsl(var(--sidebar-border))]">
           <div className="flex items-center justify-between mb-4">
@@ -370,9 +380,9 @@ export default function SrtNoteTab({ incomingText, incomingName, incomingKey, on
               <span className="text-lg leading-none">📑</span>
               <span className="font-semibold text-sm text-[hsl(var(--sidebar-foreground))] tracking-wide">Task</span>
             </button>
-            <button onClick={() => setDarkMode((d) => !d)} title={darkMode ? "Switch to Light mode" : "Switch to Night mode"}
+            <button onClick={() => setSidebarHidden(true)} title="Hide sidebar"
               className="p-1.5 rounded-md bg-[hsl(var(--sidebar-accent))] text-[hsl(var(--sidebar-foreground))] hover:opacity-80 transition-opacity">
-              {darkMode ? <Sun size={14} /> : <Moon size={14} />}
+              <Menu size={14} />
             </button>
           </div>
           <button onClick={createProject} className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-md bg-[hsl(var(--sidebar-primary))] text-[hsl(var(--sidebar-primary-foreground))] text-sm font-medium hover:opacity-90 transition-opacity">
@@ -449,6 +459,7 @@ export default function SrtNoteTab({ incomingText, incomingName, incomingKey, on
           </div>
         </div>
       </aside>
+      )}
       <main className="flex-1 flex flex-col h-full overflow-hidden">
         <header className="shrink-0 px-6 py-4 border-b border-border bg-card flex items-center justify-between">
           <div>
