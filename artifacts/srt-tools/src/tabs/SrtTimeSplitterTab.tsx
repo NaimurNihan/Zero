@@ -491,20 +491,22 @@ export default function SrtTimeSplitterTab({ incomingSrt, incomingFilename, inco
                     <Search className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
                   )}
                 </div>
-                <NameCombobox
-                  placeholder="Find (e.g. max)"
-                  value={findText}
-                  onChange={setFindText}
-                  storageKey={SPLITTER_FIND_STORE}
-                  className="w-[150px] shrink-0"
-                />
-                <NameCombobox
-                  placeholder="Replace with"
-                  value={replaceText}
-                  onChange={setReplaceText}
-                  storageKey={SPLITTER_REPLACE_STORE}
-                  className="w-[150px] shrink-0"
-                />
+                <div className="w-[150px] shrink-0">
+                  <NameCombobox
+                    placeholder="Find (e.g. max)"
+                    value={findText}
+                    onChange={setFindText}
+                    storageKey={SPLITTER_FIND_STORE}
+                  />
+                </div>
+                <div className="w-[150px] shrink-0">
+                  <NameCombobox
+                    placeholder="Replace with"
+                    value={replaceText}
+                    onChange={setReplaceText}
+                    storageKey={SPLITTER_REPLACE_STORE}
+                  />
+                </div>
                 <Button
                   onClick={handleConvertReplace}
                   disabled={!findText.trim()}
