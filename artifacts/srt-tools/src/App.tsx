@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import PassKeyLock from "@/components/PassKeyLock";
-import { type Subtitle, formatSrt } from "@/lib/srt";
+import { type Subtitle, formatSrt, parseSrt } from "@/lib/srt";
 import SrtEditorTab from "@/tabs/SrtEditorTab";
 import SrtMakerTab from "@/tabs/SrtMakerTab";
 import SrtNameTab from "@/tabs/SrtNameTab";
@@ -148,6 +148,9 @@ export default function App() {
   const [noteIncomingText, setNoteIncomingText] = useState("");
   const [noteIncomingName, setNoteIncomingName] = useState("");
   const [noteIncomingKey, setNoteIncomingKey] = useState(0);
+  const [nameIncomingSrt, setNameIncomingSrt] = useState("");
+  const [nameIncomingFilename, setNameIncomingFilename] = useState("");
+  const [nameIncomingKey, setNameIncomingKey] = useState(0);
   const [cuttingIncomingAudio, setCuttingIncomingAudio] = useState<{ files: File[]; key: number }>({ files: [], key: 0 });
   const [spliterIncomingAudio, setSpliterIncomingAudio] = useState<{ files: File[]; key: number; autoSplit?: boolean }>({ files: [], key: 0 });
   const autoRunRef = useRef(false);
@@ -368,16 +371,29 @@ export default function App() {
       {/* SRT Marger — full width, hidden when inactive */}
       <div style={{ display: activeTab === "merger" ? "flex" : "none" }} className="flex-col flex-1 overflow-y-auto">
         <SrtMergerTab
-          setSubtitles={setSubtitles}
-          setFilename={setFilename}
-          onGenerated={() => {}}
+          onSendToName={(srt, name) => {
+            setNameIncomingSrt(srt);
+            setNameIncomingFilename(name);
+            setNameIncomingKey((k) => k + 1);
+            handleSelectTab("name");
+          }}
           onTransform={runTransformSequence}
         />
       </div>
 
       {/* SRT Name — full width, hidden when inactive */}
       <div style={{ display: activeTab === "name" ? "flex" : "none" }} className="flex-col flex-1 overflow-y-auto">
-        <SrtNameTab />
+        <SrtNameTab
+          incomingSrt={nameIncomingSrt}
+          incomingFilename={nameIncomingFilename}
+          incomingKey={nameIncomingKey}
+          onConvertOutput={(srt, name) => {
+            const parsed = parseSrt(srt);
+            setSubtitles(parsed);
+            setFilename(name);
+            handleSelectTab("editor");
+          }}
+        />
       </div>
 
       {/* Ai Audio — full width, hidden when inactive */}

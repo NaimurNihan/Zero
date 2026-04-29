@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { Upload, FileText, X, Download, Plus, Trash2, ChevronUp, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -58,13 +58,27 @@ function serializeNameSrt(subtitles: NameSubtitle[]): string {
 const FIND_STORE = "srt-name:find-names";
 const REPLACE_STORE = "srt-name:replace-names";
 
-export default function SrtNameTab() {
+interface SrtNameTabProps {
+  incomingSrt?: string;
+  incomingFilename?: string;
+  incomingKey?: number;
+  onConvertOutput?: (srt: string, filename: string) => void;
+}
+
+export default function SrtNameTab({ incomingSrt, incomingFilename, incomingKey, onConvertOutput }: SrtNameTabProps = {}) {
   const [subtitles, setSubtitles] = useState<NameSubtitle[]>([]);
   const [fileName, setFileName] = useState<string | null>(null);
   const [findName, setFindName] = useState("");
   const [replaceName, setReplaceName] = useState("");
   const [showPasteArea, setShowPasteArea] = useState(false);
   const [pasteContent, setPasteContent] = useState("");
+
+  useEffect(() => {
+    if (!incomingKey || !incomingSrt) return;
+    setSubtitles(parseNameSrt(incomingSrt));
+    setFileName(incomingFilename || "from-merger.srt");
+    setShowPasteArea(false);
+  }, [incomingKey, incomingSrt, incomingFilename]);
   const [editingField, setEditingField] = useState<{ id: number; field: 'text' | 'startTime' | 'endTime' } | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -132,27 +146,38 @@ export default function SrtNameTab() {
   };
 
   const handleConvert = () => {
-    if (!findName || !hasFile) return;
+    if (!hasFile) return;
 
-    setSubtitles(prev => prev.map(sub => {
-      const testRegex = new RegExp(findName, "gi");
-      if (testRegex.test(sub.text)) {
-        const replaceRegex = new RegExp(findName, "gi");
-        return {
-          ...sub,
-          text: sub.text.replace(replaceRegex, replaceName),
-          edited: true,
-          replacedWith: replaceName,
-        };
-      }
-      return sub;
-    }));
+    const updated = findName
+      ? subtitles.map(sub => {
+          const testRegex = new RegExp(findName, "gi");
+          if (testRegex.test(sub.text)) {
+            const replaceRegex = new RegExp(findName, "gi");
+            return {
+              ...sub,
+              text: sub.text.replace(replaceRegex, replaceName),
+              edited: true,
+              replacedWith: replaceName,
+            };
+          }
+          return sub;
+        })
+      : subtitles;
 
-    rememberName(FIND_STORE, findName);
-    if (replaceName.trim()) rememberName(REPLACE_STORE, replaceName);
+    setSubtitles(updated);
+
+    if (findName) {
+      rememberName(FIND_STORE, findName);
+      if (replaceName.trim()) rememberName(REPLACE_STORE, replaceName);
+    }
 
     setFindName("");
     setReplaceName("");
+
+    if (onConvertOutput) {
+      const serialized = serializeNameSrt(updated);
+      onConvertOutput(serialized, fileName || "converted.srt");
+    }
   };
 
   const handleDownload = () => {
