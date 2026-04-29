@@ -168,20 +168,50 @@ export default function SrtMergerTab({ onSendToName, onTransform }: SrtMergerTab
     } catch {}
   }, [notepadText]);
 
+  const appendLinesToSentences = (lines: string[]) => {
+    if (lines.length === 0) return;
+    setSentenceHistory((h) => [...h, sentenceText]);
+    setSentenceText((prev) => {
+      const existing = prev.trim();
+      return existing ? existing + "\n" + lines.join("\n") : lines.join("\n");
+    });
+    setIsGenerated(false);
+  };
+
   const handleAddMore = () => {
     const newLines = addMoreText
       .split("\n")
       .map((s) => s.trim())
       .filter((s) => s.length > 0);
     if (newLines.length === 0) return;
-    setSentenceHistory((h) => [...h, sentenceText]);
-    setSentenceText((prev) => {
-      const existing = prev.trim();
-      return existing ? existing + "\n" + newLines.join("\n") : newLines.join("\n");
-    });
+    appendLinesToSentences(newLines);
     setAddMoreText("");
-    setIsGenerated(false);
     toast({ title: `${newLines.length} sentences added`, description: "Appended to existing list" });
+  };
+
+  const handleAddOrPaste = async () => {
+    if (addMoreText.trim()) {
+      handleAddMore();
+      return;
+    }
+    try {
+      const text = await navigator.clipboard.readText();
+      const newLines = text
+        .split("\n")
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0);
+      if (newLines.length === 0) {
+        toast({ title: "Clipboard is empty", description: "Copy some text first or type in the box" });
+        return;
+      }
+      appendLinesToSentences(newLines);
+      toast({ title: `${newLines.length} sentences pasted & added`, description: "Pulled from clipboard" });
+    } catch {
+      toast({
+        title: "Can't read clipboard",
+        description: "Paste into the box first, then click Add",
+      });
+    }
   };
 
   const handleCleanSentences = () => {
@@ -651,11 +681,10 @@ export default function SrtMergerTab({ onSendToName, onTransform }: SrtMergerTab
                     }}
                   />
                   <button
-                    onClick={handleAddMore}
-                    disabled={!addMoreText.trim()}
-                    className="mt-1.5 w-full text-xs bg-emerald-50 hover:bg-emerald-100 text-emerald-600 border border-emerald-200 rounded-md py-1.5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed font-medium"
+                    onClick={handleAddOrPaste}
+                    className="mt-1.5 w-full text-xs bg-emerald-50 hover:bg-emerald-100 text-emerald-600 border border-emerald-200 rounded-md py-1.5 transition-colors font-medium"
                   >
-                    Add to list (Ctrl+Enter)
+                    {addMoreText.trim() ? "Add to list (Ctrl+Enter)" : "Paste & Add from clipboard"}
                   </button>
                 </div>
 
