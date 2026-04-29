@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ChevronDown, ChevronUp, Copy, Download, FileText, Menu, Plus, Search, Trash2, Upload, Clipboard, X } from "lucide-react";
 import { parseInput, processBlocks, mergeBlocksByMarkers, generateSrtString, msToTime, type SubtitleBlock } from "@/lib/srt-splitter";
@@ -470,24 +471,25 @@ export default function SrtTimeSplitterTab({ incomingSrt, incomingFilename, inco
               <div className="flex flex-1 flex-wrap items-center justify-end gap-2">
                 <div className="flex items-center gap-2">
                   <div className="relative w-[160px]">
-                    <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-                    <input
+                    <Input
                       type="text"
                       value={jumpText}
                       onChange={(e) => setJumpText(e.target.value)}
                       placeholder="Jump to text..."
                       title="Type a sentence — matching subtitle scrolls into view"
-                      className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 pl-8 text-xs text-slate-700 shadow-sm outline-none placeholder:text-slate-400 focus:border-blue-400 focus:ring-1 focus:ring-blue-200 dark:bg-gray-900 dark:text-slate-200"
+                      className="bg-slate-50/50 dark:bg-gray-800 h-9 pr-8"
                     />
-                    {jumpText && (
+                    {jumpText ? (
                       <button
                         type="button"
                         onClick={() => setJumpText("")}
-                        className="absolute right-1.5 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
                         title="Clear"
                       >
-                        <X className="h-3 w-3" />
+                        <X className="w-3.5 h-3.5" />
                       </button>
+                    ) : (
+                      <Search className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
                     )}
                   </div>
                   <NameCombobox
