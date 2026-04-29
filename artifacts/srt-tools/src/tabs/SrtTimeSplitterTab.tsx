@@ -468,8 +468,8 @@ export default function SrtTimeSplitterTab({ incomingSrt, incomingFilename, inco
                 <FileText className="h-4 w-4 shrink-0 text-blue-500" />
                 <div className="truncate text-[15px] font-bold text-slate-800">{isOutputView ? "output.srt" : fileName || "input.srt"}</div>
               </div>
-              <div className="flex flex-1 flex-wrap items-center justify-start gap-2">
-                <div className="relative w-[170px]">
+              <div className="flex flex-1 flex-nowrap items-center justify-end gap-2">
+                <div className="relative w-[150px] shrink-0">
                   <Input
                     type="text"
                     value={jumpText}
@@ -496,14 +496,14 @@ export default function SrtTimeSplitterTab({ incomingSrt, incomingFilename, inco
                   value={findText}
                   onChange={setFindText}
                   storageKey={SPLITTER_FIND_STORE}
-                  className="w-[170px]"
+                  className="w-[150px] shrink-0"
                 />
                 <NameCombobox
                   placeholder="Replace with"
                   value={replaceText}
                   onChange={setReplaceText}
                   storageKey={SPLITTER_REPLACE_STORE}
-                  className="w-[170px]"
+                  className="w-[150px] shrink-0"
                 />
                 <Button
                   onClick={handleConvertReplace}
