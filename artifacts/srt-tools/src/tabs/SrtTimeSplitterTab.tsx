@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ChevronDown, ChevronUp, Copy, Download, FileText, Menu, Plus, Trash2, Upload, Clipboard, X } from "lucide-react";
+import { ChevronDown, ChevronUp, Copy, Download, FileText, Menu, Plus, Search, Trash2, Upload, Clipboard, X } from "lucide-react";
 import { parseInput, processBlocks, mergeBlocksByMarkers, generateSrtString, msToTime, type SubtitleBlock } from "@/lib/srt-splitter";
 import { useToast } from "@/hooks/use-toast";
 import { NameCombobox, rememberName } from "@/components/NameCombobox";
@@ -60,7 +60,10 @@ export default function SrtTimeSplitterTab({ incomingSrt, incomingFilename, inco
   const [trimDone, setTrimDone] = useState(persisted?.trimDone ?? false);
   const [findText, setFindText] = useState("");
   const [replaceText, setReplaceText] = useState("");
+  const [jumpText, setJumpText] = useState("");
+  const [highlightedJumpId, setHighlightedJumpId] = useState<number | null>(null);
   const [editedMap, setEditedMap] = useState<Record<number, string>>({});
+  const cardRefs = useRef(new Map<number, HTMLDivElement | null>());
   const finalSentRef = useRef(false);
 
   useEffect(() => {
@@ -91,6 +94,8 @@ export default function SrtTimeSplitterTab({ incomingSrt, incomingFilename, inco
     setTrimDone(false);
     setFindText("");
     setReplaceText("");
+    setJumpText("");
+    setHighlightedJumpId(null);
     setEditedMap({});
     finalSentRef.current = false;
   };
@@ -372,9 +377,35 @@ export default function SrtTimeSplitterTab({ incomingSrt, incomingFilename, inco
     setTrimDone(false);
     setFindText("");
     setReplaceText("");
+    setJumpText("");
+    setHighlightedJumpId(null);
     setEditedMap({});
     finalSentRef.current = false;
   };
+
+  useEffect(() => {
+    const term = jumpText.trim().toLowerCase();
+    if (!term) {
+      setHighlightedJumpId(null);
+      return;
+    }
+    const match = activeBlocks.find((b) => b.text.toLowerCase().includes(term));
+    if (!match) {
+      setHighlightedJumpId(null);
+      return;
+    }
+    const el = cardRefs.current.get(match.id);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+      setHighlightedJumpId(match.id);
+    }
+  }, [jumpText, activeBlocks]);
+
+  useEffect(() => {
+    if (highlightedJumpId === null) return;
+    const t = window.setTimeout(() => setHighlightedJumpId(null), 1600);
+    return () => window.clearTimeout(t);
+  }, [highlightedJumpId]);
 
   return (
     <div className="min-h-full bg-[#f6f7fb] font-sans text-slate-900">
@@ -438,6 +469,27 @@ export default function SrtTimeSplitterTab({ incomingSrt, incomingFilename, inco
               </div>
               <div className="flex flex-1 flex-wrap items-center justify-end gap-2">
                 <div className="flex items-center gap-2">
+                  <div className="relative w-[160px]">
+                    <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="text"
+                      value={jumpText}
+                      onChange={(e) => setJumpText(e.target.value)}
+                      placeholder="Jump to text..."
+                      title="Type a sentence — matching subtitle scrolls into view"
+                      className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 pl-8 text-xs text-slate-700 shadow-sm outline-none placeholder:text-slate-400 focus:border-blue-400 focus:ring-1 focus:ring-blue-200 dark:bg-gray-900 dark:text-slate-200"
+                    />
+                    {jumpText && (
+                      <button
+                        type="button"
+                        onClick={() => setJumpText("")}
+                        className="absolute right-1.5 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                        title="Clear"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    )}
+                  </div>
                   <NameCombobox
                     placeholder="Find (e.g. max)"
                     value={findText}
@@ -485,25 +537,37 @@ export default function SrtTimeSplitterTab({ incomingSrt, incomingFilename, inco
             <ScrollArea className="h-[calc(100vh-260px)]">
               <div className="space-y-4 pb-6">
                 {activeBlocks.map((block) => (
-                  <SubtitleRow
+                  <div
                     key={`${isOutputView ? "out" : "in"}-${block.id}`}
-                    block={block}
-                    findText={findText}
-                    replacedWith={editedMap[block.id]}
-                    onTextChange={(newText) => {
-                      if (isOutputView) {
-                        setOutputBlocks((prev) =>
-                          prev.map((b) => (b.id === block.id ? { ...b, text: newText } : b)),
-                        );
-                      } else {
-                        setOutputBlocks(
-                          inputBlocks.map((b) =>
-                            b.id === block.id ? { ...b, text: newText } : b,
-                          ),
-                        );
-                      }
+                    ref={(el) => {
+                      if (el) cardRefs.current.set(block.id, el);
+                      else cardRefs.current.delete(block.id);
                     }}
-                  />
+                    className={`scroll-mt-2 rounded-2xl transition-all duration-300 ${
+                      highlightedJumpId === block.id
+                        ? "ring-2 ring-amber-400 ring-offset-2 ring-offset-[#f6f7fb] dark:ring-offset-gray-950"
+                        : ""
+                    }`}
+                  >
+                    <SubtitleRow
+                      block={block}
+                      findText={findText}
+                      replacedWith={editedMap[block.id]}
+                      onTextChange={(newText) => {
+                        if (isOutputView) {
+                          setOutputBlocks((prev) =>
+                            prev.map((b) => (b.id === block.id ? { ...b, text: newText } : b)),
+                          );
+                        } else {
+                          setOutputBlocks(
+                            inputBlocks.map((b) =>
+                              b.id === block.id ? { ...b, text: newText } : b,
+                            ),
+                          );
+                        }
+                      }}
+                    />
+                  </div>
                 ))}
               </div>
             </ScrollArea>
