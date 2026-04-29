@@ -1,9 +1,18 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ChevronDown, ChevronUp, Copy, Download, FileText, Menu, Plus, Trash2, Upload, Clipboard, X } from "lucide-react";
 import { parseInput, processBlocks, mergeBlocksByMarkers, generateSrtString, msToTime, type SubtitleBlock } from "@/lib/srt-splitter";
 import { useToast } from "@/hooks/use-toast";
+import { NameCombobox, rememberName } from "@/components/NameCombobox";
+
+const SPLITTER_FIND_STORE = "srt-splitter:find-names";
+const SPLITTER_REPLACE_STORE = "srt-splitter:replace-names";
+
+function escapeRegex(s: string) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
 
 interface Props {
   incomingSrt?: string;
@@ -49,6 +58,9 @@ export default function SrtTimeSplitterTab({ incomingSrt, incomingFilename, inco
   const [dotDone, setDotDone] = useState(persisted?.dotDone ?? false);
   const [splitDone, setSplitDone] = useState(persisted?.splitDone ?? false);
   const [trimDone, setTrimDone] = useState(persisted?.trimDone ?? false);
+  const [findText, setFindText] = useState("");
+  const [replaceText, setReplaceText] = useState("");
+  const [editedMap, setEditedMap] = useState<Record<number, string>>({});
   const finalSentRef = useRef(false);
 
   useEffect(() => {
@@ -77,7 +89,59 @@ export default function SrtTimeSplitterTab({ incomingSrt, incomingFilename, inco
     setDotDone(false);
     setSplitDone(false);
     setTrimDone(false);
+    setFindText("");
+    setReplaceText("");
+    setEditedMap({});
     finalSentRef.current = false;
+  };
+
+  const handleConvertReplace = () => {
+    const term = findText.trim();
+    if (!term) return;
+    const replacement = replaceText;
+    const flags = "gi";
+
+    let replacements = 0;
+
+    if (outputBlocks.length > 0) {
+      setOutputBlocks(prev =>
+        prev.map(b => {
+          const re = new RegExp(escapeRegex(term), flags);
+          if (re.test(b.text)) {
+            replacements += 1;
+            const newText = b.text.replace(new RegExp(escapeRegex(term), flags), replacement);
+            setEditedMap(prevMap => ({ ...prevMap, [b.id]: replacement }));
+            return { ...b, text: newText };
+          }
+          return b;
+        })
+      );
+    } else {
+      const re = new RegExp(escapeRegex(term), flags);
+      if (re.test(input)) {
+        replacements = (input.match(new RegExp(escapeRegex(term), flags)) || []).length;
+        setInput(prev => prev.replace(new RegExp(escapeRegex(term), flags), replacement));
+      }
+    }
+
+    if (term) rememberName(SPLITTER_FIND_STORE, term);
+    if (replacement.trim()) rememberName(SPLITTER_REPLACE_STORE, replacement);
+
+    if (replacements > 0) {
+      toast({
+        title: "Replaced",
+        description: `${replacements} card${replacements === 1 ? "" : "s"} updated.`,
+      });
+    } else {
+      toast({
+        title: "No matches found",
+        description: `"${term}" was not found in any subtitle.`,
+        variant: "destructive",
+      });
+    }
+
+    setFindText("");
+    setReplaceText("");
   };
 
   useEffect(() => {
@@ -306,6 +370,9 @@ export default function SrtTimeSplitterTab({ incomingSrt, incomingFilename, inco
     setDotDone(false);
     setSplitDone(false);
     setTrimDone(false);
+    setFindText("");
+    setReplaceText("");
+    setEditedMap({});
     finalSentRef.current = false;
   };
 
@@ -369,7 +436,31 @@ export default function SrtTimeSplitterTab({ incomingSrt, incomingFilename, inco
                 <FileText className="h-4 w-4 shrink-0 text-blue-500" />
                 <div className="truncate text-[15px] font-bold text-slate-800">{isOutputView ? "output.srt" : fileName || "input.srt"}</div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-1 flex-wrap items-center justify-end gap-2">
+                <div className="flex items-center gap-2">
+                  <NameCombobox
+                    placeholder="Find (e.g. max)"
+                    value={findText}
+                    onChange={setFindText}
+                    storageKey={SPLITTER_FIND_STORE}
+                    className="w-[160px]"
+                  />
+                  <NameCombobox
+                    placeholder="Replace with"
+                    value={replaceText}
+                    onChange={setReplaceText}
+                    storageKey={SPLITTER_REPLACE_STORE}
+                    className="w-[160px]"
+                  />
+                  <Button
+                    onClick={handleConvertReplace}
+                    disabled={!findText.trim()}
+                    title="Find & replace text in all subtitles"
+                    className="h-9 rounded-lg bg-gradient-to-b from-[#3b82f6] to-[#2563eb] px-4 text-xs font-semibold tracking-wide text-white shadow-[0_3px_10px_rgba(37,99,235,0.26)] ring-1 ring-white/15 transition-all duration-200 hover:-translate-y-px hover:from-[#2563eb] hover:to-[#1d4ed8] hover:shadow-[0_5px_14px_rgba(37,99,235,0.32)] disabled:opacity-50"
+                  >
+                    Convert
+                  </Button>
+                </div>
                 <Button variant="ghost" onClick={handleClear} className="h-8 rounded-lg border border-slate-200 bg-white dark:bg-gray-900 px-3 text-xs font-semibold text-slate-500 shadow-sm hover:bg-slate-50 hover:text-slate-800">
                   <X className="h-3.5 w-3.5" /> Clear
                 </Button>
@@ -397,6 +488,8 @@ export default function SrtTimeSplitterTab({ incomingSrt, incomingFilename, inco
                   <SubtitleRow
                     key={`${isOutputView ? "out" : "in"}-${block.id}`}
                     block={block}
+                    findText={findText}
+                    replacedWith={editedMap[block.id]}
                     onTextChange={(newText) => {
                       if (isOutputView) {
                         setOutputBlocks((prev) =>
@@ -499,22 +592,93 @@ function UploadPanel({
 function SubtitleRow({
   block,
   onTextChange,
+  findText,
+  replacedWith,
 }: {
   block: SubtitleBlock;
   onTextChange: (newText: string) => void;
+  findText: string;
+  replacedWith?: string;
 }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [isEditing, setIsEditing] = useState(false);
 
-  const autoSize = () => {
+  const autoSize = useCallback(() => {
     const el = textareaRef.current;
     if (!el) return;
     el.style.height = "auto";
     el.style.height = `${el.scrollHeight}px`;
-  };
+  }, []);
 
   useEffect(() => {
-    autoSize();
-  }, [block.text]);
+    if (isEditing) autoSize();
+  }, [block.text, isEditing, autoSize]);
+
+  const trimmedFind = findText.trim();
+  const hasFindHighlight = trimmedFind.length > 0;
+  const hasReplaceHighlight = !!replacedWith && replacedWith.length > 0;
+
+  const renderHighlighted = useCallback(
+    (text: string) => {
+      const segments: { text: string; type: "green" | "plain" }[] = [];
+
+      if (hasReplaceHighlight) {
+        const greenRegex = new RegExp(`(${escapeRegex(replacedWith!)})`, "gi");
+        const parts = text.split(greenRegex);
+        parts.forEach((part) => {
+          if (!part) return;
+          if (part.toLowerCase() === replacedWith!.toLowerCase()) {
+            segments.push({ text: part, type: "green" });
+          } else {
+            segments.push({ text: part, type: "plain" });
+          }
+        });
+      } else {
+        segments.push({ text, type: "plain" });
+      }
+
+      const finalNodes: React.ReactNode[] = [];
+      let key = 0;
+
+      segments.forEach((seg) => {
+        if (seg.type === "green") {
+          finalNodes.push(
+            <span
+              key={key++}
+              className="rounded bg-emerald-100 px-1 font-semibold text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200"
+            >
+              {seg.text}
+            </span>,
+          );
+        } else if (hasFindHighlight) {
+          const findRegex = new RegExp(`(${escapeRegex(trimmedFind)})`, "gi");
+          const subParts = seg.text.split(findRegex);
+          subParts.forEach((part) => {
+            if (!part) return;
+            if (part.toLowerCase() === trimmedFind.toLowerCase()) {
+              finalNodes.push(
+                <span
+                  key={key++}
+                  className="rounded bg-red-100 px-1 font-semibold text-red-700 dark:bg-red-900/40 dark:text-red-200"
+                >
+                  {part}
+                </span>,
+              );
+            } else {
+              finalNodes.push(<span key={key++}>{part}</span>);
+            }
+          });
+        } else {
+          finalNodes.push(<span key={key++}>{seg.text}</span>);
+        }
+      });
+
+      return finalNodes;
+    },
+    [hasFindHighlight, hasReplaceHighlight, replacedWith, trimmedFind],
+  );
+
+  const showHighlightedView = !isEditing && (hasFindHighlight || hasReplaceHighlight);
 
   return (
     <article className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white dark:bg-gray-900 shadow-[0_2px_9px_rgba(15,23,42,0.08)]">
@@ -526,6 +690,11 @@ function SubtitleRow({
           <span className="font-mono text-[13px] font-bold tracking-wide text-slate-400">
             {msToTime(block.startTime)} → {msToTime(block.endTime)}
           </span>
+          {hasReplaceHighlight && (
+            <Badge className="border-0 bg-emerald-100 px-2 py-0 text-[10px] uppercase tracking-wider text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-900/40 dark:text-emerald-300">
+              Edited
+            </Badge>
+          )}
         </div>
         <div className="flex items-center gap-4 text-slate-300">
           <ChevronUp className="h-4 w-4" />
@@ -534,18 +703,30 @@ function SubtitleRow({
           <Trash2 className="h-4 w-4 text-slate-300" />
         </div>
       </div>
-      <textarea
-        ref={textareaRef}
-        value={block.text}
-        onChange={(e) => {
-          onTextChange(e.target.value);
-          autoSize();
-        }}
-        onInput={autoSize}
-        rows={1}
-        spellCheck={false}
-        className="block min-h-[36px] w-full resize-none whitespace-pre-wrap border-0 bg-transparent px-5 py-3 text-[15px] font-medium leading-snug text-slate-700 outline-none focus:bg-blue-50/30 dark:focus:bg-blue-950/20"
-      />
+      {showHighlightedView ? (
+        <div
+          onClick={() => setIsEditing(true)}
+          className="block min-h-[36px] w-full cursor-text whitespace-pre-wrap px-5 py-3 text-[15px] font-medium leading-snug text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-gray-800/40"
+          title="Click to edit"
+        >
+          {renderHighlighted(block.text)}
+        </div>
+      ) : (
+        <textarea
+          ref={textareaRef}
+          value={block.text}
+          autoFocus={isEditing}
+          onChange={(e) => {
+            onTextChange(e.target.value);
+            autoSize();
+          }}
+          onInput={autoSize}
+          onBlur={() => setIsEditing(false)}
+          rows={1}
+          spellCheck={false}
+          className="block min-h-[36px] w-full resize-none whitespace-pre-wrap border-0 bg-transparent px-5 py-3 text-[15px] font-medium leading-snug text-slate-700 outline-none focus:bg-blue-50/30 dark:focus:bg-blue-950/20"
+        />
+      )}
     </article>
   );
 }

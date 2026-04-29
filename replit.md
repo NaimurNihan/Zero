@@ -49,6 +49,16 @@ The "Ai Audio" tab in `artifacts/srt-tools` is a full TTS editor cloned verbatim
 
 User explicitly skipped the counter-accuracy fix ("D"); only A + B + C are implemented.
 
+## SRT Time Spliter — Find & Replace
+
+`artifacts/srt-tools/src/tabs/SrtTimeSplitterTab.tsx` has an inline find & replace toolbar (mirrors the SRT Name tab UX):
+
+- **UI**: in the file-header bar (after filename, before Clear/Load Note), two `NameCombobox` inputs (Find / Replace with) plus a blue **Convert** button. Saved names persist in `localStorage` under `srt-splitter:find-names` / `srt-splitter:replace-names`.
+- **Highlighting**: while the user types in Find, every matching word inside subtitle cards is shown in **red**. After Convert runs, the replaced text in updated cards is shown in **green** with an "Edited" badge in the card header. `editedMap: Record<id, replacedWith>` tracks which cards were replaced.
+- **SubtitleRow**: switches to click-to-edit when there's any highlight to render (find term or edited card); otherwise stays as the original always-on textarea so existing direct-edit UX is preserved when no find/replace is active.
+- **Convert** works in both views: if `outputBlocks` exists, replaces in cards; otherwise replaces directly inside the raw `input` string. Case-insensitive global regex with proper escape. Emits a toast with replacement count or "no matches".
+- All find/replace state (find, replace, editedMap) is cleared on file load and Clear All.
+
 ## Video Splitter → Cutting+ Cue-Accurate Pipeline
 
 Browser-only fix (no API cost) so SRT-cue cuts align to the millisecond:
