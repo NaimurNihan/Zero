@@ -79,14 +79,39 @@ export default function VoiceTrimmerTab({ onSendToCutting, incomingAudioFiles }:
     }
   };
 
-  const handleClear = () => {
+  const handleClear = (broadcast: boolean = true) => {
     resetTrim();
     setSplitStage("idle");
     setLoaded(false);
     setZipDownloaded(false);
     setZipAnimating(false);
-    audioFiles.forEach((f) => removeFile(f.id));
+    audioFilesRef.current.forEach((f) => removeFile(f.id));
+    if (broadcast) {
+      window.dispatchEvent(
+        new CustomEvent("srt-tools:clear-all-broadcast", {
+          detail: { source: "audioSpliter" },
+        }),
+      );
+    }
   };
+
+  useEffect(() => {
+    const onCrossClear = (e: Event) => {
+      const detail = (e as CustomEvent<{ source?: string }>).detail;
+      if (detail?.source === "audioSpliter") return;
+      resetTrim();
+      setSplitStage("idle");
+      setLoaded(false);
+      setZipDownloaded(false);
+      setZipAnimating(false);
+      audioFilesRef.current.forEach((f) => removeFile(f.id));
+    };
+    window.addEventListener("srt-tools:clear-all-broadcast", onCrossClear);
+    return () =>
+      window.removeEventListener("srt-tools:clear-all-broadcast", onCrossClear);
+  }, [removeFile, resetTrim]);
+
+  const isEmpty = audioFiles.length === 0;
 
   const handleDownloadZip = async () => {
     const trimmed = audioFiles.filter((f) => f.isTrimmed && f.trimmedBlob);
@@ -225,19 +250,31 @@ export default function VoiceTrimmerTab({ onSendToCutting, incomingAudioFiles }:
             </button>
           )}
           <button
-            onClick={handleClear}
-            disabled={audioFiles.length === 0}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all disabled:opacity-35 disabled:cursor-not-allowed"
-            style={{ background: "hsl(220,15%,94%)", color: "hsl(220,20%,40%)" }}
+            onClick={() => handleClear(true)}
+            title={
+              isEmpty
+                ? "Clear All — already empty (also clears Ai Audio)"
+                : "Clear All (also clears Ai Audio)"
+            }
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border"
+            style={{
+              background: isEmpty
+                ? "rgba(34,197,94,0.10)"
+                : "rgba(239,68,68,0.10)",
+              color: isEmpty ? "#16a34a" : "#ef4444",
+              borderColor: isEmpty
+                ? "rgba(34,197,94,0.35)"
+                : "rgba(239,68,68,0.35)",
+            }}
             onMouseEnter={(e) => {
-              if (!e.currentTarget.disabled) {
-                e.currentTarget.style.background = "rgba(239,68,68,0.10)";
-                e.currentTarget.style.color = "#ef4444";
-              }
+              e.currentTarget.style.background = isEmpty
+                ? "rgba(34,197,94,0.18)"
+                : "rgba(239,68,68,0.18)";
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.background = "hsl(220,15%,94%)";
-              e.currentTarget.style.color = "hsl(220,20%,40%)";
+              e.currentTarget.style.background = isEmpty
+                ? "rgba(34,197,94,0.10)"
+                : "rgba(239,68,68,0.10)";
             }}
           >
             <Trash2 className="w-3 h-3" /> Clear All

@@ -1221,14 +1221,53 @@ export function Editor({ onSendToSpliter }: EditorProps = {}) {
     toast.success("All cancelled");
   };
 
-  const handleClearAll = () => {
-    stopPlayback();
-    setContent([""]);
-    setHistory([[""]]);
-    setHistoryIndex(0);
-    window.dispatchEvent(new CustomEvent("srt-tools:aiaudio-reset-pool"));
-    toast.success("All cleared");
-  };
+  const handleClearAll = React.useCallback(
+    (broadcast: boolean = true) => {
+      stopPlayback();
+      setContent([""]);
+      setHistory([[""]]);
+      setHistoryIndex(0);
+      window.dispatchEvent(new CustomEvent("srt-tools:aiaudio-reset-pool"));
+      if (broadcast) {
+        window.dispatchEvent(
+          new CustomEvent("srt-tools:clear-all-broadcast", {
+            detail: { source: "aiAudio" },
+          }),
+        );
+      }
+      toast.success("All cleared");
+    },
+    [stopPlayback],
+  );
+
+  React.useEffect(() => {
+    const onCrossClear = (e: Event) => {
+      const detail = (e as CustomEvent<{ source?: string }>).detail;
+      if (detail?.source === "aiAudio") return;
+      handleClearAll(false);
+    };
+    window.addEventListener("srt-tools:clear-all-broadcast", onCrossClear);
+    return () =>
+      window.removeEventListener("srt-tools:clear-all-broadcast", onCrossClear);
+  }, [handleClearAll]);
+
+  const [aiAudioPoolHasContent, setAiAudioPoolHasContent] = React.useState(false);
+  React.useEffect(() => {
+    const onPoolLoaded = (e: Event) => {
+      const detail = (e as CustomEvent<{ done?: number }>).detail;
+      if (detail && (detail.done ?? 0) > 0) setAiAudioPoolHasContent(true);
+    };
+    const onPoolReset = () => setAiAudioPoolHasContent(false);
+    window.addEventListener("srt-tools:aiaudio-pool-loaded", onPoolLoaded);
+    window.addEventListener("srt-tools:aiaudio-reset-pool", onPoolReset);
+    return () => {
+      window.removeEventListener("srt-tools:aiaudio-pool-loaded", onPoolLoaded);
+      window.removeEventListener("srt-tools:aiaudio-reset-pool", onPoolReset);
+    };
+  }, []);
+
+  const aiAudioIsEmpty =
+    content.every((c) => !c || c.trim() === "") && !aiAudioPoolHasContent;
 
   const totalLines = content.length;
   const totalPtu = (content.join("\n").match(/[.?।]/g) || []).length;
@@ -1242,10 +1281,14 @@ export function Editor({ onSendToSpliter }: EditorProps = {}) {
           <span className="text-sm font-semibold text-foreground tracking-wide shrink-0">AI Voice</span>
           <button
             type="button"
-            onClick={handleClearAll}
-            title="Clear all text and audio"
+            onClick={() => handleClearAll(true)}
+            title="Clear all text and audio (also clears Audio Spliter)"
             data-testid="button-clear-all"
-            className="flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1 rounded-full bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-950 transition-all border border-red-200 dark:border-red-900"
+            className={`flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1 rounded-full transition-all border ${
+              aiAudioIsEmpty
+                ? "bg-green-50 text-green-600 dark:bg-green-950/40 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-950 border-green-200 dark:border-green-900"
+                : "bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-950 border-red-200 dark:border-red-900"
+            }`}
           >
             <Trash2 size={11} /> Clear All
           </button>
