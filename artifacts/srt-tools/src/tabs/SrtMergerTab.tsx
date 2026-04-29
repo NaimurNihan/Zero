@@ -190,7 +190,11 @@ export default function SrtMergerTab({ setSubtitles, setFilename, onGenerated, o
   const handleCleanSentences = () => {
     const cleaned = sentenceText
       .split("\n")
-      .map((l) => stripWrapperBraces(stripLeadingNumber(l)).trim())
+      .map((l) =>
+        stripWrapperBraces(stripLeadingNumber(l))
+          .replace(/>>|<</g, "")
+          .trim()
+      )
       .filter((l) => l.length > 0)
       .join("\n");
     if (cleaned === sentenceText) {
