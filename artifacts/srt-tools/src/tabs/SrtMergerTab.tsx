@@ -192,7 +192,8 @@ export default function SrtMergerTab({ setSubtitles, setFilename, onGenerated, o
       .split("\n")
       .map((l) =>
         stripWrapperBraces(stripLeadingNumber(l))
-          .replace(/>>|<</g, "")
+          .replace(/>+|<+/g, "")
+          .replace(/\s*—\s*/g, ", ")
           .trim()
       )
       .filter((l) => l.length > 0)
