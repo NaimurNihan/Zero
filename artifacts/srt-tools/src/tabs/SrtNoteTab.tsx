@@ -21,6 +21,7 @@ const DEFAULT_LANGS = [
   { label: "German", content: "" },
   { label: "English", content: "" },
   { label: "Spanish", content: "" },
+  { label: "French", content: "" },
 ];
 const SAMPLE_PROJECTS: Project[] = [
   {
@@ -33,6 +34,7 @@ const SAMPLE_PROJECTS: Project[] = [
       { label: "German", content: "Am Anfang des Films sieht man den Direktor und eine Professorin der Hexenschule, die ein Kind vor das Tor des Hauses seines Onkels bringen.\nDer Name des Kindes ist Harry Potter.\nViele Jahre sp\u00E4ter ist Harry zehn Jahre alt.\nDie Familie seines Onkels behandelt ihn schlecht.\nEr schlug ihn und sperrte ihn in sein Zimmer im Erdgeschoss." },
       { label: "English", content: "" },
       { label: "Spanish", content: "" },
+      { label: "French", content: "" },
     ],
   },
   { id: "2", name: "The Dark Knight", updatedAt: "Yesterday", langs: DEFAULT_LANGS.map((l) => ({ ...l })) },
