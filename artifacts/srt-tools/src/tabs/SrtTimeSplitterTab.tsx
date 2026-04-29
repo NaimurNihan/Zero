@@ -468,53 +468,51 @@ export default function SrtTimeSplitterTab({ incomingSrt, incomingFilename, inco
                 <FileText className="h-4 w-4 shrink-0 text-blue-500" />
                 <div className="truncate text-[15px] font-bold text-slate-800">{isOutputView ? "output.srt" : fileName || "input.srt"}</div>
               </div>
-              <div className="flex flex-1 flex-wrap items-center justify-end gap-2">
-                <div className="flex items-center gap-2">
-                  <div className="relative w-[160px]">
-                    <Input
-                      type="text"
-                      value={jumpText}
-                      onChange={(e) => setJumpText(e.target.value)}
-                      placeholder="Jump to text..."
-                      title="Type a sentence — matching subtitle scrolls into view"
-                      className="bg-slate-50/50 dark:bg-gray-800 h-9 pr-8"
-                    />
-                    {jumpText ? (
-                      <button
-                        type="button"
-                        onClick={() => setJumpText("")}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-                        title="Clear"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    ) : (
-                      <Search className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-                    )}
-                  </div>
-                  <NameCombobox
-                    placeholder="Find (e.g. max)"
-                    value={findText}
-                    onChange={setFindText}
-                    storageKey={SPLITTER_FIND_STORE}
-                    className="w-[160px]"
+              <div className="flex flex-1 flex-wrap items-center justify-start gap-2">
+                <div className="relative w-[170px]">
+                  <Input
+                    type="text"
+                    value={jumpText}
+                    onChange={(e) => setJumpText(e.target.value)}
+                    placeholder="Jump to text..."
+                    title="Type a sentence — matching subtitle scrolls into view"
+                    className="bg-slate-50/50 dark:bg-gray-800 h-9 pr-8"
                   />
-                  <NameCombobox
-                    placeholder="Replace with"
-                    value={replaceText}
-                    onChange={setReplaceText}
-                    storageKey={SPLITTER_REPLACE_STORE}
-                    className="w-[160px]"
-                  />
-                  <Button
-                    onClick={handleConvertReplace}
-                    disabled={!findText.trim()}
-                    title="Find & replace text in all subtitles"
-                    className="h-9 rounded-lg bg-gradient-to-b from-[#3b82f6] to-[#2563eb] px-4 text-xs font-semibold tracking-wide text-white shadow-[0_3px_10px_rgba(37,99,235,0.26)] ring-1 ring-white/15 transition-all duration-200 hover:-translate-y-px hover:from-[#2563eb] hover:to-[#1d4ed8] hover:shadow-[0_5px_14px_rgba(37,99,235,0.32)] disabled:opacity-50"
-                  >
-                    Convert
-                  </Button>
+                  {jumpText ? (
+                    <button
+                      type="button"
+                      onClick={() => setJumpText("")}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                      title="Clear"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  ) : (
+                    <Search className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                  )}
                 </div>
+                <NameCombobox
+                  placeholder="Find (e.g. max)"
+                  value={findText}
+                  onChange={setFindText}
+                  storageKey={SPLITTER_FIND_STORE}
+                  className="w-[170px]"
+                />
+                <NameCombobox
+                  placeholder="Replace with"
+                  value={replaceText}
+                  onChange={setReplaceText}
+                  storageKey={SPLITTER_REPLACE_STORE}
+                  className="w-[170px]"
+                />
+                <Button
+                  onClick={handleConvertReplace}
+                  disabled={!findText.trim()}
+                  title="Find & replace text in all subtitles"
+                  className="h-9 rounded-lg bg-gradient-to-b from-[#3b82f6] to-[#2563eb] px-4 text-xs font-semibold tracking-wide text-white shadow-[0_3px_10px_rgba(37,99,235,0.26)] ring-1 ring-white/15 transition-all duration-200 hover:-translate-y-px hover:from-[#2563eb] hover:to-[#1d4ed8] hover:shadow-[0_5px_14px_rgba(37,99,235,0.32)] disabled:opacity-50"
+                >
+                  Convert
+                </Button>
                 <Button variant="ghost" onClick={handleClear} className="h-8 rounded-lg border border-slate-200 bg-white dark:bg-gray-900 px-3 text-xs font-semibold text-slate-500 shadow-sm hover:bg-slate-50 hover:text-slate-800">
                   <X className="h-3.5 w-3.5" /> Clear
                 </Button>
