@@ -752,19 +752,15 @@ export default function SrtMergerTab({ setSubtitles, setFilename, onGenerated, o
 
       {showNotepad && (
         <div
-          className="fixed inset-0 z-50 bg-black/30 flex items-start justify-start"
-          onClick={() => setShowNotepad(false)}
+          className="fixed z-50 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-2xl flex flex-col overflow-hidden"
+          style={{
+            width: "calc((100vw - 56px) / 3)",
+            height: "calc(100vh - 96px)",
+            top: "72px",
+            left: "24px",
+          }}
         >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-2xl flex flex-col overflow-hidden"
-            style={{
-              width: "calc((100vw - 56px) / 3)",
-              height: "calc(100vh - 96px)",
-              marginTop: "72px",
-              marginLeft: "24px",
-            }}
-          >
+          <div className="contents">
             <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between flex-shrink-0">
               <div className="flex items-center gap-2">
                 <FileText className="w-5 h-5 text-emerald-500" />
