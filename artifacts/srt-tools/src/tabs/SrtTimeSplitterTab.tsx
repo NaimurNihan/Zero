@@ -394,7 +394,23 @@ export default function SrtTimeSplitterTab({ incomingSrt, incomingFilename, inco
             <ScrollArea className="h-[calc(100vh-260px)]">
               <div className="space-y-4 pb-6">
                 {activeBlocks.map((block) => (
-                  <SubtitleRow key={`${isOutputView ? "out" : "in"}-${block.id}`} block={block} />
+                  <SubtitleRow
+                    key={`${isOutputView ? "out" : "in"}-${block.id}`}
+                    block={block}
+                    onTextChange={(newText) => {
+                      if (isOutputView) {
+                        setOutputBlocks((prev) =>
+                          prev.map((b) => (b.id === block.id ? { ...b, text: newText } : b)),
+                        );
+                      } else {
+                        setOutputBlocks(
+                          inputBlocks.map((b) =>
+                            b.id === block.id ? { ...b, text: newText } : b,
+                          ),
+                        );
+                      }
+                    }}
+                  />
                 ))}
               </div>
             </ScrollArea>
@@ -480,7 +496,26 @@ function UploadPanel({
   );
 }
 
-function SubtitleRow({ block }: { block: SubtitleBlock }) {
+function SubtitleRow({
+  block,
+  onTextChange,
+}: {
+  block: SubtitleBlock;
+  onTextChange: (newText: string) => void;
+}) {
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const autoSize = () => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  };
+
+  useEffect(() => {
+    autoSize();
+  }, [block.text]);
+
   return (
     <article className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white dark:bg-gray-900 shadow-[0_2px_9px_rgba(15,23,42,0.08)]">
       <div className="flex h-11 items-center justify-between border-b border-slate-100 px-5">
@@ -499,7 +534,18 @@ function SubtitleRow({ block }: { block: SubtitleBlock }) {
           <Trash2 className="h-4 w-4 text-slate-300" />
         </div>
       </div>
-      <p className="min-h-[36px] whitespace-pre-wrap px-5 py-3 text-[15px] font-medium leading-snug text-slate-700">{block.text}</p>
+      <textarea
+        ref={textareaRef}
+        value={block.text}
+        onChange={(e) => {
+          onTextChange(e.target.value);
+          autoSize();
+        }}
+        onInput={autoSize}
+        rows={1}
+        spellCheck={false}
+        className="block min-h-[36px] w-full resize-none whitespace-pre-wrap border-0 bg-transparent px-5 py-3 text-[15px] font-medium leading-snug text-slate-700 outline-none focus:bg-blue-50/30 dark:focus:bg-blue-950/20"
+      />
     </article>
   );
 }
