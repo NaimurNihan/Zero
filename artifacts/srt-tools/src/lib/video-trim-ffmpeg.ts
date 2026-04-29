@@ -308,6 +308,17 @@ async function trimHeadAccurateOnce(
   return new Blob([ab], { type: "video/mp4" });
 }
 
+// Pool-friendly full re-encode head trim. Use this from worker pools where
+// each worker owns its own FFmpeg instance. Reliable (no concat/codec-mismatch
+// issues) — produces clean output with no blank/freeze frames at any junction.
+export async function trimVideoHeadAccurateWithEngine(
+  ff: FFmpeg,
+  file: File,
+  opts: AccurateHeadTrimOptions,
+): Promise<Blob> {
+  return trimHeadAccurateOnce(ff, file, opts);
+}
+
 export async function trimVideoHeadAccurate(
   file: File,
   opts: AccurateHeadTrimOptions,

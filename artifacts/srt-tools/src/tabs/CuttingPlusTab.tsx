@@ -30,7 +30,7 @@ import {
   createFFmpegInstance,
   getVideoDuration,
   trimVideoWithEngine,
-  trimHeadSmartCutWithEngine,
+  trimVideoHeadAccurateWithEngine,
   trimmedFileName,
   headTrimmedFileName,
   type TrimMode,
@@ -390,11 +390,11 @@ export default function CuttingPlusTab({
           );
         };
 
-        // Head-extra clips → smart cut (re-encode only first 3 s, stream-copy rest).
-        // Regular clips → fast stream-copy.
+        // Head-extra clips → full re-encode head trim (reliable, no concat junction
+        // artifacts). Regular clips → fast stream-copy.
         const blob =
           target.headExtra && target.headExtra > 0
-            ? await trimHeadSmartCutWithEngine(slot.ffmpeg!, target.file, {
+            ? await trimVideoHeadAccurateWithEngine(slot.ffmpeg!, target.file, {
                 headSeconds: target.headExtra,
                 onProgress,
               })
