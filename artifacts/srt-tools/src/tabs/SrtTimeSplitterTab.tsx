@@ -402,11 +402,6 @@ export default function SrtTimeSplitterTab({ incomingSrt, incomingFilename, inco
     }
   }, [jumpText, activeBlocks]);
 
-  useEffect(() => {
-    if (highlightedJumpId === null) return;
-    const t = window.setTimeout(() => setHighlightedJumpId(null), 1600);
-    return () => window.clearTimeout(t);
-  }, [highlightedJumpId]);
 
   return (
     <div className="min-h-full bg-[#f6f7fb] font-sans text-slate-900">
@@ -547,7 +542,7 @@ export default function SrtTimeSplitterTab({ incomingSrt, incomingFilename, inco
                     }}
                     className={`scroll-mt-2 rounded-2xl transition-all duration-300 ${
                       highlightedJumpId === block.id
-                        ? "ring-2 ring-amber-400 ring-offset-2 ring-offset-[#f6f7fb] dark:ring-offset-gray-950"
+                        ? "ring-2 ring-red-500 ring-offset-2 ring-offset-[#f6f7fb] dark:ring-offset-gray-950"
                         : ""
                     }`}
                   >
