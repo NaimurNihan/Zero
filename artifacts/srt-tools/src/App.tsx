@@ -3,7 +3,6 @@ import PassKeyLock from "@/components/PassKeyLock";
 import { type Subtitle, formatSrt, parseSrt } from "@/lib/srt";
 import SrtEditorTab from "@/tabs/SrtEditorTab";
 import SrtMakerTab from "@/tabs/SrtMakerTab";
-import SrtNameTab from "@/tabs/SrtNameTab";
 import SrtNoteTab from "@/tabs/SrtNoteTab";
 import SrtTimeSplitterTab from "@/tabs/SrtTimeSplitterTab";
 import SrtMergerTab from "@/tabs/SrtMergerTab";
@@ -15,7 +14,7 @@ import SpeedPlusMinusTab from "@/tabs/SpeedPlusMinusTab";
 import AiAudioTab from "@/tabs/AiAudioTab";
 import AudioToSrtTab from "@/tabs/AudioToSrtTab";
 
-type Tab = "editor" | "maker" | "note" | "splitter" | "merger" | "name" | "aiAudio" | "audio" | "video" | "cuttingPlus" | "cutting" | "speed" | "audioToSrt";
+type Tab = "editor" | "maker" | "note" | "splitter" | "merger" | "aiAudio" | "audio" | "video" | "cuttingPlus" | "cutting" | "speed" | "audioToSrt";
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   {
@@ -24,15 +23,6 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
     icon: (
       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-      </svg>
-    ),
-  },
-  {
-    id: "name",
-    label: "SRT Name",
-    icon: (
-      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
       </svg>
     ),
   },
@@ -148,9 +138,6 @@ export default function App() {
   const [noteIncomingText, setNoteIncomingText] = useState("");
   const [noteIncomingName, setNoteIncomingName] = useState("");
   const [noteIncomingKey, setNoteIncomingKey] = useState(0);
-  const [nameIncomingSrt, setNameIncomingSrt] = useState("");
-  const [nameIncomingFilename, setNameIncomingFilename] = useState("");
-  const [nameIncomingKey, setNameIncomingKey] = useState(0);
   const [cuttingIncomingAudio, setCuttingIncomingAudio] = useState<{ files: File[]; key: number }>({ files: [], key: 0 });
   const [spliterIncomingAudio, setSpliterIncomingAudio] = useState<{ files: File[]; key: number; autoSplit?: boolean }>({ files: [], key: 0 });
   const autoRunRef = useRef(false);
@@ -287,7 +274,7 @@ export default function App() {
                 key={tab.id}
                 onClick={() => unlocked && handleSelectTab(tab.id)}
                 disabled={!unlocked}
-                style={[5, 6, 9].includes(idx) ? { marginLeft: "1.5rem" } : undefined}
+                style={[4, 5, 8].includes(idx) ? { marginLeft: "1.5rem" } : undefined}
                 className={`flex items-center gap-1 px-2 py-2.5 text-[0.525rem] sm:text-[0.6125rem] font-medium border-b-2 transition-colors whitespace-nowrap shrink-0 ${
                   !unlocked
                     ? "border-transparent text-gray-300 dark:text-gray-600 cursor-not-allowed"
@@ -372,27 +359,12 @@ export default function App() {
       <div style={{ display: activeTab === "merger" ? "flex" : "none" }} className="flex-col flex-1 overflow-y-auto">
         <SrtMergerTab
           onSendToName={(srt, name) => {
-            setNameIncomingSrt(srt);
-            setNameIncomingFilename(name);
-            setNameIncomingKey((k) => k + 1);
-            handleSelectTab("name");
-          }}
-          onTransform={runTransformSequence}
-        />
-      </div>
-
-      {/* SRT Name — full width, hidden when inactive */}
-      <div style={{ display: activeTab === "name" ? "flex" : "none" }} className="flex-col flex-1 overflow-y-auto">
-        <SrtNameTab
-          incomingSrt={nameIncomingSrt}
-          incomingFilename={nameIncomingFilename}
-          incomingKey={nameIncomingKey}
-          onConvertOutput={(srt, name) => {
             const parsed = parseSrt(srt);
             setSubtitles(parsed);
             setFilename(name);
             handleSelectTab("editor");
           }}
+          onTransform={runTransformSequence}
         />
       </div>
 
@@ -465,7 +437,7 @@ export default function App() {
 
       {/* Other tabs */}
       <main
-        style={{ display: activeTab === "maker" || activeTab === "note" || activeTab === "splitter" || activeTab === "merger" || activeTab === "name" || activeTab === "aiAudio" || activeTab === "audio" || activeTab === "video" || activeTab === "cuttingPlus" || activeTab === "cutting" || activeTab === "speed" || activeTab === "audioToSrt" ? "none" : "block" }}
+        style={{ display: activeTab === "maker" || activeTab === "note" || activeTab === "splitter" || activeTab === "merger" || activeTab === "aiAudio" || activeTab === "audio" || activeTab === "video" || activeTab === "cuttingPlus" || activeTab === "cutting" || activeTab === "speed" || activeTab === "audioToSrt" ? "none" : "block" }}
         className="max-w-5xl mx-auto px-4 py-5 flex-1 overflow-y-auto w-full"
       >
         {activeTab === "editor" && (
