@@ -148,6 +148,7 @@ export default function SrtMergerTab({ onSendToName, onTransform }: SrtMergerTab
   const [isGenerated, setIsGenerated] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [fileName, setFileName] = useState("");
+  const [loadedFiles, setLoadedFiles] = useState<{ name: string; count: number }[]>([]);
   const [showNotepad, setShowNotepad] = useState(false);
   const [notepadText, setNotepadText] = useState("");
   const [notepadSplit, setNotepadSplit] = useState(false);
@@ -253,36 +254,99 @@ export default function SrtMergerTab({ onSendToName, onTransform }: SrtMergerTab
     newText: sentences[i],
   }));
 
-  const handleFile = useCallback((file: File) => {
-    if (!file.name.endsWith(".srt")) {
-      toast({ title: "Invalid file", description: "Please upload a .srt file", variant: "destructive" });
-      return;
-    }
-    setFileName(file.name);
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const content = e.target?.result as string;
-      const parsed = parseSRT(content);
-      setSrtEntries(parsed);
+  const srtEntriesRef = useRef<SRTEntry[]>([]);
+  useEffect(() => {
+    srtEntriesRef.current = srtEntries;
+  }, [srtEntries]);
+
+  const readFileAsText = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => resolve(e.target?.result as string);
+      reader.onerror = reject;
+      reader.readAsText(file, "utf-8");
+    });
+
+  const handleFiles = useCallback(
+    async (files: File[]) => {
+      const srtFiles = files.filter((f) => f.name.toLowerCase().endsWith(".srt"));
+      if (srtFiles.length === 0) {
+        toast({ title: "Invalid file", description: "Please upload .srt file(s)", variant: "destructive" });
+        return;
+      }
+
+      const startedEmpty = srtEntriesRef.current.length === 0;
+      let combined: SRTEntry[] = [...srtEntriesRef.current];
+      const fileSummaries: { name: string; count: number }[] = [];
+
+      for (const file of srtFiles) {
+        try {
+          const content = await readFileAsText(file);
+          const parsed = parseSRT(content);
+          if (parsed.length === 0) {
+            toast({
+              title: "Empty SRT skipped",
+              description: `${file.name} has no entries`,
+              variant: "destructive",
+            });
+            continue;
+          }
+          const offsetMs =
+            combined.length > 0 ? timeToMs(combined[combined.length - 1].endTime) : 0;
+          const shifted = parsed.map((e, idx) => ({
+            index: combined.length + idx + 1,
+            startTime: msToTime(timeToMs(e.startTime) + offsetMs),
+            endTime: msToTime(timeToMs(e.endTime) + offsetMs),
+            text: e.text,
+          }));
+          combined = [...combined, ...shifted];
+          fileSummaries.push({ name: file.name, count: parsed.length });
+        } catch {
+          toast({
+            title: "Read failed",
+            description: `Could not read ${file.name}`,
+            variant: "destructive",
+          });
+        }
+      }
+
+      if (fileSummaries.length === 0) return;
+
+      setSrtEntries(combined);
+      setLoadedFiles((prev) => [...prev, ...fileSummaries]);
+      setFileName((prev) => prev || fileSummaries[0].name);
       setIsGenerated(false);
-      toast({ title: "SRT loaded", description: `${parsed.length} subtitle entries found` });
-    };
-    reader.readAsText(file, "utf-8");
-  }, [toast]);
+
+      const totalAdded = fileSummaries.reduce((s, f) => s + f.count, 0);
+      toast({
+        title: startedEmpty ? "SRT loaded" : `${fileSummaries.length} SRT appended`,
+        description: `${totalAdded} entries added (total ${combined.length})`,
+      });
+    },
+    [toast]
+  );
+
+  const handleFile = useCallback(
+    (file: File) => {
+      handleFiles([file]);
+    },
+    [handleFiles]
+  );
 
   const onDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
       setIsDragging(false);
-      const file = e.dataTransfer.files[0];
-      if (file) handleFile(file);
+      const files = Array.from(e.dataTransfer.files);
+      if (files.length > 0) handleFiles(files);
     },
-    [handleFile]
+    [handleFiles]
   );
 
   const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) handleFile(file);
+    const files = Array.from(e.target.files ?? []);
+    if (files.length > 0) handleFiles(files);
+    if (e.target) e.target.value = "";
   };
 
   const moveEntry = (i: number, dir: -1 | 1) => {
@@ -313,6 +377,7 @@ export default function SrtMergerTab({ onSendToName, onTransform }: SrtMergerTab
   const clearSRT = () => {
     setSrtEntries([]);
     setFileName("");
+    setLoadedFiles([]);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
@@ -378,14 +443,21 @@ export default function SrtMergerTab({ onSendToName, onTransform }: SrtMergerTab
           <button
             onClick={() => {
               if (srtEntries.length > 0) {
-                const converted = srtEntries
-                  .map((entry, i) => `(${i + 1}) { ${entry.text.replace(/\n/g, " ")} }`)
-                  .join("\n");
-                setNotepadText(converted);
+                setNotepadText((prev) => {
+                  const existing = prev.trimEnd();
+                  const numberMatches = existing.match(/\((\d+)\)/g);
+                  const lastNum = numberMatches
+                    ? Math.max(...numberMatches.map((m) => parseInt(m.slice(1, -1), 10) || 0))
+                    : 0;
+                  const converted = srtEntries
+                    .map((entry, i) => `(${lastNum + i + 1}) { ${entry.text.replace(/\n/g, " ")} }`)
+                    .join("\n");
+                  return existing ? existing + "\n" + converted : converted;
+                });
               }
               setShowNotepad(true);
             }}
-            title="Open notepad"
+            title="Open notepad — appends current SRT with continued numbering"
             className="p-1 -m-1 rounded hover:bg-emerald-50 transition-colors"
           >
             <FileText className="w-5 h-5 text-emerald-500" />
@@ -490,17 +562,41 @@ export default function SrtMergerTab({ onSendToName, onTransform }: SrtMergerTab
                   ref={fileInputRef}
                   type="file"
                   accept=".srt"
+                  multiple
                   className="hidden"
                   onChange={onFileChange}
                 />
               </div>
             ) : (
               <>
-                {/* File name badge */}
-                <div className="flex items-center gap-2 px-2 py-1.5 bg-emerald-50 rounded-lg border border-emerald-100 mb-2">
-                  <FileText className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
-                  <span className="text-xs text-emerald-700 font-medium truncate">{fileName}</span>
-                  <span className="ml-auto text-xs text-emerald-500">{srtEntries.length} entries</span>
+                {/* Loaded files badges */}
+                <div className="space-y-1 mb-2">
+                  {loadedFiles.length > 0 ? (
+                    loadedFiles.map((f, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-center gap-2 px-2 py-1.5 bg-emerald-50 rounded-lg border border-emerald-100"
+                      >
+                        <span className="w-4 h-4 bg-emerald-500 text-white rounded text-[10px] flex items-center justify-center font-bold flex-shrink-0">
+                          {idx + 1}
+                        </span>
+                        <FileText className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
+                        <span className="text-xs text-emerald-700 font-medium truncate">{f.name}</span>
+                        <span className="ml-auto text-xs text-emerald-500 flex-shrink-0">{f.count} entries</span>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="flex items-center gap-2 px-2 py-1.5 bg-emerald-50 rounded-lg border border-emerald-100">
+                      <FileText className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
+                      <span className="text-xs text-emerald-700 font-medium truncate">{fileName}</span>
+                      <span className="ml-auto text-xs text-emerald-500">{srtEntries.length} entries</span>
+                    </div>
+                  )}
+                  {loadedFiles.length > 1 && (
+                    <div className="text-[11px] text-emerald-600/70 px-2">
+                      Total: {srtEntries.length} entries · timestamps & numbering chained
+                    </div>
+                  )}
                 </div>
 
                 {/* Subtitle cards */}
@@ -580,17 +676,21 @@ export default function SrtMergerTab({ onSendToName, onTransform }: SrtMergerTab
                   );
                 })}
 
-                {/* Add more button */}
+                {/* Add another SRT button — appends with chained timestamps & numbering */}
                 <button
                   onClick={() => fileInputRef.current?.click()}
-                  className="w-full text-xs text-gray-400 dark:text-gray-500 hover:text-emerald-500 py-2 transition-colors"
+                  className="w-full mt-1 flex items-center justify-center gap-1.5 text-xs font-medium text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 border border-dashed border-emerald-300 hover:border-emerald-400 rounded-lg py-2.5 transition-colors"
+                  title="Append another SRT — numbering and timestamps continue from the last entry"
                 >
-                  + Upload different file
+                  <Plus className="w-3.5 h-3.5" />
+                  Add another SRT
+                  <span className="text-[10px] text-emerald-400 font-normal">(continues from {srtEntries.length + 1})</span>
                 </button>
                 <input
                   ref={fileInputRef}
                   type="file"
                   accept=".srt"
+                  multiple
                   className="hidden"
                   onChange={onFileChange}
                 />
@@ -902,20 +1002,31 @@ export default function SrtMergerTab({ onSendToName, onTransform }: SrtMergerTab
                   const parsed = parseSRT(pasted);
                   if (parsed.length === 0) return;
                   e.preventDefault();
-                  const converted = parsed
-                    .map((entry, i) => `(${i + 1}) { ${entry.text.replace(/\n/g, " ")} }`)
-                    .join("\n");
                   const target = e.currentTarget;
                   const start = target.selectionStart ?? notepadText.length;
                   const end = target.selectionEnd ?? notepadText.length;
                   const before = notepadText.slice(0, start);
                   const after = notepadText.slice(end);
+                  // Continue numbering from the highest (N) found before cursor
+                  const numberMatches = before.match(/\((\d+)\)/g);
+                  const lastNum = numberMatches
+                    ? Math.max(...numberMatches.map((m) => parseInt(m.slice(1, -1), 10) || 0))
+                    : 0;
+                  const converted = parsed
+                    .map((entry, i) => `(${lastNum + i + 1}) { ${entry.text.replace(/\n/g, " ")} }`)
+                    .join("\n");
                   const needsLeadingNl = before.length > 0 && !before.endsWith("\n");
                   const insert = (needsLeadingNl ? "\n" : "") + converted;
                   setNotepadText(before + insert + after);
-                  toast({ title: "Converted", description: `${parsed.length} SRT entries → sentences` });
+                  toast({
+                    title: "Converted",
+                    description:
+                      lastNum > 0
+                        ? `${parsed.length} entries → continued from (${lastNum + 1})`
+                        : `${parsed.length} SRT entries → sentences`,
+                  });
                 }}
-                placeholder="Paste SRT here — it will auto-convert to numbered sentences. Or write any quick notes."
+                placeholder="Paste SRT here — auto-converts to numbered sentences. Paste another SRT and numbering continues from where it left off."
                 className="w-full h-full text-sm resize-none border-gray-200 dark:border-gray-700 focus:border-emerald-400 focus:ring-emerald-400"
               />
               )}
