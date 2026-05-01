@@ -15,6 +15,13 @@ import AiAudioTab from "@/tabs/AiAudioTab";
 import AudioToSrtTab from "@/tabs/AudioToSrtTab";
 
 type Tab = "editor" | "maker" | "note" | "splitter" | "merger" | "aiAudio" | "audio" | "video" | "cuttingPlus" | "cutting" | "speed" | "audioToSrt";
+type Group = "A" | "B" | "C";
+
+const GROUP_TABS: Record<Group, Tab[]> = {
+  A: ["merger", "editor", "splitter", "note", "maker"],
+  B: ["note", "aiAudio", "audio", "audioToSrt"],
+  C: ["video", "cuttingPlus", "cutting", "speed"],
+};
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   {
@@ -127,8 +134,48 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   },
 ];
 
+const GROUP_CONFIG: { id: Group; label: string; icon: React.ReactNode; activeColor: string; activeBg: string; activeBorder: string }[] = [
+  {
+    id: "A",
+    label: "SRT",
+    icon: (
+      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+      </svg>
+    ),
+    activeColor: "text-emerald-700 dark:text-emerald-300",
+    activeBg: "bg-emerald-50 dark:bg-emerald-950",
+    activeBorder: "border-emerald-400 dark:border-emerald-600",
+  },
+  {
+    id: "B",
+    label: "Audio",
+    icon: (
+      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2z" />
+      </svg>
+    ),
+    activeColor: "text-violet-700 dark:text-violet-300",
+    activeBg: "bg-violet-50 dark:bg-violet-950",
+    activeBorder: "border-violet-400 dark:border-violet-600",
+  },
+  {
+    id: "C",
+    label: "Video",
+    icon: (
+      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+      </svg>
+    ),
+    activeColor: "text-orange-700 dark:text-orange-300",
+    activeBg: "bg-orange-50 dark:bg-orange-950",
+    activeBorder: "border-orange-400 dark:border-orange-600",
+  },
+];
+
 export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>("merger");
+  const [activeGroups, setActiveGroups] = useState<Set<Group>>(new Set(["A", "B", "C"]));
   const [subtitles, setSubtitles] = useState<Subtitle[]>([]);
   const [filename, setFilename] = useState("");
   const [splitterIncomingKey, setSplitterIncomingKey] = useState(0);
@@ -167,6 +214,43 @@ export default function App() {
   }, [theme]);
 
   const toggleTheme = () => setTheme((t) => (t === "dark" ? "light" : "dark"));
+
+  const toggleGroup = (group: Group) => {
+    setActiveGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(group)) {
+        if (next.size === 1) return prev;
+        next.delete(group);
+      } else {
+        next.add(group);
+      }
+      return next;
+    });
+  };
+
+  const visibleTabs = useMemo(() => {
+    const seen = new Set<Tab>();
+    const result: typeof TABS = [];
+    for (const tab of TABS) {
+      if (seen.has(tab.id)) continue;
+      for (const group of (["A", "B", "C"] as Group[])) {
+        if (activeGroups.has(group) && GROUP_TABS[group].includes(tab.id)) {
+          seen.add(tab.id);
+          result.push(tab);
+          break;
+        }
+      }
+    }
+    return result;
+  }, [activeGroups]);
+
+  useEffect(() => {
+    if (!visibleTabs.find((t) => t.id === activeTab)) {
+      if (visibleTabs.length > 0) {
+        setActiveTab(visibleTabs[0].id);
+      }
+    }
+  }, [visibleTabs, activeTab]);
 
   const handleVideoSplitterOutputs = useCallback((files: File[]) => {
     setCuttingPlusIncomingVideos((prev) => {
@@ -261,6 +345,28 @@ export default function App() {
                 </svg>
               )}
             </button>
+
+            <div className="flex items-center gap-1 ml-1">
+              {GROUP_CONFIG.map((g) => {
+                const isActive = activeGroups.has(g.id);
+                return (
+                  <button
+                    key={g.id}
+                    onClick={() => toggleGroup(g.id)}
+                    title={`${isActive ? "Hide" : "Show"} ${g.label} tabs`}
+                    className={`flex items-center gap-1 px-2 py-1 rounded-md border text-xs font-semibold transition-all duration-150 select-none ${
+                      isActive
+                        ? `${g.activeBg} ${g.activeColor} ${g.activeBorder}`
+                        : "bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 border-gray-200 dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700"
+                    }`}
+                  >
+                    {g.icon}
+                    <span className="hidden sm:inline">{g.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+
             {hasFile && (
               <span className="text-xs bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-300 border border-blue-200 dark:border-blue-900 px-2.5 py-0.5 rounded-full font-medium">
                 {subtitles.length} subtitles loaded
@@ -269,12 +375,11 @@ export default function App() {
           </div>
 
           <nav className="flex gap-0 -mb-px -mx-4 px-2 flex-wrap justify-center">
-            {TABS.map((tab, idx) => (
+            {visibleTabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => unlocked && handleSelectTab(tab.id)}
                 disabled={!unlocked}
-                style={[4, 5, 8].includes(idx) ? { marginLeft: "1.5rem" } : undefined}
                 className={`flex items-center gap-1 px-2 py-2.5 text-[0.525rem] sm:text-[0.6125rem] font-medium border-b-2 transition-colors whitespace-nowrap shrink-0 ${
                   !unlocked
                     ? "border-transparent text-gray-300 dark:text-gray-600 cursor-not-allowed"
