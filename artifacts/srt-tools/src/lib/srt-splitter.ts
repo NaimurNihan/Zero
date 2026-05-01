@@ -42,8 +42,19 @@ export function parseInput(input: string): SubtitleBlock[] {
     const line = lines[i].trim();
     if (!line) {
       if (currentBlock && currentBlock.startTime !== undefined) {
-        blocks.push(currentBlock as SubtitleBlock);
-        currentBlock = null;
+        let j = i + 1;
+        while (j < lines.length && !lines[j].trim()) j++;
+        const nextLine = j < lines.length ? lines[j].trim() : "";
+        const isNextBlockStart =
+          !nextLine ||
+          /^\d+$/.test(nextLine) ||
+          timeRegex.test(nextLine);
+        if (isNextBlockStart) {
+          blocks.push(currentBlock as SubtitleBlock);
+          currentBlock = null;
+        } else {
+          currentBlock.text = (currentBlock.text || "") + "\n";
+        }
       }
       continue;
     }
