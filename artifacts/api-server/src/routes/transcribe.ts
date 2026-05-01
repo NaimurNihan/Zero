@@ -22,9 +22,12 @@ const groqKeysRaw = [
 const fallbackBaseURL = process.env["AI_INTEGRATIONS_OPENAI_BASE_URL"];
 const fallbackApiKey = process.env["AI_INTEGRATIONS_OPENAI_API_KEY"];
 
-if (groqKeysRaw.length === 0 && (!fallbackBaseURL || !fallbackApiKey)) {
-  throw new Error(
-    "GROQ_API_KEY (and optionally GROQ_API_KEY_2 / GROQ_API_KEY_3) or AI_INTEGRATIONS_OPENAI_BASE_URL + AI_INTEGRATIONS_OPENAI_API_KEY must be set",
+const transcriptionConfigured =
+  groqKeysRaw.length > 0 || (!!fallbackBaseURL && !!fallbackApiKey);
+
+if (!transcriptionConfigured) {
+  logger.warn(
+    "GROQ_API_KEY (and optionally GROQ_API_KEY_2 / GROQ_API_KEY_3) or AI_INTEGRATIONS_OPENAI_BASE_URL + AI_INTEGRATIONS_OPENAI_API_KEY is not set — transcription endpoint will return 503",
   );
 }
 
@@ -52,7 +55,8 @@ const fallbackClient =
     ? new OpenAI({ baseURL: fallbackBaseURL, apiKey: fallbackApiKey })
     : null;
 
-function pickTranscriptionClient(keyIndex?: number): OpenAI {
+function pickTranscriptionClient(keyIndex?: number): OpenAI | null {
+  if (!transcriptionConfigured) return null;
   if (!useGroq) return fallbackClient!;
   if (
     typeof keyIndex === "number" &&
@@ -388,6 +392,13 @@ router.post("/transcribe", upload.single("audio"), async (req, res) => {
         ? parseInt(keyIndexRaw, 10)
         : undefined;
     const transcriptionClient = pickTranscriptionClient(keyIndex);
+
+    if (!transcriptionClient) {
+      return res.status(503).json({
+        error:
+          "Transcription is not configured. Set GROQ_API_KEY or AI_INTEGRATIONS_OPENAI_BASE_URL + AI_INTEGRATIONS_OPENAI_API_KEY to enable this feature.",
+      });
+    }
 
     const originalName = req.file.originalname || "audio.mp3";
 
