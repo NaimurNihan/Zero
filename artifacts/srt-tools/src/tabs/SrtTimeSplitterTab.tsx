@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -671,9 +671,13 @@ function SubtitleRow({
     el.style.height = `${el.scrollHeight}px`;
   }, []);
 
+  useLayoutEffect(() => {
+    autoSize();
+  });
+
   useEffect(() => {
-    if (isEditing) autoSize();
-  }, [block.text, isEditing, autoSize]);
+    autoSize();
+  }, [block.text, autoSize]);
 
   const trimmedFind = findText.trim();
   const hasFindHighlight = trimmedFind.length > 0;
