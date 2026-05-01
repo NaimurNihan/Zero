@@ -184,6 +184,42 @@ export default function SrtEditorTab({ subtitles, filename, setSubtitles, setFil
     setSubtitles(arr.map((s, i) => ({ ...s, index: i + 1 })));
   }
 
+  function createManually() {
+    const newSub: Subtitle = {
+      id: Date.now() * 1000 + Math.floor(Math.random() * 999),
+      index: 1,
+      startTime: "00:00:00,000",
+      endTime: "00:00:03,000",
+      text: "",
+      originalText: "",
+      edited: true,
+    };
+    setSubtitles([newSub]);
+    setFilename("new.srt");
+    setConvertStats(null);
+    setConverted(false);
+    setFixedCount(null);
+  }
+
+  function addSubtitleAtEnd() {
+    const last = subtitles[subtitles.length - 1];
+    const lastEndMs = timeToMs(last.endTime);
+    const newSub: Subtitle = {
+      id: Date.now() * 1000 + Math.floor(Math.random() * 999),
+      index: subtitles.length + 1,
+      startTime: last.endTime,
+      endTime: msToTime(lastEndMs + 3000),
+      text: "",
+      originalText: "",
+      edited: true,
+    };
+    setSubtitles([...subtitles, newSub]);
+  }
+
+  function handleTimeChange(id: number, field: "startTime" | "endTime", value: string) {
+    setSubtitles(subtitles.map((s) => s.id === id ? { ...s, [field]: value, edited: true } : s));
+  }
+
   function handleConvert() {
     let marks = 0;
     let removed = 0;
@@ -318,7 +354,7 @@ export default function SrtEditorTab({ subtitles, filename, setSubtitles, setFil
             <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
           </div>
 
-          <div className="flex items-center justify-center gap-3">
+          <div className="flex items-center justify-center gap-3 flex-wrap">
             <button onClick={() => setPasteOpen(true)}
               className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 shadow-sm transition-colors">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -332,6 +368,13 @@ export default function SrtEditorTab({ subtitles, filename, setSubtitles, setFil
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
               Load sample
+            </button>
+            <button onClick={createManually}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-emerald-400 bg-white dark:bg-gray-900 text-sm font-semibold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 shadow-sm transition-colors">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Create manually
             </button>
           </div>
         </div>
@@ -381,12 +424,24 @@ export default function SrtEditorTab({ subtitles, filename, setSubtitles, setFil
                   <span className="flex items-center justify-center w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-800 text-xs font-bold text-gray-500 dark:text-gray-400 shrink-0">
                     {sub.index}
                   </span>
-                  <div className={`flex items-center gap-1.5 text-xs font-mono ${hasOverlap ? "text-orange-500 font-semibold" : "text-gray-400"}`}>
-                    <span>{sub.startTime}</span>
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className={`flex items-center gap-1 text-xs font-mono ${hasOverlap ? "text-orange-500 font-semibold" : "text-gray-500 dark:text-gray-400"}`}>
+                    <input
+                      type="text"
+                      value={sub.startTime}
+                      onChange={(e) => handleTimeChange(sub.id, "startTime", e.target.value)}
+                      className={`w-28 bg-transparent border rounded px-1.5 py-0.5 text-xs font-mono focus:outline-none focus:ring-1 ${hasOverlap ? "border-orange-300 focus:ring-orange-300 text-orange-500" : "border-gray-200 dark:border-gray-700 focus:ring-emerald-300 text-gray-600 dark:text-gray-300"}`}
+                      spellCheck={false}
+                    />
+                    <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
                     </svg>
-                    <span>{sub.endTime}</span>
+                    <input
+                      type="text"
+                      value={sub.endTime}
+                      onChange={(e) => handleTimeChange(sub.id, "endTime", e.target.value)}
+                      className={`w-28 bg-transparent border rounded px-1.5 py-0.5 text-xs font-mono focus:outline-none focus:ring-1 ${hasOverlap ? "border-orange-300 focus:ring-orange-300 text-orange-500" : "border-gray-200 dark:border-gray-700 focus:ring-emerald-300 text-gray-600 dark:text-gray-300"}`}
+                      spellCheck={false}
+                    />
                   </div>
                   {hasOverlap && (
                     <span className="flex items-center gap-1 text-xs bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full font-medium">
@@ -442,6 +497,16 @@ export default function SrtEditorTab({ subtitles, filename, setSubtitles, setFil
               </div>
             );
           })}
+
+          <button
+            onClick={addSubtitleAtEnd}
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl border-2 border-dashed border-gray-300 dark:border-gray-700 text-sm font-medium text-gray-400 dark:text-gray-500 hover:border-emerald-400 hover:text-emerald-500 hover:bg-emerald-50/50 dark:hover:bg-emerald-900/10 transition-all mt-1"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Add subtitle
+          </button>
         </div>
       )}
 
