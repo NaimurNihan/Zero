@@ -310,6 +310,37 @@ export default function SrtTimeSplitterTab({ incomingSrt, incomingFilename, inco
     });
   };
 
+  const handleShiftMinus1s = () => {
+    if (outputBlocks.length === 0) {
+      toast({
+        title: "No output cards",
+        description: "Run Split Lines first to generate cards.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setOutputBlocks(prev =>
+      prev.map((b, idx) => {
+        if (idx === 0) {
+          return {
+            ...b,
+            startTime: 0,
+            endTime: Math.max(0, b.endTime - 1000),
+          };
+        }
+        return {
+          ...b,
+          startTime: b.startTime - 1000,
+          endTime: b.endTime - 1000,
+        };
+      })
+    );
+    toast({
+      title: "Shifted -1s",
+      description: "All cards shifted back 1 second. First card start kept at 0.",
+    });
+  };
+
   const handleEmojiToDot = () => {
     if (outputBlocks.length > 0) {
       setOutputBlocks(prev => prev.map(b => ({ ...b, text: b.text.replace(/✅/g, ".") })));
@@ -417,6 +448,15 @@ export default function SrtTimeSplitterTab({ incomingSrt, incomingFilename, inco
             )}
           </div>
           <div className="flex items-center gap-2.5">
+            {isOutputView && (
+              <Button
+                onClick={handleShiftMinus1s}
+                title="Shift all cards back by 1 second (first card start stays at 0)"
+                className="h-9 rounded-lg bg-gradient-to-b from-[#8b5cf6] to-[#7c3aed] px-3.5 text-xs font-semibold tracking-wide text-white shadow-[0_3px_10px_rgba(124,58,237,0.28)] ring-1 ring-white/15 transition-all duration-200 hover:-translate-y-px hover:from-[#7c3aed] hover:to-[#6d28d9] hover:shadow-[0_5px_14px_rgba(124,58,237,0.32)]"
+              >
+                -1s
+              </Button>
+            )}
             <Button
               onClick={handleRunAll}
               disabled={!hasInput}
