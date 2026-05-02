@@ -69,12 +69,27 @@ function readSavedState(): SavedState {
     return getDefaultState();
   }
 }
+const PTU_RE = /[.?।]/g;
+function linePtuCount(line: string): number {
+  return (line.match(PTU_RE) || []).length;
+}
+function applyPtuHighlighting(el: HTMLDivElement) {
+  const children = Array.from(el.children) as HTMLElement[];
+  children.forEach((child) => {
+    const lineText = child.innerText.replace(/\n$/, "");
+    child.style.color = linePtuCount(lineText) > 1 ? "#3b82f6" : "";
+  });
+}
 function escapeHtml(text: string) {
   return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 function buildHtml(lines: string[]) {
   if (lines.length === 0) return "<div><br></div>";
-  return lines.map((l) => `<div>${l ? escapeHtml(l) : "<br>"}</div>`).join("");
+  return lines.map((l) => {
+    const ptu = linePtuCount(l);
+    const style = ptu > 1 ? ' style="color:#3b82f6"' : '';
+    return `<div${style}>${l ? escapeHtml(l) : "<br>"}</div>`;
+  }).join("");
 }
 function extractLines(el: HTMLDivElement): string {
   const children = Array.from(el.children) as HTMLElement[];
@@ -139,8 +154,14 @@ function LineEditor({ editorKey, value, onChange, placeholder, divRef, onCopy }:
     if (!el) return;
     const newHtml = buildHtml(value.split("\n"));
     if (el.innerHTML !== newHtml) el.innerHTML = newHtml;
+    applyPtuHighlighting(el);
   }, [value, editorKey]);
-  const handleInput = () => { if (!innerRef.current) return; internalChange.current = true; onChange(extractLines(innerRef.current)); };
+  const handleInput = () => {
+    if (!innerRef.current) return;
+    internalChange.current = true;
+    onChange(extractLines(innerRef.current));
+    applyPtuHighlighting(innerRef.current);
+  };
   const handleKeyDown = (e: React.KeyboardEvent) => { if (e.key === "Enter") { e.preventDefault(); document.execCommand("insertHTML", false, "<div><br></div>"); } };
   const handlePaste = (e: React.ClipboardEvent) => {
     e.preventDefault();
@@ -179,6 +200,7 @@ function LineEditor({ editorKey, value, onChange, placeholder, divRef, onCopy }:
     else if (insertAfterIdx === -1) { newLines = [...existingLines, ...pastedLines]; }
     else { newLines = [...existingLines.slice(0, insertAfterIdx + 1), ...pastedLines, ...existingLines.slice(insertAfterIdx + 1)]; }
     innerRef.current.innerHTML = buildHtml(newLines);
+    applyPtuHighlighting(innerRef.current);
     const targetIdx = insertAfterIdx === -1 ? newLines.length - 1 : insertAfterIdx + pastedLines.length;
     const targetEl = innerRef.current.children[Math.min(targetIdx, newLines.length - 1)] as HTMLElement | undefined;
     if (targetEl) {
@@ -191,7 +213,7 @@ function LineEditor({ editorKey, value, onChange, placeholder, divRef, onCopy }:
   };
   return (
     <div
-      ref={(el) => { innerRef.current = el; divRef(el); if (el && el.innerHTML === "") el.innerHTML = buildHtml(value.split("\n")); }}
+      ref={(el) => { innerRef.current = el; divRef(el); if (el && el.innerHTML === "") { el.innerHTML = buildHtml(value.split("\n")); applyPtuHighlighting(el); } }}
       key={editorKey} contentEditable suppressContentEditableWarning
       data-line-editor data-placeholder={placeholder}
       onInput={handleInput} onKeyDown={handleKeyDown} onPaste={handlePaste} onCopy={onCopy}
