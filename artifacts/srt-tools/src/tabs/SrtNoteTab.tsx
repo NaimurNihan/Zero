@@ -104,12 +104,15 @@ function stripLeadingBullet(line: string): string {
   }
   return out;
 }
+function removeEmDash(text: string): string {
+  return text.replace(/—/g, "");
+}
 function normalizePastedLines(text: string): string[] {
   return text
     .replace(/\r\n/g, "\n")
     .replace(/\r/g, "\n")
     .split("\n")
-    .map((line) => stripLeadingBullet(line.trim()).trim())
+    .map((line) => removeEmDash(stripLeadingBullet(line.trim()).trim()).trim())
     .filter(Boolean);
 }
 function copyOriginalSelectionWithNumbers(e: ReactClipboardEvent<HTMLElement>, startLine: number) {
@@ -159,8 +162,43 @@ function LineEditor({ editorKey, value, onChange, placeholder, divRef, onCopy }:
   const handleInput = () => {
     if (!innerRef.current) return;
     internalChange.current = true;
-    onChange(extractLines(innerRef.current));
-    applyPtuHighlighting(innerRef.current);
+    const raw = extractLines(innerRef.current);
+    const cleaned = removeEmDash(raw);
+    if (cleaned !== raw) {
+      const cleanedLines = cleaned.split("\n");
+      const sel = window.getSelection();
+      let cursorLineIdx = -1;
+      let cursorOffset = 0;
+      if (sel && sel.rangeCount > 0) {
+        const range = sel.getRangeAt(0);
+        let node: Node = range.startContainer;
+        while (node.parentNode && node.parentNode !== innerRef.current) node = node.parentNode;
+        cursorLineIdx = Array.from(innerRef.current.children).indexOf(node as Element);
+        cursorOffset = range.startOffset;
+      }
+      innerRef.current.innerHTML = buildHtml(cleanedLines);
+      applyPtuHighlighting(innerRef.current);
+      const targetEl = innerRef.current.children[Math.max(0, cursorLineIdx)] as HTMLElement | undefined;
+      if (targetEl) {
+        const newSel = window.getSelection();
+        const newRange = document.createRange();
+        const textNode = targetEl.firstChild;
+        if (textNode && textNode.nodeType === Node.TEXT_NODE) {
+          const safeOffset = Math.min(cursorOffset, (textNode as Text).length);
+          newRange.setStart(textNode, safeOffset);
+          newRange.collapse(true);
+        } else {
+          newRange.selectNodeContents(targetEl);
+          newRange.collapse(false);
+        }
+        newSel?.removeAllRanges();
+        newSel?.addRange(newRange);
+      }
+      onChange(cleaned);
+    } else {
+      onChange(raw);
+      applyPtuHighlighting(innerRef.current);
+    }
   };
   const handleKeyDown = (e: React.KeyboardEvent) => { if (e.key === "Enter") { e.preventDefault(); document.execCommand("insertHTML", false, "<div><br></div>"); } };
   const handlePaste = (e: React.ClipboardEvent) => {
