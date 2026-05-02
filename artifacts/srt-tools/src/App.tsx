@@ -588,7 +588,7 @@ export default function App() {
       {/* Other tabs */}
       <main
         style={{ display: activeTab === "maker" || activeTab === "note" || activeTab === "splitter" || activeTab === "merger" || activeTab === "aiAudio" || activeTab === "audio" || activeTab === "video" || activeTab === "cuttingPlus" || activeTab === "cutting" || activeTab === "speed" || activeTab === "audioToSrt" ? "none" : "block" }}
-        className="max-w-5xl mx-auto px-4 py-5 flex-1 overflow-y-auto w-full"
+        className="max-w-5xl mx-auto px-4 py-5 flex-1 overflow-y-auto w-full min-h-0"
       >
         {activeTab === "editor" && (
           <SrtEditorTab
