@@ -50,6 +50,7 @@ export function parseInput(input: string): SubtitleBlock[] {
           /^\d+$/.test(nextLine) ||
           timeRegex.test(nextLine);
         if (isNextBlockStart) {
+          if (currentBlock.text) currentBlock.text = currentBlock.text.trim();
           blocks.push(currentBlock as SubtitleBlock);
           currentBlock = null;
         } else {
@@ -81,6 +82,7 @@ export function parseInput(input: string): SubtitleBlock[] {
   }
 
   if (currentBlock && currentBlock.startTime !== undefined) {
+    if (currentBlock.text) currentBlock.text = currentBlock.text.trim();
     blocks.push(currentBlock as SubtitleBlock);
   }
 
@@ -102,7 +104,7 @@ export function processBlocks(blocks: SubtitleBlock[]): SubtitleBlock[] {
       .map((part, index) => `${part}${index < rawParts.length - 1 ? '✅' : ''}`.trim())
       .filter(Boolean);
 
-    const totalChars = parts.reduce((sum, p) => sum + p.trim().length, 0);
+    const totalChars = parts.reduce((sum, p) => sum + p.trim().replace(/✅/g, '').length, 0);
     const duration = block.endTime - block.startTime;
 
     let currentTime = block.startTime;
@@ -111,7 +113,7 @@ export function processBlocks(blocks: SubtitleBlock[]): SubtitleBlock[] {
       const partText = parts[i].trim();
       if (!partText && i === parts.length - 1) continue;
 
-      const partChars = partText.length;
+      const partChars = partText.replace(/✅/g, '').length;
       const partDuration = totalChars === 0 ? duration / parts.length : Math.round(duration * (partChars / totalChars));
 
       const partEndTime = i === parts.length - 1 ? block.endTime : currentTime + partDuration;
@@ -152,13 +154,13 @@ function splitBlockByMarkers(block: SubtitleBlock): TimedTextSegment[] {
   const parts = rawParts
     .map((part, index) => `${part}${index < rawParts.length - 1 ? '✅' : ''}`.trim())
     .filter(Boolean);
-  const totalChars = parts.reduce((sum, part) => sum + part.length, 0);
+  const totalChars = parts.reduce((sum, part) => sum + part.replace(/✅/g, '').length, 0);
   const duration = block.endTime - block.startTime;
   let currentTime = block.startTime;
 
   return parts.map((part, index) => {
     const partDuration =
-      totalChars === 0 ? duration / parts.length : Math.round(duration * (part.length / totalChars));
+      totalChars === 0 ? duration / parts.length : Math.round(duration * (part.replace(/✅/g, '').length / totalChars));
     const endTime = index === parts.length - 1 ? block.endTime : currentTime + partDuration;
     const segment = {
       text: part,
@@ -226,10 +228,12 @@ export function mergeBlocksByMarkers(blocks: SubtitleBlock[]): SubtitleBlock[] {
 }
 
 export function generateSrtString(blocks: SubtitleBlock[]): string {
-  return blocks
-    .map(
-      (b) =>
-        `${b.id}\n${msToTime(b.startTime)} --> ${msToTime(b.endTime)}\n${b.text}`
-    )
-    .join('\n\n');
+  return (
+    blocks
+      .map(
+        (b, index) =>
+          `${index + 1}\n${msToTime(b.startTime)} --> ${msToTime(b.endTime)}\n${b.text.trim()}`
+      )
+      .join('\n\n') + '\n'
+  );
 }
