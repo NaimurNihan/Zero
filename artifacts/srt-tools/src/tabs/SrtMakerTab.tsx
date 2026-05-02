@@ -1,6 +1,8 @@
 import { useState, useRef, useCallback } from "react";
 import { Upload, Download, Sparkles, X, Music, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
 
 interface AudioEntry {
   id: string;
@@ -42,17 +44,78 @@ async function getAudioDuration(file: File): Promise<number> {
   });
 }
 
+function stripLeadingNumber(line: string): string {
+  return line.replace(/^\s*[\(\[\{]?\s*\d+\s*[\)\]\}\.\:\-–—]\s*/, "");
+}
+function stripWrapperBraces(line: string): string {
+  return line.replace(/^\s*[\{\[\(]\s*([\s\S]*?)\s*[\}\]\)]\s*$/, "$1");
+}
+
 export default function SrtMakerTab() {
   const [audioEntries, setAudioEntries] = useState<AudioEntry[]>([]);
   const [loadingFiles, setLoadingFiles] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
-  const [sentences, setSentences] = useState("");
+  const [sentenceText, setSentenceText] = useState("");
+  const [addMoreText, setAddMoreText] = useState("");
+  const [sentenceHistory, setSentenceHistory] = useState<string[]>([]);
   const [generated, setGenerated] = useState(false);
   const [lang, setLang] = useState<"en" | "ar" | "de">("en");
   const [langOpen, setLangOpen] = useState(false);
   const langDir = lang === "ar" ? "rtl" : "ltr";
   const audioInputRef = useRef<HTMLInputElement>(null);
-  const lineRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const { toast } = useToast();
+
+  const appendLinesToSentences = (lines: string[]) => {
+    if (lines.length === 0) return;
+    setSentenceHistory((h) => [...h, sentenceText]);
+    setSentenceText((prev) => {
+      const existing = prev.trim();
+      return existing ? existing + "\n" + lines.join("\n") : lines.join("\n");
+    });
+    setGenerated(false);
+  };
+
+  const handleAddMore = () => {
+    const newLines = addMoreText.split("\n").map((s) => s.trim()).filter((s) => s.length > 0);
+    if (newLines.length === 0) return;
+    appendLinesToSentences(newLines);
+    setAddMoreText("");
+    toast({ title: `${newLines.length} sentences added`, description: "Appended to existing list" });
+  };
+
+  const handleAddOrPaste = async () => {
+    if (addMoreText.trim()) { handleAddMore(); return; }
+    try {
+      const text = await navigator.clipboard.readText();
+      const newLines = text.split("\n").map((s) => s.trim()).filter((s) => s.length > 0);
+      if (newLines.length === 0) { toast({ title: "Clipboard is empty", description: "Copy some text first or type in the box" }); return; }
+      appendLinesToSentences(newLines);
+      toast({ title: `${newLines.length} sentences pasted & added`, description: "Pulled from clipboard" });
+    } catch {
+      toast({ title: "Can't read clipboard", description: "Paste into the box first, then click Add" });
+    }
+  };
+
+  const handleCleanSentences = () => {
+    const cleaned = sentenceText
+      .split("\n")
+      .map((l) => stripWrapperBraces(stripLeadingNumber(l)).replace(/>+|<+/g, "").replace(/\s*—\s*/g, ", ").trim())
+      .filter((l) => l.length > 0)
+      .join("\n");
+    if (cleaned === sentenceText) { toast({ title: "Already clean", description: "Nothing to remove" }); return; }
+    setSentenceHistory((h) => [...h, sentenceText]);
+    setSentenceText(cleaned);
+    setGenerated(false);
+    toast({ title: "Cleaned", description: "Numbers & brackets removed" });
+  };
+
+  const handleUndo = () => {
+    if (sentenceHistory.length === 0) return;
+    const prev = sentenceHistory[sentenceHistory.length - 1];
+    setSentenceHistory((h) => h.slice(0, -1));
+    setSentenceText(prev);
+    toast({ title: "Undone", description: "Last added batch removed" });
+  };
 
   const processFiles = useCallback(async (files: File[]) => {
     const audioFiles = files.filter((f) =>
@@ -90,44 +153,7 @@ export default function SrtMakerTab() {
     setGenerated(false);
   }
 
-  const allLines = sentences === "" ? [""] : sentences.split("\n");
-
-  function updateLine(i: number, val: string) {
-    const next = [...allLines];
-    next[i] = val;
-    setSentences(next.join("\n"));
-    setGenerated(false);
-  }
-
-  function handleLineKeyDown(i: number, e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      const next = [...allLines];
-      next.splice(i + 1, 0, "");
-      setSentences(next.join("\n"));
-      setTimeout(() => lineRefs.current[i + 1]?.focus(), 0);
-    } else if (e.key === "Backspace" && allLines[i] === "" && allLines.length > 1) {
-      e.preventDefault();
-      const next = [...allLines];
-      next.splice(i, 1);
-      setSentences(next.join("\n"));
-      setTimeout(() => lineRefs.current[Math.max(0, i - 1)]?.focus(), 0);
-    }
-  }
-
-  function handleLinePaste(i: number, e: React.ClipboardEvent<HTMLInputElement>) {
-    const text = e.clipboardData.getData("text");
-    if (text.includes("\n")) {
-      e.preventDefault();
-      const pasted = text.split("\n").map((l) => l.replace(/^\d+[\.\)]\s*/, "").trim());
-      const next = [...allLines];
-      next.splice(i, 1, ...pasted);
-      setSentences(next.join("\n"));
-      setGenerated(false);
-    }
-  }
-
-  const sentenceLines = sentences.split("\n").map((l) => l.replace(/^\d+[\.\)]\s*/, "").trim()).filter(Boolean);
+  const sentenceLines = sentenceText.split("\n").map((l) => l.trim()).filter(Boolean);
   const srtCards = audioEntries.map((entry, i) => ({
     index: i + 1,
     startTime: msToSrtTime(entry.startMs),
@@ -327,9 +353,27 @@ export default function SrtMakerTab() {
                   {sentenceLines.length} lines
                 </span>
               )}
-              {sentences && (
+              {sentenceText && (
                 <button
-                  onClick={() => { setSentences(""); setGenerated(false); }}
+                  onClick={handleCleanSentences}
+                  title="Remove leading numbers and wrapper brackets"
+                  className="text-xs text-emerald-600 hover:text-emerald-700 font-medium border border-emerald-200 hover:border-emerald-400 bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded transition-colors"
+                >
+                  ✨ Clean
+                </button>
+              )}
+              {sentenceHistory.length > 0 && (
+                <button
+                  onClick={handleUndo}
+                  title="Undo last change"
+                  className="text-xs text-blue-500 hover:text-blue-600 font-medium transition-colors"
+                >
+                  ⟲ Undo
+                </button>
+              )}
+              {sentenceText && (
+                <button
+                  onClick={() => { setSentenceText(""); setSentenceHistory([]); setGenerated(false); }}
                   className="text-xs text-gray-400 dark:text-gray-500 hover:text-red-500 transition-colors"
                 >
                   Clear all
@@ -339,35 +383,66 @@ export default function SrtMakerTab() {
           </div>
 
           <div className="flex-1 overflow-y-auto p-3">
-            <div className="space-y-2">
-              {allLines.map((line, i) => (
-                <div
-                  key={i}
-                  className="flex gap-2 p-2.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 focus-within:border-emerald-400 focus-within:ring-1 focus-within:ring-emerald-400 transition-colors"
+            {sentenceLines.length === 0 ? (
+              <div className="relative h-full min-h-[300px]">
+                {!sentenceText && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none gap-2 text-gray-400 dark:text-gray-500">
+                    <div className="w-10 h-10 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center">
+                      <FileText className="w-4 h-4" />
+                    </div>
+                    <p className="text-sm">Type or paste your sentences below</p>
+                    <p className="text-xs">One sentence per line</p>
+                  </div>
+                )}
+                <Textarea
+                  value={sentenceText}
+                  onChange={(e) => { setSentenceText(e.target.value); setGenerated(false); }}
+                  placeholder=""
                   dir={langDir}
-                >
-                  <span
-                    className="text-xs font-semibold text-gray-400 dark:text-gray-500 mt-0.5 w-5 flex-shrink-0 text-right"
-                    style={{ userSelect: "none", WebkitUserSelect: "none", pointerEvents: "none" }}
-                    aria-hidden="true"
-                  >
-                    {i + 1}.
-                  </span>
-                  <input
-                    ref={(el) => { lineRefs.current[i] = el; }}
-                    type="text"
-                    value={line}
-                    onChange={(e) => updateLine(i, e.target.value)}
-                    onKeyDown={(e) => handleLineKeyDown(i, e)}
-                    onPaste={(e) => handleLinePaste(i, e)}
-                    placeholder={i === 0 ? "Type or paste sentences here…" : ""}
-                    className="flex-1 bg-transparent outline-none text-sm text-gray-700 dark:text-gray-200 placeholder-gray-300 leading-relaxed"
-                    spellCheck={false}
+                  className="absolute inset-0 w-full h-full text-sm resize-none border-gray-200 dark:border-gray-700 focus:border-emerald-400 focus:ring-emerald-400 bg-transparent"
+                />
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {/* Add more sentences — top */}
+                <div className="pb-3 mb-2 border-b border-dashed border-gray-200 dark:border-gray-700">
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mb-1.5 font-medium">+ Add more sentences (from {sentenceLines.length + 1})</p>
+                  <Textarea
+                    value={addMoreText}
+                    onChange={(e) => setAddMoreText(e.target.value)}
+                    placeholder={"Paste next batch here...\nOne sentence per line"}
                     dir={langDir}
+                    className="min-h-[120px] text-sm resize-none border-gray-200 dark:border-gray-700 focus:border-emerald-400 focus:ring-emerald-400"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && e.ctrlKey) { e.preventDefault(); handleAddMore(); }
+                    }}
                   />
+                  <button
+                    onClick={handleAddOrPaste}
+                    className="mt-1.5 w-full text-xs bg-emerald-50 hover:bg-emerald-100 text-emerald-600 border border-emerald-200 rounded-md py-1.5 transition-colors font-medium"
+                  >
+                    {addMoreText.trim() ? "Add to list (Ctrl+Enter)" : "Paste & Add from clipboard"}
+                  </button>
                 </div>
-              ))}
-            </div>
+
+                {sentenceLines.map((sentence, i) => (
+                  <div
+                    key={i}
+                    className={`flex gap-2 p-2.5 rounded-lg border transition-colors ${
+                      i < audioEntries.length
+                        ? "border-emerald-100 bg-emerald-50/40"
+                        : "border-orange-100 bg-orange-50/40"
+                    }`}
+                    dir={langDir}
+                  >
+                    <span className="text-xs font-semibold text-gray-400 dark:text-gray-500 mt-0.5 w-5 flex-shrink-0 text-right">
+                      {i + 1}.
+                    </span>
+                    <p className="text-sm text-gray-700 dark:text-gray-200 leading-relaxed">{sentence}</p>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
