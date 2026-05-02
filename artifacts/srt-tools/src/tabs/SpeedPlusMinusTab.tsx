@@ -42,8 +42,8 @@ import {
 // this factor window (audioDuration / videoDuration). Outside the window
 // the motion gets too jerky / unwatchable, so we mark the card as an
 // error instead of processing it.
-const MIN_SPEED_FACTOR = 0.5;
-const MAX_SPEED_FACTOR = 2.0;
+const MIN_SPEED_FACTOR = 0.25;
+const MAX_SPEED_FACTOR = 4.0;
 // Floor under which we treat the durations as already matching and skip
 // any processing (avoids 0.999x re-encodes).
 const SPEED_EPSILON = 0.005;
@@ -243,6 +243,7 @@ type CardState = {
   canCut: boolean;
   isWorking: boolean;
   mode?: "speedup" | "slowdown" | null;
+  isEqual?: boolean;
   hasAudio: boolean;
   hasVideo: boolean;
   isDone: boolean;
@@ -267,6 +268,7 @@ function sameCardState(a: CardState, b: CardState): boolean {
     a.hasVideo === b.hasVideo &&
     a.isDone === b.isDone &&
     a.mode === b.mode &&
+    !!a.isEqual === !!b.isEqual &&
     a.mergedUrl === b.mergedUrl &&
     a.mergedName === b.mergedName &&
     !!a.isArchived === !!b.isArchived
@@ -275,6 +277,7 @@ function sameCardState(a: CardState, b: CardState): boolean {
 
 export type CutterCardHandle = {
   runCut: () => Promise<{ url: string; name: string } | null>;
+  passThrough: () => Promise<{ url: string; name: string } | null>;
   loadAudio: (file: File) => void;
   loadVideo: (file: File) => void;
   markArchived: () => void;
@@ -818,7 +821,7 @@ function VideoCutterApp({
   const anyWorking =
     running || archiving || cardStates.some((c) => c.isWorking);
   const anyCanSpeed = cardStates.some(
-    (c) => c.canCut && (c.mode === "speedup" || c.mode === "slowdown"),
+    (c) => (c.canCut && (c.mode === "speedup" || c.mode === "slowdown")) || c.isEqual,
   );
   const audioPoolCount = pool.filter((p) => p.kind === "audio").length;
   const videoPoolCount = pool.filter((p) => p.kind === "video").length;
@@ -849,25 +852,32 @@ function VideoCutterApp({
     const pendingArchive: Array<{ idx: number; url: string; name: string }> =
       [];
     try {
-      // Build the queue of cards that should be processed.
+      // Build the queue of cards that need FFmpeg processing.
       const queue: number[] = [];
+      // Build the queue of cards where video == audio (pass-through, no FFmpeg).
+      const equalQueue: number[] = [];
       for (let i = 0; i < numCards; i++) {
-        // Read live ref instead of cardStates state — it's up-to-date,
-        // even when rAF debouncing hasn't flushed yet.
         const cs = cardStatesRef.current[i];
-        if (
-          cs?.canCut &&
-          (cs.mode === "speedup" || cs.mode === "slowdown") &&
-          cardRefs.current[i]
-        ) {
+        if (!cardRefs.current[i]) continue;
+        if (cs?.canCut && (cs.mode === "speedup" || cs.mode === "slowdown")) {
           queue.push(i);
+        } else if (cs?.isEqual) {
+          equalQueue.push(i);
+        }
+      }
+
+      // Process equal-duration cards first (no FFmpeg, very fast).
+      for (const cardIdx of equalQueue) {
+        const result = await cardRefs.current[cardIdx]!.passThrough();
+        if (result) {
+          pendingArchive.push({ idx: cardIdx, url: result.url, name: result.name });
+          if (pendingArchive.length >= BATCH_SIZE_PP) {
+            await archiveBatch(pendingArchive.splice(0));
+          }
         }
       }
 
       // Spin up POOL_SIZE workers that pull cards off a shared cursor.
-      // Each worker leases one engine slot at a time inside runCut, so
-      // we never exceed pool capacity. Order of completion may differ
-      // from queue order, which is fine — archiveBatch keys by idx.
       let cursor = 0;
       const archiveLock = { busy: false };
       const tryFlushArchive = async () => {
@@ -899,9 +909,11 @@ function VideoCutterApp({
       };
 
       const workerCount = Math.max(1, Math.min(ENGINE_POOL_SIZE, queue.length));
-      await Promise.all(
-        Array.from({ length: workerCount }, () => worker()),
-      );
+      if (workerCount > 0) {
+        await Promise.all(
+          Array.from({ length: workerCount }, () => worker()),
+        );
+      }
 
       if (pendingArchive.length > 0) {
         await archiveBatch(pendingArchive.splice(0));
@@ -1051,11 +1063,11 @@ function VideoCutterApp({
                 {activeCount} <span className="text-[10px] font-medium text-slate-500">cards</span>
               </span>
             </div>
-            <div className={`flex items-center gap-2 rounded-lg border border-violet-200 bg-violet-50/60 px-2.5 py-1 transition-opacity ${speedUpCount === 0 ? "opacity-20" : ""}`}>
-              <span className="flex h-6 w-6 items-center justify-center rounded-md bg-violet-600 text-white">
+            <div className={`flex items-center gap-2 rounded-lg border border-green-200 bg-green-50/60 px-2.5 py-1 transition-opacity ${speedUpCount === 0 ? "opacity-20" : ""}`}>
+              <span className="flex h-6 w-6 items-center justify-center rounded-md bg-green-600 text-white">
                 <FastForward className="h-3 w-3" />
               </span>
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-violet-700">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-green-700">
                 Speed +
               </span>
               <span className="ml-auto text-sm font-bold text-slate-800" data-testid="info-speedup-count">
@@ -1095,11 +1107,11 @@ function VideoCutterApp({
                 {completeCount} <span className="text-[10px] font-medium text-slate-500">cards</span>
               </span>
             </div>
-            <div className={`flex items-center gap-2 rounded-lg border border-fuchsia-200 bg-fuchsia-50/60 px-2.5 py-1 transition-opacity ${slowDownCount === 0 ? "opacity-20" : ""}`}>
-              <span className="flex h-6 w-6 items-center justify-center rounded-md bg-fuchsia-500 text-white">
+            <div className={`flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50/60 px-2.5 py-1 transition-opacity ${slowDownCount === 0 ? "opacity-20" : ""}`}>
+              <span className="flex h-6 w-6 items-center justify-center rounded-md bg-blue-500 text-white">
                 <Rewind className="h-3 w-3" />
               </span>
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-fuchsia-700">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-blue-700">
                 Speed -
               </span>
               <span className="ml-auto text-sm font-bold text-slate-800" data-testid="info-slowdown-count">
@@ -1505,6 +1517,12 @@ const CutterCard = forwardRef<CutterCardHandle, CutterCardProps>(
           : "slowdown"
         : null;
 
+    const isEqual =
+      speedFactor !== null &&
+      speedDelta <= SPEED_EPSILON &&
+      !!audioFile &&
+      !!videoFile;
+
     const canCut =
       engineReady &&
       !!audioFile &&
@@ -1532,6 +1550,7 @@ const CutterCard = forwardRef<CutterCardHandle, CutterCardProps>(
         canCut,
         isWorking,
         mode,
+        isEqual,
         hasAudio,
         hasVideo,
         isDone,
@@ -1544,6 +1563,7 @@ const CutterCard = forwardRef<CutterCardHandle, CutterCardProps>(
       canCut,
       isWorking,
       mode,
+      isEqual,
       hasAudio,
       hasVideo,
       isDone,
@@ -1770,8 +1790,24 @@ const CutterCard = forwardRef<CutterCardHandle, CutterCardProps>(
       return null;
     };
 
+    const passThrough = async (): Promise<{ url: string; name: string } | null> => {
+      if (!videoFile) return null;
+      const ext = (videoFile.name.split(".").pop() || "mp4").toLowerCase();
+      const outputName = `Merged ${index}.${ext}`;
+      const blob = new Blob([await videoFile.arrayBuffer()], { type: videoFile.type || "video/mp4" });
+      const url = URL.createObjectURL(blob);
+      setMergedUrl(url);
+      setMergedName(outputName);
+      setMergedSize(blob.size);
+      setMergedDuration(videoDuration ?? 0);
+      setStage("done");
+      setProgress(100);
+      return { url, name: outputName };
+    };
+
     useImperativeHandle(ref, () => ({
       runCut,
+      passThrough,
       loadAudio: (file: File) => {
         void handleAudio(file);
       },
@@ -1799,9 +1835,9 @@ const CutterCard = forwardRef<CutterCardHandle, CutterCardProps>(
             : (!!audioFile !== !!videoFile)
             ? "border-rose-500 shadow-md shadow-rose-200/50 bg-rose-50/40"
             : mode === "speedup"
-            ? "border-violet-400 shadow-md shadow-violet-200/50 bg-violet-50/40"
+            ? "border-green-500 shadow-md shadow-green-200/50 bg-green-50/40"
             : mode === "slowdown"
-            ? "border-fuchsia-400 shadow-md shadow-fuchsia-200/50 bg-fuchsia-50/40"
+            ? "border-blue-500 shadow-md shadow-blue-200/50 bg-blue-50/40"
             : highlight
             ? "border-cyan-500 shadow-md"
             : "border-slate-300"
@@ -1904,18 +1940,18 @@ const CutterCard = forwardRef<CutterCardHandle, CutterCardProps>(
               <span className="inline-flex items-center gap-1.5 rounded border border-rose-400 bg-rose-100 px-2 py-0.5 font-semibold text-rose-700">
                 <AlertTriangle className="h-3 w-3" />
                 {(speedFactor as number) < MIN_SPEED_FACTOR
-                  ? `Video > 2× audio (${(speedFactor as number).toFixed(2)}× — too extreme)`
-                  : `Audio > 2× video (${(speedFactor as number).toFixed(2)}× — too extreme)`}
+                  ? `Video > 4× audio (${(speedFactor as number).toFixed(2)}× — too extreme)`
+                  : `Audio > 4× video (${(speedFactor as number).toFixed(2)}× — too extreme)`}
               </span>
             )}
             {mode === "speedup" && !mergedUrl && speedFactor !== null && (
-              <span className="inline-flex items-center gap-1.5 rounded border border-violet-400 bg-violet-100 px-2 py-0.5 font-semibold text-violet-800">
+              <span className="inline-flex items-center gap-1.5 rounded border border-green-500 bg-green-100 px-2 py-0.5 font-semibold text-green-800">
                 <FastForward className="h-3 w-3" />
                 speed +{(1 / speedFactor).toFixed(2)}× (faster)
               </span>
             )}
             {mode === "slowdown" && !mergedUrl && speedFactor !== null && (
-              <span className="inline-flex items-center gap-1.5 rounded border border-fuchsia-400 bg-fuchsia-100 px-2 py-0.5 font-semibold text-fuchsia-800">
+              <span className="inline-flex items-center gap-1.5 rounded border border-blue-500 bg-blue-100 px-2 py-0.5 font-semibold text-blue-800">
                 <Rewind className="h-3 w-3" />
                 speed -{speedFactor.toFixed(2)}× (slower)
               </span>
