@@ -263,7 +263,8 @@ export default function SrtTimeSplitterTab({ incomingSrt, incomingFilename, inco
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "output.srt";
+    const baseName = (fileName || "Bangla.srt").replace(/\.(srt|txt)$/i, "");
+    a.download = `${baseName || "Bangla"}.srt`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
