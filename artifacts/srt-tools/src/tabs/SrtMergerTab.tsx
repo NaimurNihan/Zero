@@ -586,7 +586,7 @@ export default function SrtMergerTab({ onSendToName, onTransform, clearKey, inco
                 >
                   Copy all
                 </button>
-                <button onClick={clearSRT} className="text-xs text-gray-400 dark:text-gray-500 hover:text-red-500 transition-colors">
+                <button onClick={() => { clearSRT(); setNotepadText(""); }} className="text-xs text-gray-400 dark:text-gray-500 hover:text-red-500 transition-colors">
                   Clear all
                 </button>
               </div>
