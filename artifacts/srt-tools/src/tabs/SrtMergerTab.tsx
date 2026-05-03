@@ -8,6 +8,9 @@ interface SrtMergerTabProps {
   onSendToName?: (srt: string, filename: string) => void;
   onTransform?: () => void;
   clearKey?: number;
+  incomingSrt?: string;
+  incomingFilename?: string;
+  incomingKey?: number;
 }
 
 interface SRTEntry {
@@ -141,7 +144,7 @@ function generateSRT(entries: SRTEntry[], sentences: string[]): string {
   return lines.join("\n");
 }
 
-export default function SrtMergerTab({ onSendToName, onTransform, clearKey }: SrtMergerTabProps = {}) {
+export default function SrtMergerTab({ onSendToName, onTransform, clearKey, incomingSrt, incomingFilename, incomingKey }: SrtMergerTabProps = {}) {
   const [srtEntries, setSrtEntries] = useState<SRTEntry[]>([]);
   const [sentenceText, setSentenceText] = useState("");
   const [addMoreText, setAddMoreText] = useState("");
@@ -156,6 +159,7 @@ export default function SrtMergerTab({ onSendToName, onTransform, clearKey }: Sr
   const [copiedChunks, setCopiedChunks] = useState<Set<number>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+  const lastIncomingKey = useRef<number | undefined>(undefined);
 
   useEffect(() => {
     try {
@@ -169,6 +173,15 @@ export default function SrtMergerTab({ onSendToName, onTransform, clearKey }: Sr
       localStorage.setItem("srt-merger-notepad", notepadText);
     } catch {}
   }, [notepadText]);
+
+  useEffect(() => {
+    if (!incomingSrt?.trim()) return;
+    if (incomingKey === lastIncomingKey.current) return;
+    lastIncomingKey.current = incomingKey;
+    clearSRT();
+    setSrtEntries(parseSRT(incomingSrt));
+    setFileName(incomingFilename || "Bangla.srt");
+  }, [incomingSrt, incomingFilename, incomingKey]);
 
   useEffect(() => {
     if (clearKey === undefined) return;
