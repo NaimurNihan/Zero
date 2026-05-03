@@ -297,11 +297,9 @@ export default function App() {
 
   const handleLoadSplitterToMerger = useCallback((srt: string, filename: string) => {
     setActiveTab("merger");
-    window.dispatchEvent(
-      new CustomEvent("srt-tools:merger-load-srt", {
-        detail: { srt, filename },
-      })
-    );
+    setVideoIncomingSrt(srt);
+    setVideoIncomingSrtFilename(filename);
+    setVideoIncomingSrtKey((k) => k + 1);
   }, []);
 
   const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
