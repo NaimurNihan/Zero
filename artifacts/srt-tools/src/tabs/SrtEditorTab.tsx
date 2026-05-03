@@ -32,6 +32,107 @@ interface Props {
   onNext?: () => void;
 }
 
+function parseTime(t: string): [string, string, string, string] {
+  const match = t.match(/^(\d{2}):(\d{2}):(\d{2}),(\d{3})$/);
+  if (match) return [match[1], match[2], match[3], match[4]];
+  return ["00", "00", "00", "000"];
+}
+
+function TimeInput({
+  value,
+  onChange,
+  hasOverlap,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  hasOverlap: boolean;
+}) {
+  const [hh, mm, ss, ms] = parseTime(value);
+  const refHh = useRef<HTMLInputElement>(null);
+  const refMm = useRef<HTMLInputElement>(null);
+  const refSs = useRef<HTMLInputElement>(null);
+  const refMs = useRef<HTMLInputElement>(null);
+  const allRefs = [refHh, refMm, refSs, refMs];
+
+  const maxLengths = [2, 2, 2, 3];
+  const segments = [hh, mm, ss, ms];
+
+  function buildTime(parts: string[]): string {
+    const [h, m, s, mss] = parts;
+    return `${(h || "00").padStart(2, "0")}:${(m || "00").padStart(2, "0")}:${(s || "00").padStart(2, "0")},${(mss || "000").padStart(3, "0")}`;
+  }
+
+  function handleChange(idx: number, raw: string) {
+    const digits = raw.replace(/\D/g, "");
+    const clamped = digits.slice(0, maxLengths[idx]);
+    const newParts = [...segments];
+    newParts[idx] = clamped;
+    onChange(buildTime(newParts));
+    if (clamped.length === maxLengths[idx] && idx < 3) {
+      setTimeout(() => {
+        allRefs[idx + 1].current?.focus();
+        allRefs[idx + 1].current?.select();
+      }, 0);
+    }
+  }
+
+  function handleKeyDown(idx: number, e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Backspace" && segments[idx] === "" && idx > 0) {
+      allRefs[idx - 1].current?.focus();
+      allRefs[idx - 1].current?.select();
+    }
+    if (e.key === "ArrowRight" && idx < 3) {
+      const input = allRefs[idx].current;
+      if (input && input.selectionStart === input.value.length) {
+        e.preventDefault();
+        allRefs[idx + 1].current?.focus();
+        allRefs[idx + 1].current?.select();
+      }
+    }
+    if (e.key === "ArrowLeft" && idx > 0) {
+      const input = allRefs[idx].current;
+      if (input && input.selectionStart === 0) {
+        e.preventDefault();
+        allRefs[idx - 1].current?.focus();
+        allRefs[idx - 1].current?.select();
+      }
+    }
+  }
+
+  const base = `text-xs font-mono bg-transparent border-none outline-none focus:outline-none text-center`;
+  const color = hasOverlap ? "text-orange-500" : "text-gray-600 dark:text-gray-300";
+  const sep = `text-xs font-mono select-none ${hasOverlap ? "text-orange-400" : "text-gray-400 dark:text-gray-500"}`;
+  const wrapClass = `flex items-center border rounded px-1 py-0.5 focus-within:ring-1 ${
+    hasOverlap
+      ? "border-orange-300 focus-within:ring-orange-300"
+      : "border-gray-200 dark:border-gray-700 focus-within:ring-emerald-300"
+  }`;
+
+  return (
+    <div className={wrapClass}>
+      <input ref={refHh} className={`${base} ${color} w-5`} value={hh} maxLength={2}
+        onChange={(e) => handleChange(0, e.target.value)}
+        onKeyDown={(e) => handleKeyDown(0, e)}
+        onFocus={(e) => e.target.select()} />
+      <span className={sep}>:</span>
+      <input ref={refMm} className={`${base} ${color} w-5`} value={mm} maxLength={2}
+        onChange={(e) => handleChange(1, e.target.value)}
+        onKeyDown={(e) => handleKeyDown(1, e)}
+        onFocus={(e) => e.target.select()} />
+      <span className={sep}>:</span>
+      <input ref={refSs} className={`${base} ${color} w-5`} value={ss} maxLength={2}
+        onChange={(e) => handleChange(2, e.target.value)}
+        onKeyDown={(e) => handleKeyDown(2, e)}
+        onFocus={(e) => e.target.select()} />
+      <span className={sep}>,</span>
+      <input ref={refMs} className={`${base} ${color} w-7`} value={ms} maxLength={3}
+        onChange={(e) => handleChange(3, e.target.value)}
+        onKeyDown={(e) => handleKeyDown(3, e)}
+        onFocus={(e) => e.target.select()} />
+    </div>
+  );
+}
+
 function timeToMs(t: string): number {
   const [h, m, sms] = t.split(":");
   const [s, ms] = sms.split(",");
@@ -425,22 +526,18 @@ export default function SrtEditorTab({ subtitles, filename, setSubtitles, setFil
                     {sub.index}
                   </span>
                   <div className={`flex items-center gap-1 text-xs font-mono ${hasOverlap ? "text-orange-500 font-semibold" : "text-gray-500 dark:text-gray-400"}`}>
-                    <input
-                      type="text"
+                    <TimeInput
                       value={sub.startTime}
-                      onChange={(e) => handleTimeChange(sub.id, "startTime", e.target.value)}
-                      className={`w-28 bg-transparent border rounded px-1.5 py-0.5 text-xs font-mono focus:outline-none focus:ring-1 ${hasOverlap ? "border-orange-300 focus:ring-orange-300 text-orange-500" : "border-gray-200 dark:border-gray-700 focus:ring-emerald-300 text-gray-600 dark:text-gray-300"}`}
-                      spellCheck={false}
+                      onChange={(v) => handleTimeChange(sub.id, "startTime", v)}
+                      hasOverlap={hasOverlap}
                     />
                     <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
                     </svg>
-                    <input
-                      type="text"
+                    <TimeInput
                       value={sub.endTime}
-                      onChange={(e) => handleTimeChange(sub.id, "endTime", e.target.value)}
-                      className={`w-28 bg-transparent border rounded px-1.5 py-0.5 text-xs font-mono focus:outline-none focus:ring-1 ${hasOverlap ? "border-orange-300 focus:ring-orange-300 text-orange-500" : "border-gray-200 dark:border-gray-700 focus:ring-emerald-300 text-gray-600 dark:text-gray-300"}`}
-                      spellCheck={false}
+                      onChange={(v) => handleTimeChange(sub.id, "endTime", v)}
+                      hasOverlap={hasOverlap}
                     />
                   </div>
                   {hasOverlap && (
