@@ -167,7 +167,6 @@ export default function SrtTimeSplitterTab({ incomingSrt, incomingFilename, inco
     finalSentRef.current = true;
     const srt = generateSrtString(outputBlocks);
     onFinalOutput(srt, "Bangla.srt");
-    onSendToMerger?.(srt, "Bangla.srt");
     toast({
       title: "Sent to Video Spliter",
       description: "Final SRT auto-loaded into Video Spliter.",
