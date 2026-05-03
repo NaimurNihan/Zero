@@ -22,6 +22,7 @@ interface Props {
   onFinalOutput?: (srt: string, filename: string) => void;
   onSendToMerger?: (srt: string, filename: string) => void;
   onSendToNote?: (text: string, sourceName: string) => void;
+  onLoadMerger?: () => void;
 }
 
 const STORAGE_KEY = "srt-tools:splitter-state:v1";
@@ -48,7 +49,7 @@ function loadPersisted(): PersistedState | null {
   }
 }
 
-export default function SrtTimeSplitterTab({ incomingSrt, incomingFilename, incomingKey, onFinalOutput, onSendToMerger, onSendToNote }: Props = {}) {
+export default function SrtTimeSplitterTab({ incomingSrt, incomingFilename, incomingKey, onFinalOutput, onSendToMerger, onSendToNote, onLoadMerger }: Props = {}) {
   const persisted = useRef<PersistedState | null>(loadPersisted()).current;
   const [input, setInput] = useState(persisted?.input ?? "");
   const lastIncomingKey = useRef<number | undefined>(undefined);
@@ -458,6 +459,13 @@ export default function SrtTimeSplitterTab({ incomingSrt, incomingFilename, inco
                 -1s
               </Button>
             )}
+            <Button
+              onClick={onLoadMerger}
+              disabled={!isOutputView}
+              className="h-9 rounded-lg bg-slate-700 px-3.5 text-xs font-semibold tracking-wide text-white shadow-[0_3px_10px_rgba(15,23,42,0.18)] ring-1 ring-white/15 transition-all duration-200 hover:-translate-y-px hover:bg-slate-800 disabled:opacity-50"
+            >
+              Load Srtm
+            </Button>
             <Button
               onClick={handleRunAll}
               disabled={!hasInput}
