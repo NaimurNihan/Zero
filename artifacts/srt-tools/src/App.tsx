@@ -297,10 +297,10 @@ export default function App() {
 
   const handleLoadSplitterToMerger = useCallback((srt: string, filename: string) => {
     setMergerClearKey((k) => k + 1);
+    setActiveTab("merger");
     setVideoIncomingSrt(srt);
     setVideoIncomingSrtFilename(filename);
     setVideoIncomingSrtKey((k) => k + 1);
-    setTimeout(() => setActiveTab("merger"), 0);
   }, []);
 
   const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
