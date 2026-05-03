@@ -73,11 +73,16 @@ const PTU_RE = /[.?।]/g;
 function linePtuCount(line: string): number {
   return (line.match(PTU_RE) || []).length;
 }
+function isLineBlue(line: string): boolean {
+  const count = linePtuCount(line);
+  return count === 0 || count > 1;
+}
 function applyPtuHighlighting(el: HTMLDivElement) {
   const children = Array.from(el.children) as HTMLElement[];
   children.forEach((child) => {
     const lineText = child.innerText.replace(/\n$/, "");
-    child.style.color = linePtuCount(lineText) > 1 ? "#3b82f6" : "";
+    if (!lineText.trim()) { child.style.color = ""; return; }
+    child.style.color = isLineBlue(lineText) ? "#3b82f6" : "";
   });
 }
 function escapeHtml(text: string) {
@@ -86,8 +91,7 @@ function escapeHtml(text: string) {
 function buildHtml(lines: string[]) {
   if (lines.length === 0) return "<div><br></div>";
   return lines.map((l) => {
-    const ptu = linePtuCount(l);
-    const style = ptu > 1 ? ' style="color:#3b82f6"' : '';
+    const style = l.trim() && isLineBlue(l) ? ' style="color:#3b82f6"' : '';
     return `<div${style}>${l ? escapeHtml(l) : "<br>"}</div>`;
   }).join("");
 }
