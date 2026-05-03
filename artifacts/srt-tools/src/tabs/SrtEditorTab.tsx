@@ -38,6 +38,16 @@ function parseTime(t: string): [string, string, string, string] {
   return ["00", "00", "00", "000"];
 }
 
+const MAX_LENGTHS = [2, 2, 2, 3];
+
+function padSegment(val: string, idx: number): string {
+  return val.padStart(MAX_LENGTHS[idx], "0");
+}
+
+function buildTimeFromParts(parts: string[]): string {
+  return `${padSegment(parts[0] || "", 0)}:${padSegment(parts[1] || "", 1)}:${padSegment(parts[2] || "", 2)},${padSegment(parts[3] || "", 3)}`;
+}
+
 function TimeInput({
   value,
   onChange,
@@ -47,28 +57,30 @@ function TimeInput({
   onChange: (v: string) => void;
   hasOverlap: boolean;
 }) {
-  const [hh, mm, ss, ms] = parseTime(value);
+  const parsed = parseTime(value);
+  const [vals, setVals] = useState<[string, string, string, string]>(parsed);
+  const focusedRef = useRef(false);
+
+  useEffect(() => {
+    if (!focusedRef.current) {
+      setVals(parseTime(value));
+    }
+  }, [value]);
+
   const refHh = useRef<HTMLInputElement>(null);
   const refMm = useRef<HTMLInputElement>(null);
   const refSs = useRef<HTMLInputElement>(null);
   const refMs = useRef<HTMLInputElement>(null);
   const allRefs = [refHh, refMm, refSs, refMs];
 
-  const maxLengths = [2, 2, 2, 3];
-  const segments = [hh, mm, ss, ms];
-
-  function buildTime(parts: string[]): string {
-    const [h, m, s, mss] = parts;
-    return `${(h || "00").padStart(2, "0")}:${(m || "00").padStart(2, "0")}:${(s || "00").padStart(2, "0")},${(mss || "000").padStart(3, "0")}`;
-  }
-
   function handleChange(idx: number, raw: string) {
     const digits = raw.replace(/\D/g, "");
-    const clamped = digits.slice(0, maxLengths[idx]);
-    const newParts = [...segments];
-    newParts[idx] = clamped;
-    onChange(buildTime(newParts));
-    if (clamped.length === maxLengths[idx] && idx < 3) {
+    const clamped = digits.slice(0, MAX_LENGTHS[idx]);
+    const newVals = [...vals] as [string, string, string, string];
+    newVals[idx] = clamped;
+    setVals(newVals);
+    onChange(buildTimeFromParts(newVals));
+    if (clamped.length === MAX_LENGTHS[idx] && idx < 3) {
       setTimeout(() => {
         allRefs[idx + 1].current?.focus();
         allRefs[idx + 1].current?.select();
@@ -76,10 +88,29 @@ function TimeInput({
     }
   }
 
+  function handleFocus(idx: number, e: React.FocusEvent<HTMLInputElement>) {
+    focusedRef.current = true;
+    e.target.select();
+    const newVals = [...vals] as [string, string, string, string];
+    newVals[idx] = "";
+    setVals(newVals);
+  }
+
+  function handleBlur(idx: number) {
+    const newVals = [...vals] as [string, string, string, string];
+    newVals[idx] = padSegment(newVals[idx], idx);
+    setVals(newVals);
+    onChange(buildTimeFromParts(newVals));
+    setTimeout(() => {
+      if (!allRefs.some((r) => r.current === document.activeElement)) {
+        focusedRef.current = false;
+      }
+    }, 0);
+  }
+
   function handleKeyDown(idx: number, e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key === "Backspace" && segments[idx] === "" && idx > 0) {
+    if (e.key === "Backspace" && vals[idx] === "" && idx > 0) {
       allRefs[idx - 1].current?.focus();
-      allRefs[idx - 1].current?.select();
     }
     if (e.key === "ArrowRight" && idx < 3) {
       const input = allRefs[idx].current;
@@ -110,25 +141,29 @@ function TimeInput({
 
   return (
     <div className={wrapClass}>
-      <input ref={refHh} className={`${base} ${color} w-5`} value={hh} maxLength={2}
+      <input ref={refHh} className={`${base} ${color} w-5`} value={vals[0]} maxLength={2}
         onChange={(e) => handleChange(0, e.target.value)}
         onKeyDown={(e) => handleKeyDown(0, e)}
-        onFocus={(e) => e.target.select()} />
+        onFocus={(e) => handleFocus(0, e)}
+        onBlur={() => handleBlur(0)} />
       <span className={sep}>:</span>
-      <input ref={refMm} className={`${base} ${color} w-5`} value={mm} maxLength={2}
+      <input ref={refMm} className={`${base} ${color} w-5`} value={vals[1]} maxLength={2}
         onChange={(e) => handleChange(1, e.target.value)}
         onKeyDown={(e) => handleKeyDown(1, e)}
-        onFocus={(e) => e.target.select()} />
+        onFocus={(e) => handleFocus(1, e)}
+        onBlur={() => handleBlur(1)} />
       <span className={sep}>:</span>
-      <input ref={refSs} className={`${base} ${color} w-5`} value={ss} maxLength={2}
+      <input ref={refSs} className={`${base} ${color} w-5`} value={vals[2]} maxLength={2}
         onChange={(e) => handleChange(2, e.target.value)}
         onKeyDown={(e) => handleKeyDown(2, e)}
-        onFocus={(e) => e.target.select()} />
+        onFocus={(e) => handleFocus(2, e)}
+        onBlur={() => handleBlur(2)} />
       <span className={sep}>,</span>
-      <input ref={refMs} className={`${base} ${color} w-7`} value={ms} maxLength={3}
+      <input ref={refMs} className={`${base} ${color} w-7`} value={vals[3]} maxLength={3}
         onChange={(e) => handleChange(3, e.target.value)}
         onKeyDown={(e) => handleKeyDown(3, e)}
-        onFocus={(e) => e.target.select()} />
+        onFocus={(e) => handleFocus(3, e)}
+        onBlur={() => handleBlur(3)} />
     </div>
   );
 }
