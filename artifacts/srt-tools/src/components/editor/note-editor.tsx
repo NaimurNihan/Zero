@@ -119,6 +119,11 @@ function LineEditor({ editorKey, value, onChange, placeholder }: LineEditorProps
     innerRef.current.innerHTML = buildHtml(newLines);
     internalChange.current = true;
     onChange(extractLines(innerRef.current));
+    requestAnimationFrame(() => {
+      if (innerRef.current) {
+        innerRef.current.scrollTop = innerRef.current.scrollHeight;
+      }
+    });
   };
 
   return (
