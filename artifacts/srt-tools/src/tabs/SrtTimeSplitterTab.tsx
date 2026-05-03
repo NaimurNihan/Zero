@@ -459,7 +459,11 @@ export default function SrtTimeSplitterTab({ incomingSrt, incomingFilename, inco
               </Button>
             )}
             <Button
-              onClick={onLoadMerger}
+              onClick={() => {
+                if (!isOutputView || !onSendToMerger) return;
+                const srt = generateSrtString(outputBlocks);
+                onSendToMerger(srt, fileName || "Bangla.srt");
+              }}
               disabled={!isOutputView}
               className="h-9 rounded-lg bg-slate-700 px-3.5 text-xs font-semibold tracking-wide text-white shadow-[0_3px_10px_rgba(15,23,42,0.18)] ring-1 ring-white/15 transition-all duration-200 hover:-translate-y-px hover:bg-slate-800 disabled:opacity-50"
             >
