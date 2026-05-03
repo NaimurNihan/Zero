@@ -296,7 +296,6 @@ export default function App() {
   };
 
   const handleLoadSplitterToMerger = useCallback((srt: string, filename: string) => {
-    setMergerClearKey((k) => k + 1);
     setActiveTab("merger");
     window.dispatchEvent(
       new CustomEvent("srt-tools:merger-load-srt", {
