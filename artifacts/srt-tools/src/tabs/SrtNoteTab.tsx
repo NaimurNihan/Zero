@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect, type ClipboardEvent as ReactClipboardEvent } from "react";
-import { Plus, Search, FileText, RotateCcw, X, ScanSearch, Download, Trash2, Scissors, Copy, Folder, FolderOpen, ArchiveRestore, ChevronDown, ChevronRight, MoreVertical, Play, Menu, PanelLeftOpen } from "lucide-react";
+import { Plus, Search, FileText, RotateCcw, X, ScanSearch, Download, Trash2, Scissors, Copy, Folder, FolderOpen, ArchiveRestore, ChevronDown, ChevronRight, MoreVertical, Play, Menu, PanelLeftOpen, Zap, Loader2 } from "lucide-react";
 interface TaskRow { checked: boolean; values: string[]; }
 interface Project {
   id: string;
@@ -265,8 +265,9 @@ interface SrtNoteTabProps {
   incomingName?: string;
   incomingKey?: number;
   onRunToAiAudio?: (lines: string[], label?: string) => void;
+  onAutoRunAll?: (langs: { label: string; lines: string[] }[]) => void;
 }
-export default function SrtNoteTab({ incomingText, incomingName, incomingKey, onRunToAiAudio }: SrtNoteTabProps = {}) {
+export default function SrtNoteTab({ incomingText, incomingName, incomingKey, onRunToAiAudio, onAutoRunAll }: SrtNoteTabProps = {}) {
   const initialStateRef = useRef<SavedState | null>(null);
   if (initialStateRef.current === null) initialStateRef.current = readSavedState();
   const initialState = initialStateRef.current;
@@ -286,6 +287,13 @@ export default function SrtNoteTab({ incomingText, incomingName, incomingKey, on
   const [taskOpen, setTaskOpen] = useState(false);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [sidebarHidden, setSidebarHidden] = useState(false);
+  const [isAutoRunning, setIsAutoRunning] = useState(false);
+
+  useEffect(() => {
+    const onComplete = () => setIsAutoRunning(false);
+    window.addEventListener("srt-tools:autorun-complete", onComplete);
+    return () => window.removeEventListener("srt-tools:autorun-complete", onComplete);
+  }, []);
   useEffect(() => {
     if (!openMenu) return;
     const onClick = (e: MouseEvent) => {
@@ -535,6 +543,36 @@ export default function SrtNoteTab({ incomingText, incomingName, incomingKey, on
             <p className="text-xs text-muted-foreground mt-0.5">Updated {activeProject?.updatedAt} · Auto-saved locally</p>
           </div>
           <div className="flex items-center gap-2">
+            {onAutoRunAll && (
+              <button
+                disabled={isAutoRunning}
+                onClick={() => {
+                  const langs = activeProject?.langs ?? [];
+                  const toRun = langs
+                    .filter((l) => l.label !== "Original")
+                    .map((l) => ({
+                      label: l.label,
+                      lines: l.content.split("\n").map((x) => x.trim()).filter(Boolean),
+                    }))
+                    .filter((l) => l.lines.length > 0);
+                  if (toRun.length === 0) return;
+                  setIsAutoRunning(true);
+                  onAutoRunAll(toRun);
+                }}
+                title="Auto Run All: runs each language through AI Audio → Audio Splitter → ZIP sequentially"
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                  isAutoRunning
+                    ? "bg-violet-100 text-violet-500 dark:bg-violet-950 cursor-not-allowed opacity-70"
+                    : "bg-violet-600 text-white hover:bg-violet-700 shadow-sm"
+                }`}
+              >
+                {isAutoRunning ? (
+                  <><Loader2 size={12} className="animate-spin" />Running…</>
+                ) : (
+                  <><Zap size={12} />Auto Run All</>
+                )}
+              </button>
+            )}
             <button onClick={handleExport} className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border text-xs text-muted-foreground hover:bg-muted transition-colors">
               <Download size={12} />Export
             </button>

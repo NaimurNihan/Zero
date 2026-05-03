@@ -187,8 +187,10 @@ export default function App() {
   const [noteIncomingName, setNoteIncomingName] = useState("");
   const [noteIncomingKey, setNoteIncomingKey] = useState(0);
   const [cuttingIncomingAudio, setCuttingIncomingAudio] = useState<{ files: File[]; key: number }>({ files: [], key: 0 });
-  const [spliterIncomingAudio, setSpliterIncomingAudio] = useState<{ files: File[]; key: number; autoSplit?: boolean }>({ files: [], key: 0 });
+  const [spliterIncomingAudio, setSpliterIncomingAudio] = useState<{ files: File[]; key: number; autoSplit?: boolean; label?: string }>({ files: [], key: 0 });
   const autoRunRef = useRef(false);
+  const currentRunLabelRef = useRef<string>("");
+  const autoRunQueueRef = useRef<{ label: string; lines: string[] }[]>([]);
   const [cuttingPlusIncomingVideos, setCuttingPlusIncomingVideos] = useState<{ files: File[]; key: number; autoLoad?: boolean; extras?: number[] }>({ files: [], key: 0 });
   const [speedIncomingVideos, setSpeedIncomingVideos] = useState<{ files: File[]; key: number }>({ files: [], key: 0 });
   const [speedIncomingAudio, setSpeedIncomingAudio] = useState<{ files: File[]; key: number }>({ files: [], key: 0 });
@@ -265,6 +267,42 @@ export default function App() {
   }, []);
 
   const hasFile = subtitles.length > 0;
+
+  const triggerRunForLang = useCallback((lines: string[], label: string) => {
+    currentRunLabelRef.current = label;
+    autoRunRef.current = true;
+    window.dispatchEvent(new CustomEvent("srt-tools:aiaudio-set-content", { detail: { lines, label } }));
+    handleSelectTab("aiAudio");
+    window.setTimeout(() => {
+      window.dispatchEvent(new CustomEvent("srt-tools:aiaudio-cut"));
+      window.setTimeout(() => {
+        window.dispatchEvent(new CustomEvent("srt-tools:aiaudio-load-pool"));
+      }, 250);
+    }, 250);
+  }, []);
+
+  const processNextInQueue = useCallback(() => {
+    const queue = autoRunQueueRef.current;
+    if (queue.length === 0) {
+      window.dispatchEvent(new CustomEvent("srt-tools:autorun-complete"));
+      return;
+    }
+    const next = queue.shift()!;
+    triggerRunForLang(next.lines, next.label);
+  }, [triggerRunForLang]);
+
+  useEffect(() => {
+    const onZipDone = () => {
+      window.setTimeout(() => {
+        window.dispatchEvent(new CustomEvent("srt-tools:clear-all-broadcast", { detail: { source: "autorun" } }));
+        window.setTimeout(() => {
+          processNextInQueue();
+        }, 800);
+      }, 400);
+    };
+    window.addEventListener("srt-tools:trimmer-zip-done", onZipDone);
+    return () => window.removeEventListener("srt-tools:trimmer-zip-done", onZipDone);
+  }, [processNextInQueue]);
 
   const incomingSrtForSplitter = useMemo(
     () => (subtitles.length > 0 ? formatSrt(subtitles) : ""),
@@ -431,19 +469,12 @@ export default function App() {
           incomingName={noteIncomingName}
           incomingKey={noteIncomingKey}
           onRunToAiAudio={(lines, label) => {
-            autoRunRef.current = true;
-            window.dispatchEvent(
-              new CustomEvent("srt-tools:aiaudio-set-content", {
-                detail: { lines, label },
-              }),
-            );
-            handleSelectTab("aiAudio");
-            window.setTimeout(() => {
-              window.dispatchEvent(new CustomEvent("srt-tools:aiaudio-cut"));
-              window.setTimeout(() => {
-                window.dispatchEvent(new CustomEvent("srt-tools:aiaudio-load-pool"));
-              }, 250);
-            }, 250);
+            triggerRunForLang(lines, label ?? "");
+          }}
+          onAutoRunAll={(langs) => {
+            if (langs.length === 0) return;
+            autoRunQueueRef.current = langs.slice(1).map((l) => ({ label: l.label, lines: l.lines }));
+            triggerRunForLang(langs[0].lines, langs[0].label);
           }}
         />
       </div>
@@ -492,7 +523,8 @@ export default function App() {
           onSendToSpliter={(files) => {
             const autoSplit = autoRunRef.current;
             autoRunRef.current = false;
-            setSpliterIncomingAudio({ files, key: Date.now(), autoSplit });
+            const label = currentRunLabelRef.current;
+            setSpliterIncomingAudio({ files, key: Date.now(), autoSplit, label });
             handleSelectTab("audio");
           }}
         />

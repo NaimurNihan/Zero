@@ -10,7 +10,7 @@ type SplitStage = "idle" | "preview" | "trimming" | "done";
 
 interface VoiceTrimmerTabProps {
   onSendToCutting?: (files: File[]) => void;
-  incomingAudioFiles?: { files: File[]; key: number; autoSplit?: boolean };
+  incomingAudioFiles?: { files: File[]; key: number; autoSplit?: boolean; label?: string };
 }
 
 export default function VoiceTrimmerTab({ onSendToCutting, incomingAudioFiles }: VoiceTrimmerTabProps = {}) {
@@ -25,11 +25,13 @@ export default function VoiceTrimmerTab({ onSendToCutting, incomingAudioFiles }:
   const autoSplitPendingRef = useRef<{ key: number; expected: number } | null>(null);
   const autoSplitConfirmTimerRef = useRef<number | null>(null);
   const autoZipRef = useRef(false);
+  const currentLabelRef = useRef<string>("");
 
   useEffect(() => {
     if (!incomingAudioFiles || incomingAudioFiles.files.length === 0) return;
     if (lastIncomingKeyRef.current === incomingAudioFiles.key) return;
     lastIncomingKeyRef.current = incomingAudioFiles.key;
+    if (incomingAudioFiles.label) currentLabelRef.current = incomingAudioFiles.label;
     resetTrim();
     setSplitStage("idle");
     setLoaded(false);
@@ -74,8 +76,9 @@ export default function VoiceTrimmerTab({ onSendToCutting, incomingAudioFiles }:
     if (splitStage !== "done") return;
     if (!autoZipRef.current) return;
     autoZipRef.current = false;
-    window.setTimeout(() => {
-      handleDownloadZipRef.current();
+    window.setTimeout(async () => {
+      await handleDownloadZipRef.current();
+      window.dispatchEvent(new CustomEvent("srt-tools:trimmer-zip-done"));
     }, 500);
   }, [splitStage]);
 
@@ -139,7 +142,8 @@ export default function VoiceTrimmerTab({ onSendToCutting, incomingAudioFiles }:
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `trimmed_audios_${trimmed.length}.zip`;
+    const labelSlug = currentLabelRef.current ? currentLabelRef.current.toLowerCase().replace(/\s+/g, "_") : "audio";
+    a.download = `${labelSlug}_trimmed_${trimmed.length}.zip`;
     document.body.appendChild(a);
     a.click();
     a.remove();
