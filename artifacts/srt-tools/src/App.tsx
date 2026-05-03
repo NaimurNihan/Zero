@@ -298,9 +298,11 @@ export default function App() {
   const handleLoadSplitterToMerger = useCallback((srt: string, filename: string) => {
     setMergerClearKey((k) => k + 1);
     setActiveTab("merger");
-    setVideoIncomingSrt(srt);
-    setVideoIncomingSrtFilename(filename);
-    setVideoIncomingSrtKey((k) => k + 1);
+    window.dispatchEvent(
+      new CustomEvent("srt-tools:merger-load-srt", {
+        detail: { srt, filename },
+      })
+    );
   }, []);
 
   const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -474,6 +476,9 @@ export default function App() {
       <div style={{ display: activeTab === "merger" ? "flex" : "none" }} className="flex-col flex-1 overflow-y-auto">
         <SrtMergerTab
           clearKey={mergerClearKey}
+          incomingSrt={videoIncomingSrt}
+          incomingFilename={videoIncomingSrtFilename}
+          incomingKey={videoIncomingSrtKey}
           onSendToName={(srt, name) => {
             const parsed = parseSrt(srt);
             setSubtitles(parsed);

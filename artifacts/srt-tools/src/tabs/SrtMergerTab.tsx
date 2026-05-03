@@ -192,6 +192,18 @@ export default function SrtMergerTab({ onSendToName, onTransform, clearKey, inco
     setIsGenerated(false);
   }, [clearKey]);
 
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<{ srt?: string; filename?: string }>).detail;
+      if (!detail?.srt?.trim()) return;
+      clearSRT();
+      setSrtEntries(parseSRT(detail.srt));
+      setFileName(detail.filename || "Bangla.srt");
+    };
+    window.addEventListener("srt-tools:merger-load-srt", handler);
+    return () => window.removeEventListener("srt-tools:merger-load-srt", handler);
+  }, []);
+
   const appendLinesToSentences = (lines: string[]) => {
     if (lines.length === 0) return;
     setSentenceHistory((h) => [...h, sentenceText]);
