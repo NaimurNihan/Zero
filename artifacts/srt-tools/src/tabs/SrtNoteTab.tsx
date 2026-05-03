@@ -568,14 +568,15 @@ export default function SrtNoteTab({ incomingText, incomingName, incomingKey, on
                   key={idx}
                   onClick={() => scrollToCard(idx)}
                   title={`${lang.label}: ${lineCount} lines${isMismatch ? ` (Original has ${origCount})` : ""}`}
-                  className={`flex flex-col items-center justify-center w-11 h-11 rounded-lg border transition-all cursor-pointer shrink-0 hover:scale-105 active:scale-95 shadow-sm ${
+                  className={`flex flex-col items-center justify-center rounded border transition-all cursor-pointer shrink-0 hover:scale-105 active:scale-95 shadow-sm ${
                     isMismatch
                       ? "border-red-400 bg-red-50 dark:bg-red-950/40 hover:bg-red-100 dark:hover:bg-red-900/50"
                       : "border-border bg-muted/60 hover:bg-muted"
                   }`}
+                  style={{ width: "15px", height: "30px" }}
                 >
-                  <span className={`text-sm font-bold leading-none ${isMismatch ? "text-red-500" : "text-primary"}`}>{letter}</span>
-                  <span className={`text-[11px] font-semibold leading-none mt-0.5 ${isMismatch ? "text-red-500" : "text-foreground"}`}>{lineCount}</span>
+                  <span className={`font-bold leading-none ${isMismatch ? "text-red-500" : "text-primary"}`} style={{ fontSize: "8px" }}>{letter}</span>
+                  <span className={`font-semibold leading-none mt-0.5 ${isMismatch ? "text-red-500" : "text-foreground"}`} style={{ fontSize: "7px" }}>{lineCount}</span>
                 </button>
               );
             })}
