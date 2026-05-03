@@ -24,6 +24,7 @@ export default function VoiceTrimmerTab({ onSendToCutting, incomingAudioFiles }:
   audioFilesRef.current = audioFiles;
   const autoSplitPendingRef = useRef<{ key: number; expected: number } | null>(null);
   const autoSplitConfirmTimerRef = useRef<number | null>(null);
+  const autoZipRef = useRef(false);
 
   useEffect(() => {
     if (!incomingAudioFiles || incomingAudioFiles.files.length === 0) return;
@@ -49,6 +50,7 @@ export default function VoiceTrimmerTab({ onSendToCutting, incomingAudioFiles }:
     const readyNow = audioFiles.filter((f) => f.status === "ready" && !f.isTrimmed).length;
     if (readyNow < pending.expected) return;
     autoSplitPendingRef.current = null;
+    autoZipRef.current = true;
     setSplitStage("preview");
     autoSplitConfirmTimerRef.current = window.setTimeout(async () => {
       autoSplitConfirmTimerRef.current = null;
@@ -65,6 +67,17 @@ export default function VoiceTrimmerTab({ onSendToCutting, incomingAudioFiles }:
       }
     };
   }, []);
+
+  const handleDownloadZipRef = useRef<() => Promise<void>>(async () => {});
+
+  useEffect(() => {
+    if (splitStage !== "done") return;
+    if (!autoZipRef.current) return;
+    autoZipRef.current = false;
+    window.setTimeout(() => {
+      handleDownloadZipRef.current();
+    }, 500);
+  }, [splitStage]);
 
   const readyCount = audioFiles.filter((f) => f.status === "ready" && !f.isTrimmed).length;
   const trimmedCount = audioFiles.filter((f) => f.isTrimmed).length;
@@ -114,7 +127,7 @@ export default function VoiceTrimmerTab({ onSendToCutting, incomingAudioFiles }:
   const isEmpty = audioFiles.length === 0;
 
   const handleDownloadZip = async () => {
-    const trimmed = audioFiles.filter((f) => f.isTrimmed && f.trimmedBlob);
+    const trimmed = audioFilesRef.current.filter((f) => f.isTrimmed && f.trimmedBlob);
     if (trimmed.length === 0) return;
     setZipAnimating(true);
     const zip = new JSZip();
@@ -134,6 +147,7 @@ export default function VoiceTrimmerTab({ onSendToCutting, incomingAudioFiles }:
     setZipDownloaded(true);
     window.setTimeout(() => setZipAnimating(false), 700);
   };
+  handleDownloadZipRef.current = handleDownloadZip;
 
   const handleLoadToCutting = () => {
     if (!onSendToCutting) return;
