@@ -308,8 +308,19 @@ export default function SrtNoteTab({ incomingText, incomingName, incomingKey, on
     return () => document.removeEventListener("mousedown", onClick);
   }, [openMenu]);
   const editorRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const historyRef = useRef<{ [k: number]: string[] }>({});
   const nameInputRef = useRef<HTMLInputElement | null>(null);
+  const scrollToCard = useCallback((idx: number) => {
+    const container = scrollContainerRef.current;
+    const card = cardRefs.current[idx];
+    if (!container || !card) return;
+    const containerRect = container.getBoundingClientRect();
+    const cardRect = card.getBoundingClientRect();
+    const scrollLeft = container.scrollLeft + (cardRect.left - containerRect.left) - 16;
+    container.scrollTo({ left: scrollLeft, behavior: "smooth" });
+  }, []);
   useEffect(() => {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ projects, activeId, darkMode, copiedChunks }));
   }, [projects, activeId, darkMode, copiedChunks]);
@@ -549,13 +560,23 @@ export default function SrtNoteTab({ incomingText, incomingName, incomingKey, on
           <div className="flex items-center gap-2 flex-1 justify-center flex-wrap">
             {(activeProject?.langs ?? []).map((lang, idx) => {
               const lineCount = lang.content === "" ? 0 : lang.content.split("\n").filter((l) => l.trim() !== "").length;
+              const origCount = (activeProject?.langs[0]?.content === "" ? 0 : (activeProject?.langs[0]?.content.split("\n").filter((l) => l.trim() !== "").length ?? 0));
+              const isMismatch = idx !== 0 && lineCount !== origCount;
               const letter = lang.label.charAt(0).toUpperCase();
               return (
-                <div key={idx} title={`${lang.label}: ${lineCount} lines`}
-                  className="flex flex-col items-center justify-center w-11 h-11 rounded-lg border border-border bg-muted/60 hover:bg-muted transition-colors cursor-default shrink-0">
-                  <span className="text-sm font-bold text-primary leading-none">{letter}</span>
-                  <span className="text-[11px] font-semibold text-foreground leading-none mt-0.5">{lineCount}</span>
-                </div>
+                <button
+                  key={idx}
+                  onClick={() => scrollToCard(idx)}
+                  title={`${lang.label}: ${lineCount} lines${isMismatch ? ` (Original has ${origCount})` : ""}`}
+                  className={`flex flex-col items-center justify-center w-11 h-11 rounded-lg border transition-all cursor-pointer shrink-0 hover:scale-105 active:scale-95 shadow-sm ${
+                    isMismatch
+                      ? "border-red-400 bg-red-50 dark:bg-red-950/40 hover:bg-red-100 dark:hover:bg-red-900/50"
+                      : "border-border bg-muted/60 hover:bg-muted"
+                  }`}
+                >
+                  <span className={`text-sm font-bold leading-none ${isMismatch ? "text-red-500" : "text-primary"}`}>{letter}</span>
+                  <span className={`text-[11px] font-semibold leading-none mt-0.5 ${isMismatch ? "text-red-500" : "text-foreground"}`}>{lineCount}</span>
+                </button>
               );
             })}
           </div>
@@ -768,9 +789,9 @@ export default function SrtNoteTab({ incomingText, incomingName, incomingKey, on
           }
 
           return (
-            <div className="flex-1 min-h-0 flex overflow-x-auto overflow-y-hidden p-4 gap-4">
+            <div ref={scrollContainerRef} className="flex-1 min-h-0 flex overflow-x-auto overflow-y-hidden p-4 gap-4">
               {langs.map((lang, idx) => (
-                <div key={idx} className="flex-1 min-h-0 flex flex-col rounded-xl border border-border bg-card shadow-sm overflow-hidden basis-[340px] min-w-[340px]">
+                <div key={idx} ref={(el) => { cardRefs.current[idx] = el; }} className="flex-1 min-h-0 flex flex-col rounded-xl border border-border bg-card shadow-sm overflow-hidden basis-[340px] min-w-[340px]">
                   {renderLangHeader(lang, idx)}
                   {showFind[`${activeId}:${idx}`] && (
                     <div className="shrink-0 flex items-center gap-2 px-3 py-2 border-b border-border bg-muted/50">
