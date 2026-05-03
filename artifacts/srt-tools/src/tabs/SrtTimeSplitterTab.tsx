@@ -20,6 +20,7 @@ interface Props {
   incomingFilename?: string;
   incomingKey?: number;
   onFinalOutput?: (srt: string, filename: string) => void;
+  onSendToMerger?: (srt: string, filename: string) => void;
   onSendToNote?: (text: string, sourceName: string) => void;
 }
 
@@ -47,7 +48,7 @@ function loadPersisted(): PersistedState | null {
   }
 }
 
-export default function SrtTimeSplitterTab({ incomingSrt, incomingFilename, incomingKey, onFinalOutput, onSendToNote }: Props = {}) {
+export default function SrtTimeSplitterTab({ incomingSrt, incomingFilename, incomingKey, onFinalOutput, onSendToMerger, onSendToNote }: Props = {}) {
   const persisted = useRef<PersistedState | null>(loadPersisted()).current;
   const [input, setInput] = useState(persisted?.input ?? "");
   const lastIncomingKey = useRef<number | undefined>(undefined);
@@ -165,6 +166,7 @@ export default function SrtTimeSplitterTab({ incomingSrt, incomingFilename, inco
     finalSentRef.current = true;
     const srt = generateSrtString(outputBlocks);
     onFinalOutput(srt, "Bangla.srt");
+    onSendToMerger?.(srt, "Bangla.srt");
     toast({
       title: "Sent to Video Spliter",
       description: "Final SRT auto-loaded into Video Spliter.",

@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 interface SrtMergerTabProps {
   onSendToName?: (srt: string, filename: string) => void;
   onTransform?: () => void;
+  clearKey?: number;
 }
 
 interface SRTEntry {
@@ -140,7 +141,7 @@ function generateSRT(entries: SRTEntry[], sentences: string[]): string {
   return lines.join("\n");
 }
 
-export default function SrtMergerTab({ onSendToName, onTransform }: SrtMergerTabProps = {}) {
+export default function SrtMergerTab({ onSendToName, onTransform, clearKey }: SrtMergerTabProps = {}) {
   const [srtEntries, setSrtEntries] = useState<SRTEntry[]>([]);
   const [sentenceText, setSentenceText] = useState("");
   const [addMoreText, setAddMoreText] = useState("");
@@ -168,6 +169,15 @@ export default function SrtMergerTab({ onSendToName, onTransform }: SrtMergerTab
       localStorage.setItem("srt-merger-notepad", notepadText);
     } catch {}
   }, [notepadText]);
+
+  useEffect(() => {
+    if (clearKey === undefined) return;
+    clearSRT();
+    setSentenceText("");
+    setAddMoreText("");
+    setSentenceHistory([]);
+    setIsGenerated(false);
+  }, [clearKey]);
 
   const appendLinesToSentences = (lines: string[]) => {
     if (lines.length === 0) return;
@@ -432,6 +442,18 @@ export default function SrtMergerTab({ onSendToName, onTransform }: SrtMergerTab
     URL.revokeObjectURL(url);
   };
 
+  const handleClearAll = () => {
+    clearSRT();
+    setSentenceText("");
+    setAddMoreText("");
+    setSentenceHistory([]);
+    setIsGenerated(false);
+    setNotepadText("");
+    setNotepadSplit(false);
+    setCopiedChunks(new Set());
+    toast({ title: "Cleared", description: "All merger data removed" });
+  };
+
   const matchCount = Math.min(srtEntries.length, sentences.length);
 
   return (
@@ -470,6 +492,14 @@ export default function SrtMergerTab({ onSendToName, onTransform }: SrtMergerTab
           )}
         </div>
         <div className="flex gap-2">
+          <Button
+            onClick={handleClearAll}
+            variant="outline"
+            className="border-gray-200 text-gray-600 hover:text-red-600 hover:border-red-300 text-xs h-7 px-2.5 gap-1 rounded-md shadow-sm"
+          >
+            <Trash2 className="w-3 h-3" />
+            Clear All
+          </Button>
           <Button
             onClick={runGenerate}
             className="bg-orange-500 hover:bg-orange-600 text-white text-xs h-7 px-2.5 gap-1 rounded-md shadow-sm"

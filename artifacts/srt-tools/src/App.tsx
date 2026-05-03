@@ -182,6 +182,7 @@ export default function App() {
   const [videoIncomingSrt, setVideoIncomingSrt] = useState("");
   const [videoIncomingSrtFilename, setVideoIncomingSrtFilename] = useState("");
   const [videoIncomingSrtKey, setVideoIncomingSrtKey] = useState(0);
+  const [mergerClearKey, setMergerClearKey] = useState(0);
   const [noteIncomingText, setNoteIncomingText] = useState("");
   const [noteIncomingName, setNoteIncomingName] = useState("");
   const [noteIncomingKey, setNoteIncomingKey] = useState(0);
@@ -293,6 +294,14 @@ export default function App() {
   const handleSelectTab = (id: Tab) => {
     setActiveTab(id);
   };
+
+  const handleLoadSplitterToMerger = useCallback((srt: string, filename: string) => {
+    setMergerClearKey((k) => k + 1);
+    setVideoIncomingSrt(srt);
+    setVideoIncomingSrtFilename(filename);
+    setVideoIncomingSrtKey((k) => k + 1);
+    setTimeout(() => setActiveTab("merger"), 0);
+  }, []);
 
   const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -446,6 +455,7 @@ export default function App() {
           incomingSrt={incomingSrtForSplitter}
           incomingFilename={filename || "from-editor.srt"}
           incomingKey={splitterIncomingKey}
+          onSendToMerger={handleLoadSplitterToMerger}
           onFinalOutput={(srt, name) => {
             setVideoIncomingSrt(srt);
             setVideoIncomingSrtFilename(name);
@@ -463,6 +473,7 @@ export default function App() {
       {/* SRT Marger — full width, hidden when inactive */}
       <div style={{ display: activeTab === "merger" ? "flex" : "none" }} className="flex-col flex-1 overflow-y-auto">
         <SrtMergerTab
+          clearKey={mergerClearKey}
           onSendToName={(srt, name) => {
             const parsed = parseSrt(srt);
             setSubtitles(parsed);
