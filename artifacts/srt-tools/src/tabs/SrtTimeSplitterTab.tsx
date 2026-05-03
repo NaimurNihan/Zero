@@ -487,7 +487,7 @@ export default function SrtTimeSplitterTab({ incomingSrt, incomingFilename, inco
                   title="Shift all cards back by 0.5 second (first card start stays at 0)"
                   className="h-6 rounded-md bg-gradient-to-b from-[#8b5cf6] to-[#7c3aed] px-2 text-[10px] font-semibold tracking-wide text-white shadow-[0_3px_10px_rgba(124,58,237,0.28)] ring-1 ring-white/15 transition-all duration-200 hover:-translate-y-px hover:from-[#7c3aed] hover:to-[#6d28d9] hover:shadow-[0_5px_14px_rgba(124,58,237,0.32)]"
                 >
-                  -0.5s
+                  -.5
                 </Button>
                 <Button
                   onClick={handleShiftMinus1s}
