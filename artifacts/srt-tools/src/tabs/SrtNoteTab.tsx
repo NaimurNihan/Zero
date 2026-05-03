@@ -573,10 +573,10 @@ export default function SrtNoteTab({ incomingText, incomingName, incomingKey, on
                       ? "border-red-400 bg-red-50 dark:bg-red-950/40 hover:bg-red-100 dark:hover:bg-red-900/50"
                       : "border-border bg-muted/60 hover:bg-muted"
                   }`}
-                  style={{ width: "15px", height: "30px" }}
+                  style={{ width: "30px", height: "42px" }}
                 >
-                  <span className={`font-bold leading-none ${isMismatch ? "text-red-500" : "text-primary"}`} style={{ fontSize: "8px" }}>{letter}</span>
-                  <span className={`font-semibold leading-none mt-0.5 ${isMismatch ? "text-red-500" : "text-foreground"}`} style={{ fontSize: "7px" }}>{lineCount}</span>
+                  <span className={`font-bold leading-none ${isMismatch ? "text-red-500" : "text-primary"}`} style={{ fontSize: "13px" }}>{letter}</span>
+                  <span className={`font-semibold leading-none mt-1 ${isMismatch ? "text-red-500" : "text-foreground"}`} style={{ fontSize: "11px" }}>{lineCount}</span>
                 </button>
               );
             })}
