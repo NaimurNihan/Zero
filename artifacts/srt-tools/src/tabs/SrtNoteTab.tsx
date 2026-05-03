@@ -533,8 +533,8 @@ export default function SrtNoteTab({ incomingText, incomingName, incomingKey, on
       </aside>
       )}
       <main className="flex-1 flex flex-col h-full overflow-hidden">
-        <header className="shrink-0 px-6 py-4 border-b border-border bg-card flex items-center justify-between">
-          <div>
+        <header className="shrink-0 px-6 py-4 border-b border-border bg-card flex items-center justify-between gap-4">
+          <div className="shrink-0">
             {editingName ? (
               <input ref={nameInputRef} value={nameInput} onChange={(e) => setNameInput(e.target.value)}
                 onBlur={saveName} onKeyDown={(e) => { if (e.key === "Enter") saveName(); if (e.key === "Escape") setEditingName(false); }}
@@ -546,7 +546,20 @@ export default function SrtNoteTab({ incomingText, incomingName, incomingKey, on
             )}
             <p className="text-xs text-muted-foreground mt-0.5">Updated {activeProject?.updatedAt} · Auto-saved locally</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-1 justify-center flex-wrap">
+            {(activeProject?.langs ?? []).map((lang, idx) => {
+              const lineCount = lang.content === "" ? 0 : lang.content.split("\n").filter((l) => l.trim() !== "").length;
+              const letter = lang.label.charAt(0).toUpperCase();
+              return (
+                <div key={idx} title={`${lang.label}: ${lineCount} lines`}
+                  className="flex flex-col items-center justify-center w-11 h-11 rounded-lg border border-border bg-muted/60 hover:bg-muted transition-colors cursor-default shrink-0">
+                  <span className="text-sm font-bold text-primary leading-none">{letter}</span>
+                  <span className="text-[11px] font-semibold text-foreground leading-none mt-0.5">{lineCount}</span>
+                </div>
+              );
+            })}
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
             {onAutoRunAll && (
               <button
                 disabled={isAutoRunning}
