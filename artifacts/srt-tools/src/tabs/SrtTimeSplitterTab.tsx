@@ -164,8 +164,7 @@ export default function SrtTimeSplitterTab({ incomingSrt, incomingFilename, inco
     if (outputBlocks.length === 0) return;
     finalSentRef.current = true;
     const srt = generateSrtString(outputBlocks);
-    const baseName = (fileName || "output.srt").replace(/\.(srt|txt)$/i, "");
-    onFinalOutput(srt, `${baseName || "output"}.srt`);
+    onFinalOutput(srt, "Bangla.srt");
     toast({
       title: "Sent to Video Spliter",
       description: "Final SRT auto-loaded into Video Spliter.",
@@ -263,8 +262,7 @@ export default function SrtTimeSplitterTab({ incomingSrt, incomingFilename, inco
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    const baseName = (fileName || "Bangla.srt").replace(/\.(srt|txt)$/i, "");
-    a.download = `${baseName || "Bangla"}.srt`;
+    a.download = "Bangla.srt";
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -502,7 +500,7 @@ export default function SrtTimeSplitterTab({ incomingSrt, incomingFilename, inco
             <div className="mb-4 flex min-h-[51px] flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200/80 bg-white dark:bg-gray-900 px-5 py-2.5 shadow-[0_2px_8px_rgba(15,23,42,0.07)]">
               <div className="flex min-w-0 items-center gap-3">
                 <FileText className="h-4 w-4 shrink-0 text-blue-500" />
-                <div className="truncate text-[15px] font-bold text-slate-800">{isOutputView ? "output.srt" : fileName || "input.srt"}</div>
+                <div className="truncate text-[15px] font-bold text-slate-800">{isOutputView ? "Bangla.srt" : fileName || "input.srt"}</div>
               </div>
               <div className="flex flex-1 flex-nowrap items-center justify-end gap-2">
                 <div className="relative w-[150px] shrink-0">
