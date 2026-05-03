@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect, type ClipboardEvent as ReactClipboardEvent } from "react";
-import { Plus, Search, FileText, RotateCcw, X, ScanSearch, Download, Trash2, Scissors, Copy, Folder, FolderOpen, ArchiveRestore, ChevronDown, ChevronRight, MoreVertical, Play, Menu, PanelLeftOpen, Zap, Loader2 } from "lucide-react";
+import { Plus, Search, FileText, RotateCcw, X, ScanSearch, Download, Trash2, Scissors, Copy, Folder, FolderOpen, ArchiveRestore, ChevronDown, ChevronRight, MoreVertical, Play, Menu, PanelLeftOpen, Zap, Loader2, ClipboardPaste } from "lucide-react";
 interface TaskRow { checked: boolean; values: string[]; }
 interface Project {
   id: string;
@@ -378,6 +378,24 @@ export default function SrtNoteTab({ incomingText, incomingName, incomingKey, on
     navigator.clipboard.writeText(text).catch(() => {});
   }, [activeProject]);
   const handleClear = useCallback((idx: number) => { updateContent(idx, ""); }, [activeId]);
+  const handlePasteFromClipboard = useCallback(async (idx: number) => {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (!text) return;
+      const pastedLines = normalizePastedLines(text);
+      if (pastedLines.length === 0) return;
+      const existing = activeProject?.langs[idx]?.content ?? "";
+      const existingLines = existing === "" ? [] : existing.split("\n").filter((l) => l.trim() !== "");
+      const newLines = [...existingLines, ...pastedLines];
+      updateContent(idx, newLines.join("\n"));
+      requestAnimationFrame(() => {
+        const el = editorRefs.current[idx];
+        if (el) el.scrollTop = el.scrollHeight;
+      });
+    } catch {
+      // clipboard read failed silently
+    }
+  }, [activeProject, activeId]);
   const handleEdit = useCallback((idx: number) => { editorRefs.current[idx]?.focus(); }, []);
   const handleFind = useCallback((idx: number) => { const k = `${activeId}:${idx}`; setShowFind((prev) => ({ ...prev, [k]: !prev[k] })); }, [activeId]);
   const handleSplit = useCallback((idx: number) => { const k = `${activeId}:${idx}`; setSplitView((prev) => ({ ...prev, [k]: !prev[k] })); }, [activeId]);
@@ -686,6 +704,13 @@ export default function SrtNoteTab({ incomingText, incomingName, incomingKey, on
                   <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${ptuCount !== lineCount ? "text-red-500 bg-red-100 dark:bg-red-950" : "text-muted-foreground bg-muted"}`}>{ptuCount} ptu</span>
                 </div>
                 <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                  <button
+                    title="Paste from clipboard (append to end)"
+                    onClick={() => handlePasteFromClipboard(idx)}
+                    className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <ClipboardPaste size={14} />
+                  </button>
                   <button
                     title="Run: send to Ai Audio, split, and load pool"
                     onClick={() => {
