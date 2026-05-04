@@ -516,39 +516,57 @@ export default function App() {
             </div>
 
             {isAutoRun2Active && (
-              <button
-                onClick={() => {
-                  if (isAutoRun2Paused) {
-                    // ▶ → Resume
-                    setIsAutoRun2Paused(false);
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => {
+                    if (isAutoRun2Paused) {
+                      // ▶ → Resume
+                      setIsAutoRun2Paused(false);
+                      autoRun2PausedRef.current = false;
+                      autoRun2UserPausedRef.current = false;
+                      const cb = autoRun2ResumeCallbackRef.current;
+                      autoRun2ResumeCallbackRef.current = null;
+                      if (cb) {
+                        cb();
+                      } else {
+                        processNext2InQueueRef.current();
+                      }
+                    } else {
+                      // ⏸ → Request pause at next language boundary
+                      autoRun2UserPausedRef.current = true;
+                    }
+                  }}
+                  title={isAutoRun2Paused ? "Paused — click to resume Auto Run 2" : "Click to pause Auto Run 2 after current language finishes"}
+                  className={`flex items-center justify-center w-8 h-8 rounded-lg border transition-all ${
+                    isAutoRun2Paused
+                      ? "bg-orange-500 border-orange-400 text-white animate-pulse shadow-lg"
+                      : "bg-orange-100 border-orange-300 text-orange-500 dark:bg-orange-950 dark:border-orange-800 hover:bg-orange-200 dark:hover:bg-orange-900"
+                  }`}
+                >
+                  {isAutoRun2Paused ? (
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                  ) : (
+                    <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                  )}
+                </button>
+                <button
+                  onClick={() => {
+                    autoRun2QueueRef.current = [];
                     autoRun2PausedRef.current = false;
                     autoRun2UserPausedRef.current = false;
-                    const cb = autoRun2ResumeCallbackRef.current;
                     autoRun2ResumeCallbackRef.current = null;
-                    if (cb) {
-                      cb();
-                    } else {
-                      // User-paused between languages — restart the queue
-                      processNext2InQueueRef.current();
-                    }
-                  } else {
-                    // ⏸ → Request pause at next language boundary
-                    autoRun2UserPausedRef.current = true;
-                  }
-                }}
-                title={isAutoRun2Paused ? "Paused — click to resume Auto Run 2" : "Click to pause Auto Run 2 after current language finishes"}
-                className={`flex items-center justify-center w-8 h-8 rounded-lg border transition-all ${
-                  isAutoRun2Paused
-                    ? "bg-orange-500 border-orange-400 text-white animate-pulse shadow-lg"
-                    : "bg-orange-100 border-orange-300 text-orange-500 dark:bg-orange-950 dark:border-orange-800 hover:bg-orange-200 dark:hover:bg-orange-900"
-                }`}
-              >
-                {isAutoRun2Paused ? (
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                ) : (
-                  <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
-                )}
-              </button>
+                    autoRunModeRef.current = "run1";
+                    setIsAutoRun2Active(false);
+                    setIsAutoRun2Paused(false);
+                  }}
+                  title="Stop Auto Run 2 — cancel all remaining languages"
+                  className="flex items-center justify-center w-8 h-8 rounded-lg border border-red-300 bg-red-50 text-red-500 dark:bg-red-950 dark:border-red-800 hover:bg-red-100 dark:hover:bg-red-900 transition-all"
+                >
+                  <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.59 14L12 11.41 7.41 16 6 14.59 10.59 10 6 5.41 7.41 4 12 8.59 16.59 4 18 5.41 13.41 10 18 14.59 14.59 16z"/>
+                  </svg>
+                </button>
+              </div>
             )}
             {hasFile && (
               <span className="text-xs bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-300 border border-blue-200 dark:border-blue-900 px-2.5 py-0.5 rounded-full font-medium">
