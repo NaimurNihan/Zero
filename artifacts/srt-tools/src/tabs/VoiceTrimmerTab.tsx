@@ -127,6 +127,7 @@ export default function VoiceTrimmerTab({ onSendToSpeed, incomingAudioFiles }: V
       window.removeEventListener("srt-tools:clear-all-broadcast", onCrossClear);
   }, [removeFile, resetTrim]);
 
+
   const isEmpty = audioFiles.length === 0;
 
   const handleDownloadZip = async () => {
@@ -164,6 +165,15 @@ export default function VoiceTrimmerTab({ onSendToSpeed, incomingAudioFiles }: V
     onSendToSpeed(files);
     setLoaded(true);
   };
+
+  // Auto Run 2: respond to external trigger to load trimmed audio to Speed+-
+  const handleLoadToSpeedRef = useRef(handleLoadToSpeed);
+  handleLoadToSpeedRef.current = handleLoadToSpeed;
+  useEffect(() => {
+    const onLoadToSpeed = () => { handleLoadToSpeedRef.current(); };
+    window.addEventListener("srt-tools:trimmer-load-to-speed", onLoadToSpeed);
+    return () => window.removeEventListener("srt-tools:trimmer-load-to-speed", onLoadToSpeed);
+  }, []);
 
   const splitLabel =
     splitStage === "idle" ? "Split" :

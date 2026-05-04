@@ -270,8 +270,9 @@ interface SrtNoteTabProps {
   incomingKey?: number;
   onRunToAiAudio?: (lines: string[], label?: string) => void;
   onAutoRunAll?: (langs: { label: string; lines: string[] }[]) => void;
+  onAutoRun2?: (langs: { label: string; lines: string[] }[]) => void;
 }
-export default function SrtNoteTab({ incomingText, incomingName, incomingKey, onRunToAiAudio, onAutoRunAll }: SrtNoteTabProps = {}) {
+export default function SrtNoteTab({ incomingText, incomingName, incomingKey, onRunToAiAudio, onAutoRunAll, onAutoRun2 }: SrtNoteTabProps = {}) {
   const initialStateRef = useRef<SavedState | null>(null);
   if (initialStateRef.current === null) initialStateRef.current = readSavedState();
   const initialState = initialStateRef.current;
@@ -292,11 +293,18 @@ export default function SrtNoteTab({ incomingText, incomingName, incomingKey, on
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [sidebarHidden, setSidebarHidden] = useState(false);
   const [isAutoRunning, setIsAutoRunning] = useState(false);
+  const [isAutoRun2Running, setIsAutoRun2Running] = useState(false);
 
   useEffect(() => {
     const onComplete = () => setIsAutoRunning(false);
     window.addEventListener("srt-tools:autorun-complete", onComplete);
     return () => window.removeEventListener("srt-tools:autorun-complete", onComplete);
+  }, []);
+
+  useEffect(() => {
+    const onComplete = () => setIsAutoRun2Running(false);
+    window.addEventListener("srt-tools:autorun2-complete", onComplete);
+    return () => window.removeEventListener("srt-tools:autorun2-complete", onComplete);
   }, []);
   useEffect(() => {
     if (!openMenu) return;
@@ -602,7 +610,7 @@ export default function SrtNoteTab({ incomingText, incomingName, incomingKey, on
           <div className="flex items-center gap-2 shrink-0">
             {onAutoRunAll && (
               <button
-                disabled={isAutoRunning}
+                disabled={isAutoRunning || isAutoRun2Running}
                 onClick={() => {
                   const langs = activeProject?.langs ?? [];
                   const toRun = langs
@@ -620,13 +628,43 @@ export default function SrtNoteTab({ incomingText, incomingName, incomingKey, on
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
                   isAutoRunning
                     ? "bg-violet-100 text-violet-500 dark:bg-violet-950 cursor-not-allowed opacity-70"
-                    : "bg-violet-600 text-white hover:bg-violet-700 shadow-sm"
+                    : (isAutoRun2Running ? "opacity-40 cursor-not-allowed bg-violet-600 text-white" : "bg-violet-600 text-white hover:bg-violet-700 shadow-sm")
                 }`}
               >
                 {isAutoRunning ? (
                   <><Loader2 size={12} className="animate-spin" />Running…</>
                 ) : (
                   <><Zap size={12} />Auto Run All</>
+                )}
+              </button>
+            )}
+            {onAutoRun2 && (
+              <button
+                disabled={isAutoRun2Running || isAutoRunning}
+                onClick={() => {
+                  const langs = activeProject?.langs ?? [];
+                  const toRun = langs
+                    .filter((l) => l.label !== "Original")
+                    .map((l) => ({
+                      label: l.label,
+                      lines: l.content.split("\n").map((x) => x.trim()).filter(Boolean),
+                    }))
+                    .filter((l) => l.lines.length > 0);
+                  if (toRun.length === 0) return;
+                  setIsAutoRun2Running(true);
+                  onAutoRun2(toRun);
+                }}
+                title="Auto Run 2: AI Audio → Splitter → ZIP → Speed+- → Download ZIP (with video)"
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                  isAutoRun2Running
+                    ? "bg-orange-100 text-orange-500 dark:bg-orange-950 cursor-not-allowed opacity-70"
+                    : (isAutoRunning ? "opacity-40 cursor-not-allowed bg-orange-500 text-white" : "bg-orange-500 text-white hover:bg-orange-600 shadow-sm")
+                }`}
+              >
+                {isAutoRun2Running ? (
+                  <><Loader2 size={12} className="animate-spin" />Running…</>
+                ) : (
+                  <><Zap size={12} />Auto Run 2</>
                 )}
               </button>
             )}

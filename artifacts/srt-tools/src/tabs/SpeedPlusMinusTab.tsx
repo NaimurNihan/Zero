@@ -955,6 +955,78 @@ function VideoCutterApp({
     if (canRunSpeed) void runSpeed();
   };
 
+  // ── Automation refs (kept in sync every render) ──────────────────────────
+  const runSpeedRef = useRef<() => Promise<void>>(async () => {});
+  runSpeedRef.current = runSpeed;
+  const handleDownloadZipAutoRef = useRef<() => Promise<void>>(async () => {});
+  handleDownloadZipAutoRef.current = handleDownloadZip;
+  const handleAudioPoolClearAllRef = useRef<() => void>(() => {});
+  handleAudioPoolClearAllRef.current = handleAudioPoolClearAll;
+  const loadPoolToCardsRef = useRef<(kind: "audio" | "video") => void>(() => {});
+  loadPoolToCardsRef.current = loadPoolToCards;
+  const canRunSpeedRef = useRef(canRunSpeed);
+  canRunSpeedRef.current = canRunSpeed;
+  const ffmpegReadyRef = useRef(ffmpegReady);
+  ffmpegReadyRef.current = ffmpegReady;
+
+  // Register automation event listeners for Auto Run 2 flow.
+  useEffect(() => {
+    const onLoadAudioPool = () => {
+      loadPoolToCardsRef.current("audio");
+    };
+
+    const onLoadVideoPool = () => {
+      const videoCount = poolRef.current.filter((p) => p.kind === "video").length;
+      if (videoCount === 0) {
+        window.dispatchEvent(new CustomEvent("srt-tools:speed-video-pool-empty"));
+        return;
+      }
+      loadPoolToCardsRef.current("video");
+      window.setTimeout(() => {
+        window.dispatchEvent(new CustomEvent("srt-tools:speed-video-pool-loaded"));
+      }, 300);
+    };
+
+    const onRun = async () => {
+      // Wait until engine is ready and there are cards to run
+      let waited = 0;
+      while (!canRunSpeedRef.current && waited < 15000) {
+        await new Promise((r) => setTimeout(r, 300));
+        waited += 300;
+      }
+      await runSpeedRef.current();
+      window.dispatchEvent(new CustomEvent("srt-tools:speed-processing-done"));
+    };
+
+    const onDownloadZip = async () => {
+      await handleDownloadZipAutoRef.current();
+      window.setTimeout(() => {
+        window.dispatchEvent(new CustomEvent("srt-tools:speed-zip-done"));
+      }, 600);
+    };
+
+    const onAudioClearAll = () => {
+      handleAudioPoolClearAllRef.current();
+      window.setTimeout(() => {
+        window.dispatchEvent(new CustomEvent("srt-tools:speed-audio-cleared"));
+      }, 300);
+    };
+
+    window.addEventListener("srt-tools:speed-load-audio-pool", onLoadAudioPool);
+    window.addEventListener("srt-tools:speed-load-video-pool", onLoadVideoPool);
+    window.addEventListener("srt-tools:speed-run", onRun as EventListener);
+    window.addEventListener("srt-tools:speed-download-zip", onDownloadZip as EventListener);
+    window.addEventListener("srt-tools:speed-audio-clear-all", onAudioClearAll);
+
+    return () => {
+      window.removeEventListener("srt-tools:speed-load-audio-pool", onLoadAudioPool);
+      window.removeEventListener("srt-tools:speed-load-video-pool", onLoadVideoPool);
+      window.removeEventListener("srt-tools:speed-run", onRun as EventListener);
+      window.removeEventListener("srt-tools:speed-download-zip", onDownloadZip as EventListener);
+      window.removeEventListener("srt-tools:speed-audio-clear-all", onAudioClearAll);
+    };
+  }, []);
+
   return (
    <PoolContext.Provider value={poolCtx}>
     <div className="min-h-screen w-full bg-slate-50 text-slate-900">

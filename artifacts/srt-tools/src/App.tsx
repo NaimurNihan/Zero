@@ -191,6 +191,12 @@ export default function App() {
   const autoRunRef = useRef(false);
   const currentRunLabelRef = useRef<string>("");
   const autoRunQueueRef = useRef<{ label: string; lines: string[] }[]>([]);
+  // Auto Run 2 state
+  const autoRunModeRef = useRef<"run1" | "run2">("run1");
+  const autoRun2QueueRef = useRef<{ label: string; lines: string[] }[]>([]);
+  const autoRun2PausedRef = useRef(false);
+  const [isAutoRun2Active, setIsAutoRun2Active] = useState(false);
+  const [isAutoRun2Paused, setIsAutoRun2Paused] = useState(false);
   const [cuttingPlusIncomingVideos, setCuttingPlusIncomingVideos] = useState<{ files: File[]; key: number; autoLoad?: boolean; extras?: number[] }>({ files: [], key: 0 });
   const [speedIncomingVideos, setSpeedIncomingVideos] = useState<{ files: File[]; key: number }>({ files: [], key: 0 });
   const [speedIncomingAudio, setSpeedIncomingAudio] = useState<{ files: File[]; key: number }>({ files: [], key: 0 });
@@ -288,21 +294,98 @@ export default function App() {
       return;
     }
     const next = queue.shift()!;
+    autoRunModeRef.current = "run1";
     triggerRunForLang(next.lines, next.label);
   }, [triggerRunForLang]);
 
+  const processNext2InQueue = useCallback(() => {
+    const queue = autoRun2QueueRef.current;
+    if (queue.length === 0) {
+      setIsAutoRun2Active(false);
+      setIsAutoRun2Paused(false);
+      autoRun2PausedRef.current = false;
+      window.dispatchEvent(new CustomEvent("srt-tools:autorun2-complete"));
+      return;
+    }
+    const next = queue.shift()!;
+    autoRunModeRef.current = "run2";
+    triggerRunForLang(next.lines, next.label);
+  }, [triggerRunForLang]);
+
+  // Auto Run 2 speed sequence: triggered from onSendToSpeed when in run2 mode
+  const startSpeedSequence = useCallback(() => {
+    window.setTimeout(() => {
+      window.dispatchEvent(new CustomEvent("srt-tools:speed-load-audio-pool"));
+      window.setTimeout(() => {
+        window.dispatchEvent(new CustomEvent("srt-tools:speed-load-video-pool"));
+      }, 600);
+    }, 600);
+  }, []);
+
   useEffect(() => {
     const onZipDone = () => {
-      window.setTimeout(() => {
-        window.dispatchEvent(new CustomEvent("srt-tools:clear-all-broadcast", { detail: { source: "autorun" } }));
+      if (autoRunModeRef.current === "run2") {
+        // Auto Run 2: load trimmed audio to Speed+- instead of clearing
         window.setTimeout(() => {
-          processNextInQueue();
-        }, 800);
-      }, 400);
+          window.dispatchEvent(new CustomEvent("srt-tools:trimmer-load-to-speed"));
+        }, 400);
+      } else {
+        // Auto Run All (existing flow)
+        window.setTimeout(() => {
+          window.dispatchEvent(new CustomEvent("srt-tools:clear-all-broadcast", { detail: { source: "autorun" } }));
+          window.setTimeout(() => {
+            processNextInQueue();
+          }, 800);
+        }, 400);
+      }
     };
     window.addEventListener("srt-tools:trimmer-zip-done", onZipDone);
     return () => window.removeEventListener("srt-tools:trimmer-zip-done", onZipDone);
   }, [processNextInQueue]);
+
+  // Auto Run 2: Speed+- event chain
+  useEffect(() => {
+    const onVideoPoolEmpty = () => {
+      autoRun2PausedRef.current = true;
+      setIsAutoRun2Paused(true);
+    };
+    const onVideoPoolLoaded = () => {
+      // Give cards time to read durations before running
+      window.setTimeout(() => {
+        window.dispatchEvent(new CustomEvent("srt-tools:speed-run"));
+      }, 2500);
+    };
+    const onProcessingDone = () => {
+      window.setTimeout(() => {
+        window.dispatchEvent(new CustomEvent("srt-tools:speed-download-zip"));
+      }, 500);
+    };
+    const onZipDone = () => {
+      window.setTimeout(() => {
+        window.dispatchEvent(new CustomEvent("srt-tools:speed-audio-clear-all"));
+      }, 400);
+    };
+    const onAudioCleared = () => {
+      window.setTimeout(() => {
+        window.dispatchEvent(new CustomEvent("srt-tools:clear-all-broadcast", { detail: { source: "autorun" } }));
+        window.setTimeout(() => {
+          processNext2InQueue();
+        }, 800);
+      }, 300);
+    };
+    window.addEventListener("srt-tools:speed-video-pool-empty", onVideoPoolEmpty);
+    window.addEventListener("srt-tools:speed-video-pool-loaded", onVideoPoolLoaded);
+    window.addEventListener("srt-tools:speed-processing-done", onProcessingDone);
+    window.addEventListener("srt-tools:speed-zip-done", onZipDone);
+    window.addEventListener("srt-tools:speed-audio-cleared", onAudioCleared);
+    return () => {
+      window.removeEventListener("srt-tools:speed-video-pool-empty", onVideoPoolEmpty);
+      window.removeEventListener("srt-tools:speed-video-pool-loaded", onVideoPoolLoaded);
+      window.removeEventListener("srt-tools:speed-processing-done", onProcessingDone);
+      window.removeEventListener("srt-tools:speed-zip-done", onZipDone);
+      window.removeEventListener("srt-tools:speed-audio-cleared", onAudioCleared);
+    };
+  }, [processNext2InQueue]);
 
   const incomingSrtForSplitter = useMemo(
     () => (subtitles.length > 0 ? formatSrt(subtitles) : ""),
@@ -364,6 +447,29 @@ export default function App() {
       <header className="bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800 sticky top-0 z-20 shrink-0">
         <div className="px-4">
           <div className="max-w-5xl mx-auto flex items-center gap-3 py-3">
+            {isAutoRun2Active && (
+              <button
+                onClick={() => {
+                  if (isAutoRun2Paused) {
+                    setIsAutoRun2Paused(false);
+                    autoRun2PausedRef.current = false;
+                    window.dispatchEvent(new CustomEvent("srt-tools:speed-load-video-pool"));
+                  }
+                }}
+                title={isAutoRun2Paused ? "Auto Run 2 paused: Speed+- Video Pool is empty. Add videos then click Play to resume." : "Auto Run 2 is running…"}
+                className={`flex items-center justify-center w-8 h-8 rounded-lg border transition-all ${
+                  isAutoRun2Paused
+                    ? "bg-orange-500 border-orange-400 text-white animate-pulse shadow-lg"
+                    : "bg-orange-100 border-orange-300 text-orange-500 dark:bg-orange-950 dark:border-orange-800"
+                }`}
+              >
+                {isAutoRun2Paused ? (
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                ) : (
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path strokeLinecap="round" d="M10 8l4 4-4 4"/></svg>
+                )}
+              </button>
+            )}
             <PassKeyLock
               unlocked={unlocked}
               onUnlock={() => setUnlocked(true)}
@@ -473,7 +579,17 @@ export default function App() {
           }}
           onAutoRunAll={(langs) => {
             if (langs.length === 0) return;
+            autoRunModeRef.current = "run1";
             autoRunQueueRef.current = langs.slice(1).map((l) => ({ label: l.label, lines: l.lines }));
+            triggerRunForLang(langs[0].lines, langs[0].label);
+          }}
+          onAutoRun2={(langs) => {
+            if (langs.length === 0) return;
+            autoRunModeRef.current = "run2";
+            autoRun2PausedRef.current = false;
+            setIsAutoRun2Active(true);
+            setIsAutoRun2Paused(false);
+            autoRun2QueueRef.current = langs.slice(1).map((l) => ({ label: l.label, lines: l.lines }));
             triggerRunForLang(langs[0].lines, langs[0].label);
           }}
         />
@@ -537,6 +653,9 @@ export default function App() {
           onSendToSpeed={(files) => {
             setSpeedIncomingAudio({ files, key: Date.now() });
             handleSelectTab("speed");
+            if (autoRunModeRef.current === "run2") {
+              startSpeedSequence();
+            }
           }}
         />
       </div>
