@@ -281,6 +281,7 @@ export type CutterCardHandle = {
   loadAudio: (file: File) => void;
   loadVideo: (file: File) => void;
   markArchived: () => void;
+  resetCard: () => void;
 };
 
 type IncomingAudioFiles = { files: File[]; key: number };
@@ -934,6 +935,22 @@ function VideoCutterApp({
     setCardStates([]);
   };
 
+  const resetAllCardOutputs = () => {
+    for (let i = 0; i < cardRefs.current.length; i++) {
+      cardRefs.current[i]?.resetCard();
+    }
+  };
+
+  const handleAudioPoolClearAll = () => {
+    setPool((p) => p.filter((x) => x.kind !== "audio"));
+    resetAllCardOutputs();
+    window.dispatchEvent(
+      new CustomEvent("srt-tools:clear-all-broadcast", {
+        detail: { source: "speedPlusMinus" },
+      }),
+    );
+  };
+
   const handleSpeed = () => {
     if (canRunSpeed) void runSpeed();
   };
@@ -1015,6 +1032,7 @@ function VideoCutterApp({
               setPool((p) => p.filter((x) => x.kind !== "audio"))
             }
             onLoad={() => loadPoolToCards("audio")}
+            onClearAll={handleAudioPoolClearAll}
           />
           <MediaPool
             kind="video"
@@ -1199,6 +1217,7 @@ function MediaPool({
   onRemove,
   onClear,
   onLoad,
+  onClearAll,
 }: {
   kind: "audio" | "video";
   items: PoolItem[];
@@ -1206,6 +1225,7 @@ function MediaPool({
   onRemove: (id: string) => void;
   onClear: () => void;
   onLoad: () => void;
+  onClearAll?: () => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
@@ -1275,6 +1295,19 @@ function MediaPool({
               className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-rose-300 bg-rose-50 text-rose-700 hover:bg-rose-100"
             >
               <Trash2 className="h-4 w-4" />
+            </button>
+          )}
+          {onClearAll && (
+            <button
+              type="button"
+              onClick={onClearAll}
+              data-testid="button-pool-clear-all"
+              aria-label="Clear All"
+              title="Clear All: clears audio pool, resets all cards, and clears Audio Splitter"
+              className="inline-flex h-8 items-center justify-center gap-1 rounded-full border border-rose-400 bg-rose-100 px-2.5 text-[11px] font-semibold text-rose-700 hover:bg-rose-200"
+            >
+              <Trash2 className="h-3 w-3" />
+              Clear All
             </button>
           )}
           <input
@@ -1822,6 +1855,9 @@ const CutterCard = forwardRef<CutterCardHandle, CutterCardProps>(
         setOutputUrl(null);
         setPlaying(false);
         setArchived(true);
+      },
+      resetCard: () => {
+        reset();
       },
     }));
 
