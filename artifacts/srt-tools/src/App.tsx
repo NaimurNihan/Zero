@@ -534,9 +534,9 @@ export default function App() {
       <div style={{ display: activeTab === "audio" ? "flex" : "none" }} className="flex-col flex-1 overflow-y-auto">
         <VoiceTrimmerTab
           incomingAudioFiles={spliterIncomingAudio}
-          onSendToCutting={(files) => {
-            setCuttingIncomingAudio({ files, key: Date.now() });
-            handleSelectTab("cutting");
+          onSendToSpeed={(files) => {
+            setSpeedIncomingAudio({ files, key: Date.now() });
+            handleSelectTab("speed");
           }}
         />
       </div>

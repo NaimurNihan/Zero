@@ -9,11 +9,11 @@ import JSZip from "jszip";
 type SplitStage = "idle" | "preview" | "trimming" | "done";
 
 interface VoiceTrimmerTabProps {
-  onSendToCutting?: (files: File[]) => void;
+  onSendToSpeed?: (files: File[]) => void;
   incomingAudioFiles?: { files: File[]; key: number; autoSplit?: boolean; label?: string };
 }
 
-export default function VoiceTrimmerTab({ onSendToCutting, incomingAudioFiles }: VoiceTrimmerTabProps = {}) {
+export default function VoiceTrimmerTab({ onSendToSpeed, incomingAudioFiles }: VoiceTrimmerTabProps = {}) {
   const { audioFiles, addFiles, removeFile, trimAllFiles, resetTrim } = useAudioAnalysis();
   const [splitStage, setSplitStage] = useState<SplitStage>("idle");
   const [loaded, setLoaded] = useState(false);
@@ -153,15 +153,15 @@ export default function VoiceTrimmerTab({ onSendToCutting, incomingAudioFiles }:
   };
   handleDownloadZipRef.current = handleDownloadZip;
 
-  const handleLoadToCutting = () => {
-    if (!onSendToCutting) return;
+  const handleLoadToSpeed = () => {
+    if (!onSendToSpeed) return;
     const trimmed = audioFiles.filter((f) => f.isTrimmed && f.trimmedBlob);
     if (trimmed.length === 0) return;
     const files: File[] = trimmed.map((f) => {
       const baseName = f.name.replace(/\.[^.]+$/, "") + "_trimmed.wav";
       return new File([f.trimmedBlob as Blob], baseName, { type: "audio/wav" });
     });
-    onSendToCutting(files);
+    onSendToSpeed(files);
     setLoaded(true);
   };
 
@@ -240,10 +240,10 @@ export default function VoiceTrimmerTab({ onSendToCutting, incomingAudioFiles }:
               {zipDownloaded ? "ZIP ✓" : "ZIP"}
             </button>
           )}
-          {splitStage === "done" && trimmedCount > 0 && onSendToCutting && (
+          {splitStage === "done" && trimmedCount > 0 && onSendToSpeed && (
             <button
-              onClick={handleLoadToCutting}
-              title="Send all trimmed audios to Cutting++ Audio Pool"
+              onClick={handleLoadToSpeed}
+              title="Send all trimmed audios to Speed+- Audio Pool"
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
               style={{
                 background: loaded ? "hsl(142,70%,40%)" : "hsl(220,90%,56%)",
@@ -264,7 +264,7 @@ export default function VoiceTrimmerTab({ onSendToCutting, incomingAudioFiles }:
               }}
             >
               <FolderInput className="w-3 h-3" />
-              {loaded ? "Loaded ✓" : "Load to Cutting++"}
+              {loaded ? "Loaded ✓" : "Load to Speed+-"}
             </button>
           )}
           <button
