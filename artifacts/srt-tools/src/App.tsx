@@ -195,6 +195,8 @@ export default function App() {
   const autoRunModeRef = useRef<"run1" | "run2">("run1");
   const autoRun2QueueRef = useRef<{ label: string; lines: string[] }[]>([]);
   const autoRun2PausedRef = useRef(false);
+  const autoRun2UserPausedRef = useRef(false);
+  const autoRun2ResumeCallbackRef = useRef<(() => void) | null>(null);
   const [isAutoRun2Active, setIsAutoRun2Active] = useState(false);
   const [isAutoRun2Paused, setIsAutoRun2Paused] = useState(false);
   const [cuttingPlusIncomingVideos, setCuttingPlusIncomingVideos] = useState<{ files: File[]; key: number; autoLoad?: boolean; extras?: number[] }>({ files: [], key: 0 });
@@ -304,13 +306,26 @@ export default function App() {
       setIsAutoRun2Active(false);
       setIsAutoRun2Paused(false);
       autoRun2PausedRef.current = false;
+      autoRun2UserPausedRef.current = false;
+      autoRun2ResumeCallbackRef.current = null;
       window.dispatchEvent(new CustomEvent("srt-tools:autorun2-complete"));
+      return;
+    }
+    // User manually requested pause — hold here between languages
+    if (autoRun2UserPausedRef.current) {
+      autoRun2PausedRef.current = true;
+      setIsAutoRun2Paused(true);
+      // Resume will call processNext2InQueueRef.current()
       return;
     }
     const next = queue.shift()!;
     autoRunModeRef.current = "run2";
     triggerRunForLang(next.lines, next.label);
   }, [triggerRunForLang]);
+
+  // Stable ref so the play button click handler always calls the latest version
+  const processNext2InQueueRef = useRef(processNext2InQueue);
+  processNext2InQueueRef.current = processNext2InQueue;
 
   // Auto Run 2 speed sequence: triggered from onSendToSpeed when in run2 mode
   const startSpeedSequence = useCallback(() => {
@@ -348,6 +363,10 @@ export default function App() {
     const onVideoPoolEmpty = () => {
       autoRun2PausedRef.current = true;
       setIsAutoRun2Paused(true);
+      // Store specific resume action for video-pool-empty case
+      autoRun2ResumeCallbackRef.current = () => {
+        window.dispatchEvent(new CustomEvent("srt-tools:speed-load-video-pool"));
+      };
     };
     const onVideoPoolLoaded = () => {
       // Give cards time to read durations before running
@@ -500,22 +519,34 @@ export default function App() {
               <button
                 onClick={() => {
                   if (isAutoRun2Paused) {
+                    // ▶ → Resume
                     setIsAutoRun2Paused(false);
                     autoRun2PausedRef.current = false;
-                    window.dispatchEvent(new CustomEvent("srt-tools:speed-load-video-pool"));
+                    autoRun2UserPausedRef.current = false;
+                    const cb = autoRun2ResumeCallbackRef.current;
+                    autoRun2ResumeCallbackRef.current = null;
+                    if (cb) {
+                      cb();
+                    } else {
+                      // User-paused between languages — restart the queue
+                      processNext2InQueueRef.current();
+                    }
+                  } else {
+                    // ⏸ → Request pause at next language boundary
+                    autoRun2UserPausedRef.current = true;
                   }
                 }}
-                title={isAutoRun2Paused ? "Auto Run 2 paused: Speed+- Video Pool is empty. Add videos then click Play to resume." : "Auto Run 2 is running…"}
+                title={isAutoRun2Paused ? "Paused — click to resume Auto Run 2" : "Click to pause Auto Run 2 after current language finishes"}
                 className={`flex items-center justify-center w-8 h-8 rounded-lg border transition-all ${
                   isAutoRun2Paused
                     ? "bg-orange-500 border-orange-400 text-white animate-pulse shadow-lg"
-                    : "bg-orange-100 border-orange-300 text-orange-500 dark:bg-orange-950 dark:border-orange-800"
+                    : "bg-orange-100 border-orange-300 text-orange-500 dark:bg-orange-950 dark:border-orange-800 hover:bg-orange-200 dark:hover:bg-orange-900"
                 }`}
               >
                 {isAutoRun2Paused ? (
                   <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
                 ) : (
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path strokeLinecap="round" d="M10 8l4 4-4 4"/></svg>
+                  <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
                 )}
               </button>
             )}
