@@ -199,7 +199,7 @@ export default function App() {
   const [isAutoRun2Paused, setIsAutoRun2Paused] = useState(false);
   const [cuttingPlusIncomingVideos, setCuttingPlusIncomingVideos] = useState<{ files: File[]; key: number; autoLoad?: boolean; extras?: number[] }>({ files: [], key: 0 });
   const [speedIncomingVideos, setSpeedIncomingVideos] = useState<{ files: File[]; key: number }>({ files: [], key: 0 });
-  const [speedIncomingAudio, setSpeedIncomingAudio] = useState<{ files: File[]; key: number }>({ files: [], key: 0 });
+  const [speedIncomingAudio, setSpeedIncomingAudio] = useState<{ files: File[]; key: number; label?: string }>({ files: [], key: 0 });
   const [theme, setTheme] = useState<"light" | "dark">(() => {
     if (typeof window === "undefined") return "light";
     const saved = localStorage.getItem("srt-tools-theme");
@@ -651,7 +651,7 @@ export default function App() {
         <VoiceTrimmerTab
           incomingAudioFiles={spliterIncomingAudio}
           onSendToSpeed={(files) => {
-            setSpeedIncomingAudio({ files, key: Date.now() });
+            setSpeedIncomingAudio({ files, key: Date.now(), label: currentRunLabelRef.current });
             handleSelectTab("speed");
             if (autoRunModeRef.current === "run2") {
               startSpeedSequence();

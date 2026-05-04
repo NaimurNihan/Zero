@@ -284,7 +284,7 @@ export type CutterCardHandle = {
   resetCard: () => void;
 };
 
-type IncomingAudioFiles = { files: File[]; key: number };
+type IncomingAudioFiles = { files: File[]; key: number; label?: string };
 
 function VideoCutterApp({
   incomingAudioFiles,
@@ -514,12 +514,15 @@ function VideoCutterApp({
     setPool((p) => p.filter((x) => x.id !== id));
   };
 
+  const currentLabelRef = useRef<string>("");
+
   const lastIncomingKeyRef = useRef<number | null>(null);
   useEffect(() => {
     if (!incomingAudioFiles) return;
     if (incomingAudioFiles.key === lastIncomingKeyRef.current) return;
     if (!incomingAudioFiles.files || incomingAudioFiles.files.length === 0) return;
     lastIncomingKeyRef.current = incomingAudioFiles.key;
+    if (incomingAudioFiles.label) currentLabelRef.current = incomingAudioFiles.label;
     void addPoolFiles(incomingAudioFiles.files);
   }, [incomingAudioFiles]);
 
@@ -682,9 +685,10 @@ function VideoCutterApp({
       const url = URL.createObjectURL(out);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `video-clips-${new Date()
-        .toISOString()
-        .replace(/[:.]/g, "-")}.zip`;
+      const labelSlug = currentLabelRef.current ? currentLabelRef.current.trim() : "";
+      a.download = labelSlug
+        ? `${labelSlug} Video.zip`
+        : `video-clips-${new Date().toISOString().replace(/[:.]/g, "-")}.zip`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -2388,7 +2392,7 @@ export default function SpeedPlusMinusTab({
   incomingAudioFiles,
   incomingVideoFiles,
 }: {
-  incomingAudioFiles?: { files: File[]; key: number };
+  incomingAudioFiles?: { files: File[]; key: number; label?: string };
   incomingVideoFiles?: { files: File[]; key: number };
 } = {}) {
   return (
