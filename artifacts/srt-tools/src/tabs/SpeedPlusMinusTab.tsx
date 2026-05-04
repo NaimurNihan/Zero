@@ -944,6 +944,10 @@ function VideoCutterApp({
   const handleAudioPoolClearAll = () => {
     setPool((p) => p.filter((x) => x.kind !== "audio"));
     resetAllCardOutputs();
+    archiveZipRef.current = null;
+    archivedNamesRef.current = new Set();
+    setArchivedCount(0);
+    setDownloadCount(0);
     window.dispatchEvent(
       new CustomEvent("srt-tools:clear-all-broadcast", {
         detail: { source: "speedPlusMinus" },
