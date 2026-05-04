@@ -447,29 +447,6 @@ export default function App() {
       <header className="bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800 sticky top-0 z-20 shrink-0">
         <div className="px-4">
           <div className="max-w-5xl mx-auto flex items-center gap-3 py-3">
-            {isAutoRun2Active && (
-              <button
-                onClick={() => {
-                  if (isAutoRun2Paused) {
-                    setIsAutoRun2Paused(false);
-                    autoRun2PausedRef.current = false;
-                    window.dispatchEvent(new CustomEvent("srt-tools:speed-load-video-pool"));
-                  }
-                }}
-                title={isAutoRun2Paused ? "Auto Run 2 paused: Speed+- Video Pool is empty. Add videos then click Play to resume." : "Auto Run 2 is running…"}
-                className={`flex items-center justify-center w-8 h-8 rounded-lg border transition-all ${
-                  isAutoRun2Paused
-                    ? "bg-orange-500 border-orange-400 text-white animate-pulse shadow-lg"
-                    : "bg-orange-100 border-orange-300 text-orange-500 dark:bg-orange-950 dark:border-orange-800"
-                }`}
-              >
-                {isAutoRun2Paused ? (
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                ) : (
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path strokeLinecap="round" d="M10 8l4 4-4 4"/></svg>
-                )}
-              </button>
-            )}
             <PassKeyLock
               unlocked={unlocked}
               onUnlock={() => setUnlocked(true)}
@@ -519,6 +496,29 @@ export default function App() {
               })}
             </div>
 
+            {isAutoRun2Active && (
+              <button
+                onClick={() => {
+                  if (isAutoRun2Paused) {
+                    setIsAutoRun2Paused(false);
+                    autoRun2PausedRef.current = false;
+                    window.dispatchEvent(new CustomEvent("srt-tools:speed-load-video-pool"));
+                  }
+                }}
+                title={isAutoRun2Paused ? "Auto Run 2 paused: Speed+- Video Pool is empty. Add videos then click Play to resume." : "Auto Run 2 is running…"}
+                className={`flex items-center justify-center w-8 h-8 rounded-lg border transition-all ${
+                  isAutoRun2Paused
+                    ? "bg-orange-500 border-orange-400 text-white animate-pulse shadow-lg"
+                    : "bg-orange-100 border-orange-300 text-orange-500 dark:bg-orange-950 dark:border-orange-800"
+                }`}
+              >
+                {isAutoRun2Paused ? (
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                ) : (
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path strokeLinecap="round" d="M10 8l4 4-4 4"/></svg>
+                )}
+              </button>
+            )}
             {hasFile && (
               <span className="text-xs bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-300 border border-blue-200 dark:border-blue-900 px-2.5 py-0.5 rounded-full font-medium">
                 {subtitles.length} subtitles loaded
