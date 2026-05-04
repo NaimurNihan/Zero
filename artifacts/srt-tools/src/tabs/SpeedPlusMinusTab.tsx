@@ -247,7 +247,7 @@ type CardState = {
   hasAudio: boolean;
   hasVideo: boolean;
   isDone: boolean;
-  mergedUrl?: string | null;
+  mergedBlob?: Blob | null;
   mergedName?: string;
   isArchived?: boolean;
 };
@@ -269,15 +269,15 @@ function sameCardState(a: CardState, b: CardState): boolean {
     a.isDone === b.isDone &&
     a.mode === b.mode &&
     !!a.isEqual === !!b.isEqual &&
-    a.mergedUrl === b.mergedUrl &&
+    a.mergedBlob === b.mergedBlob &&
     a.mergedName === b.mergedName &&
     !!a.isArchived === !!b.isArchived
   );
 }
 
 export type CutterCardHandle = {
-  runCut: () => Promise<{ url: string; name: string } | null>;
-  passThrough: () => Promise<{ url: string; name: string } | null>;
+  runCut: () => Promise<{ blob: Blob; name: string } | null>;
+  passThrough: () => Promise<{ blob: Blob; name: string } | null>;
   loadAudio: (file: File) => void;
   loadVideo: (file: File) => void;
   markArchived: () => void;
@@ -611,7 +611,7 @@ function VideoCutterApp({
 
   const archiveBatch = useCallback(
     async (
-      items: Array<{ idx: number; url: string; name: string }>,
+      items: Array<{ idx: number; blob: Blob; name: string }>,
     ): Promise<void> => {
       if (items.length === 0) return;
       setArchiving(true);
@@ -620,10 +620,8 @@ function VideoCutterApp({
         type ZipLike = { file: (name: string, blob: Blob) => void };
         if (!archiveZipRef.current) archiveZipRef.current = new JSZip();
         const zip = archiveZipRef.current as ZipLike;
-        for (const { idx, url, name } of items) {
+        for (const { idx, blob, name } of items) {
           try {
-            const res = await fetch(url);
-            const blob = await res.blob();
             let finalName = name;
             if (archivedNamesRef.current.has(finalName)) {
               const dot = finalName.lastIndexOf(".");
@@ -633,11 +631,10 @@ function VideoCutterApp({
             }
             archivedNamesRef.current.add(finalName);
             zip.file(finalName, blob);
-            URL.revokeObjectURL(url);
             cardRefs.current[idx]?.markArchived();
           } catch (e) {
             console.error(
-              `[Cutting++] Archive failed for card ${idx + 1}:`,
+              `[Speed+-] Archive failed for card ${idx + 1}:`,
               e,
             );
           }
@@ -654,7 +651,7 @@ function VideoCutterApp({
     const liveReady = cardStates
       .map((c, i) => ({ c, i }))
       .filter(
-        ({ c }) => c.isDone && !c.isArchived && c.mergedUrl && c.mergedName,
+        ({ c }) => c.isDone && !c.isArchived && c.mergedBlob && c.mergedName,
       );
     const hasArchive = !!archiveZipRef.current;
     if (!hasArchive && liveReady.length === 0) return;
@@ -669,8 +666,7 @@ function VideoCutterApp({
       const zip = archiveZipRef.current as ZipLike;
       const used = new Set<string>(archivedNamesRef.current);
       for (const { c, i } of liveReady) {
-        const res = await fetch(c.mergedUrl!);
-        const blob = await res.blob();
+        const blob = c.mergedBlob!;
         let name = c.mergedName || `merged-${i + 1}.mp4`;
         if (used.has(name)) {
           const dot = name.lastIndexOf(".");
@@ -875,7 +871,7 @@ function VideoCutterApp({
       for (const cardIdx of equalQueue) {
         const result = await cardRefs.current[cardIdx]!.passThrough();
         if (result) {
-          pendingArchive.push({ idx: cardIdx, url: result.url, name: result.name });
+          pendingArchive.push({ idx: cardIdx, blob: result.blob, name: result.name });
           if (pendingArchive.length >= BATCH_SIZE_PP) {
             await archiveBatch(pendingArchive.splice(0));
           }
@@ -905,7 +901,7 @@ function VideoCutterApp({
           if (result) {
             pendingArchive.push({
               idx: cardIdx,
-              url: result.url,
+              blob: result.blob,
               name: result.name,
             });
             await tryFlushArchive();
@@ -1551,14 +1547,14 @@ const CutterCard = forwardRef<CutterCardHandle, CutterCardProps>(
     const [progress, setProgress] = useState(0);
     const [outputUrl, setOutputUrl] = useState<string | null>(null);
     const [mergedUrl, setMergedUrl] = useState<string | null>(null);
+    const [mergedBlob, setMergedBlob] = useState<Blob | null>(null);
     const [mergedName, setMergedName] = useState<string>("");
     const [mergedSize, setMergedSize] = useState<number>(0);
     const [mergedDuration, setMergedDuration] = useState<number>(0);
     const [errorMsg, setErrorMsg] = useState<string>("");
     const [playing, setPlaying] = useState(false);
     // Set by parent (via markArchived) once this card's output has been
-    // copied into the accumulating ZIP and its blob URL revoked. We then
-    // hide the preview and stop offering playback (URL is gone).
+    // archived into the ZIP. We then hide the preview.
     const [archived, setArchived] = useState(false);
 
     const handleAudio = async (file: File | null) => {
@@ -1667,7 +1663,7 @@ const CutterCard = forwardRef<CutterCardHandle, CutterCardProps>(
         hasAudio,
         hasVideo,
         isDone,
-        mergedUrl,
+        mergedBlob,
         mergedName,
         isArchived: archived,
       });
@@ -1680,7 +1676,7 @@ const CutterCard = forwardRef<CutterCardHandle, CutterCardProps>(
       hasAudio,
       hasVideo,
       isDone,
-      mergedUrl,
+      mergedBlob,
       mergedName,
       archived,
     ]);
@@ -1690,6 +1686,7 @@ const CutterCard = forwardRef<CutterCardHandle, CutterCardProps>(
       if (mergedUrl) URL.revokeObjectURL(mergedUrl);
       setOutputUrl(null);
       setMergedUrl(null);
+      setMergedBlob(null);
       setMergedName("");
       setMergedSize(0);
       setMergedDuration(0);
@@ -1704,7 +1701,7 @@ const CutterCard = forwardRef<CutterCardHandle, CutterCardProps>(
       setArchived(false);
     };
 
-    const runCut = async (): Promise<{ url: string; name: string } | null> => {
+    const runCut = async (): Promise<{ blob: Blob; name: string } | null> => {
       if (
         !audioFile ||
         !videoFile ||
@@ -1721,12 +1718,13 @@ const CutterCard = forwardRef<CutterCardHandle, CutterCardProps>(
       if (mergedUrl) URL.revokeObjectURL(mergedUrl);
       setOutputUrl(null);
       setMergedUrl(null);
+      setMergedBlob(null);
       setArchived(false);
 
       // Captured in the closure so we can return them after success — local
-      // state vars (mergedUrl/mergedName) won't be observable until React
-      // commits, but the parent's batch logic needs them right away.
-      let producedUrl: string | null = null;
+      // state vars won't be observable until React commits, but the parent's
+      // batch logic needs them right away.
+      let producedBlob: Blob | null = null;
       let producedName: string = "";
 
       const ns = `c${index}_`;
@@ -1826,10 +1824,9 @@ const CutterCard = forwardRef<CutterCardHandle, CutterCardProps>(
         const mergedBlob = new Blob([mergedBuf.slice().buffer], {
           type: mimeType,
         });
-        const mUrl = URL.createObjectURL(mergedBlob);
-        producedUrl = mUrl;
+        producedBlob = mergedBlob;
         producedName = mergedFileName;
-        setMergedUrl(mUrl);
+        setMergedBlob(mergedBlob);
         setMergedName(mergedFileName);
         setMergedSize(mergedBlob.size);
         setMergedDuration(audioDuration);
@@ -1897,25 +1894,24 @@ const CutterCard = forwardRef<CutterCardHandle, CutterCardProps>(
         releaseSlot(slot);
       }
 
-      if (producedUrl && producedName) {
-        return { url: producedUrl, name: producedName };
+      if (producedBlob && producedName) {
+        return { blob: producedBlob, name: producedName };
       }
       return null;
     };
 
-    const passThrough = async (): Promise<{ url: string; name: string } | null> => {
+    const passThrough = async (): Promise<{ blob: Blob; name: string } | null> => {
       if (!videoFile) return null;
       const ext = (videoFile.name.split(".").pop() || "mp4").toLowerCase();
       const outputName = `Merged ${index}.${ext}`;
       const blob = new Blob([await videoFile.arrayBuffer()], { type: videoFile.type || "video/mp4" });
-      const url = URL.createObjectURL(blob);
-      setMergedUrl(url);
+      setMergedBlob(blob);
       setMergedName(outputName);
       setMergedSize(blob.size);
       setMergedDuration(videoDuration ?? 0);
       setStage("done");
       setProgress(100);
-      return { url, name: outputName };
+      return { blob, name: outputName };
     };
 
     useImperativeHandle(ref, () => ({
@@ -1928,10 +1924,10 @@ const CutterCard = forwardRef<CutterCardHandle, CutterCardProps>(
         void handleVideo(file);
       },
       markArchived: () => {
-        // Parent has already revoked the blob URL after copying it into the
-        // ZIP. Drop our reference to it and flip the archived flag so the
-        // preview tile shows the archived badge instead.
+        // Parent has copied the blob into ZIP. Drop references and flip archived flag.
+        if (mergedUrl) URL.revokeObjectURL(mergedUrl);
         setMergedUrl(null);
+        setMergedBlob(null);
         setOutputUrl(null);
         setPlaying(false);
         setArchived(true);
@@ -2019,7 +2015,7 @@ const CutterCard = forwardRef<CutterCardHandle, CutterCardProps>(
               <ActionButton
                 onClick={reset}
                 disabled={
-                  !audioFile && !videoFile && !mergedUrl && !errorMsg
+                  !audioFile && !videoFile && !mergedBlob && !errorMsg
                 }
                 icon={<X className="h-3 w-3" />}
                 label="cancel"
@@ -2027,19 +2023,32 @@ const CutterCard = forwardRef<CutterCardHandle, CutterCardProps>(
                 variant="cancel"
               />
               <ActionButton
-                onClick={() => mergedUrl && setPlaying(true)}
-                disabled={!mergedUrl}
+                onClick={() => {
+                  if (!mergedBlob) return;
+                  if (!mergedUrl) {
+                    const url = URL.createObjectURL(mergedBlob);
+                    setMergedUrl(url);
+                  }
+                  setPlaying(true);
+                }}
+                disabled={!mergedBlob}
                 icon={<Play className="h-3 w-3" />}
                 label="play"
                 testId={`button-play-${index}`}
                 variant="play"
               />
               <ActionButton
-                as="a"
-                href={mergedUrl ?? undefined}
-                download={mergedName || undefined}
-                disabled={!mergedUrl}
-                onClick={onDownload}
+                onClick={() => {
+                  if (!mergedBlob) return;
+                  const url = URL.createObjectURL(mergedBlob);
+                  const a = document.createElement("a");
+                  a.href = url;
+                  a.download = mergedName || `Merged ${index}.mp4`;
+                  a.click();
+                  setTimeout(() => URL.revokeObjectURL(url), 2000);
+                  onDownload();
+                }}
+                disabled={!mergedBlob}
                 icon={<Download className="h-3 w-3" />}
                 label="download"
                 testId={`button-download-${index}`}
@@ -2050,9 +2059,9 @@ const CutterCard = forwardRef<CutterCardHandle, CutterCardProps>(
         </div>
 
         {/* Status row */}
-        {(isWorking || errorMsg || speedTooExtreme || mode !== null || mergedUrl) && (
+        {(isWorking || errorMsg || speedTooExtreme || mode !== null || mergedBlob) && (
           <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500">
-            {speedTooExtreme && !mergedUrl && (
+            {speedTooExtreme && !mergedBlob && (
               <span className="inline-flex items-center gap-1.5 rounded border border-rose-400 bg-rose-100 px-2 py-0.5 font-semibold text-rose-700">
                 <AlertTriangle className="h-3 w-3" />
                 {(speedFactor as number) < MIN_SPEED_FACTOR
@@ -2060,13 +2069,13 @@ const CutterCard = forwardRef<CutterCardHandle, CutterCardProps>(
                   : `Audio > 4× video (${(speedFactor as number).toFixed(2)}× — too extreme)`}
               </span>
             )}
-            {mode === "speedup" && !mergedUrl && speedFactor !== null && (
+            {mode === "speedup" && !mergedBlob && speedFactor !== null && (
               <span className="inline-flex items-center gap-1.5 rounded border border-green-500 bg-green-100 px-2 py-0.5 font-semibold text-green-800">
                 <FastForward className="h-3 w-3" />
                 speed +{(1 / speedFactor).toFixed(2)}× (faster)
               </span>
             )}
-            {mode === "slowdown" && !mergedUrl && speedFactor !== null && (
+            {mode === "slowdown" && !mergedBlob && speedFactor !== null && (
               <span className="inline-flex items-center gap-1.5 rounded border border-blue-500 bg-blue-100 px-2 py-0.5 font-semibold text-blue-800">
                 <Rewind className="h-3 w-3" />
                 speed -{speedFactor.toFixed(2)}× (slower)
@@ -2085,7 +2094,7 @@ const CutterCard = forwardRef<CutterCardHandle, CutterCardProps>(
                 </span>
               </span>
             )}
-            {mergedUrl && !isWorking && (
+            {mergedBlob && !isWorking && (
               <>
                 <span className="truncate text-slate-700">{mergedName}</span>
                 <span>·</span>
