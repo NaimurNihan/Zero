@@ -250,6 +250,7 @@ type CardState = {
   mergedBlob?: Blob | null;
   mergedName?: string;
   isArchived?: boolean;
+  isReadingDuration?: boolean;
 };
 
 const DEFAULT_CARD_STATE: CardState = {
@@ -269,6 +270,7 @@ function sameCardState(a: CardState, b: CardState): boolean {
     a.isDone === b.isDone &&
     a.mode === b.mode &&
     !!a.isEqual === !!b.isEqual &&
+    !!a.isReadingDuration === !!b.isReadingDuration &&
     a.mergedBlob === b.mergedBlob &&
     a.mergedName === b.mergedName &&
     !!a.isArchived === !!b.isArchived
@@ -987,6 +989,12 @@ function VideoCutterApp({
   canRunSpeedRef.current = canRunSpeed;
   const ffmpegReadyRef = useRef(ffmpegReady);
   ffmpegReadyRef.current = ffmpegReady;
+  // True when every card that has a file loaded has finished reading its duration.
+  // Used by automation (onRun) to avoid starting processing while some cards are
+  // still computing their speedFactor — which would cause those cards to be
+  // skipped from the queue and the ZIP to be downloaded without their output.
+  const allCardsSettledRef = useRef(true);
+  allCardsSettledRef.current = cardStates.every((c) => !c.isReadingDuration);
 
   // Register automation event listeners for Auto Run 2 flow.
   useEffect(() => {
@@ -1007,9 +1015,13 @@ function VideoCutterApp({
     };
 
     const onRun = async () => {
-      // Wait until engine is ready and there are cards to run
+      // Wait until engine is ready, all cards have settled (durations read),
+      // and there are cards to run. Checking anyCanSpeed alone (via canRunSpeedRef)
+      // is not enough — it becomes true as soon as ONE card is ready, while others
+      // may still be reading durations. Those not-yet-ready cards would be silently
+      // skipped from the processing queue, causing the ZIP to be missing their output.
       let waited = 0;
-      while (!canRunSpeedRef.current && waited < 15000) {
+      while ((!canRunSpeedRef.current || !allCardsSettledRef.current) && waited < 20000) {
         await new Promise((r) => setTimeout(r, 300));
         waited += 300;
       }
@@ -1710,6 +1722,9 @@ const CutterCard = forwardRef<CutterCardHandle, CutterCardProps>(
     const hasAudio = !!audioFile;
     const hasVideo = !!videoFile;
     const isDone = stage === "done";
+    const isReadingDuration =
+      (!!audioFile && audioDuration === null) ||
+      (!!videoFile && videoDuration === null);
 
     // Keep onStateChange off the effect deps. With 250 cards, having the
     // parent's setter as a dep would re-fire this effect on every parent
@@ -1732,6 +1747,7 @@ const CutterCard = forwardRef<CutterCardHandle, CutterCardProps>(
         mergedBlob,
         mergedName,
         isArchived: archived,
+        isReadingDuration,
       });
     }, [
       slotIdx,
@@ -1745,6 +1761,7 @@ const CutterCard = forwardRef<CutterCardHandle, CutterCardProps>(
       mergedBlob,
       mergedName,
       archived,
+      isReadingDuration,
     ]);
 
     const reset = () => {
