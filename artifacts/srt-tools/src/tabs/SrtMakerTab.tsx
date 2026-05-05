@@ -24,10 +24,11 @@ function msToDisplay(ms: number): string {
   const h = Math.floor(ms / 3600000).toString().padStart(2, "0");
   const m = Math.floor((ms % 3600000) / 60000).toString().padStart(2, "0");
   const s = Math.floor((ms % 60000) / 1000).toString().padStart(2, "0");
-  return `${h}:${m}:${s}`;
+  const msStr = (ms % 1000).toString().padStart(3, "0");
+  return `${h}:${m}:${s},${msStr}`;
 }
 
-const GAP_MS = 500;
+const GAP_MS = 0;
 
 async function getAudioDuration(file: File): Promise<number> {
   return new Promise((resolve) => {
