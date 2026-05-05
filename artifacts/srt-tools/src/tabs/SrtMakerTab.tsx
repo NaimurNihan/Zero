@@ -28,7 +28,7 @@ function msToDisplay(ms: number): string {
   return `${h}:${m}:${s},${msStr}`;
 }
 
-const GAP_MS = 0;
+const GAP_MS = 10;
 
 async function getAudioDuration(file: File): Promise<number> {
   return new Promise((resolve) => {
