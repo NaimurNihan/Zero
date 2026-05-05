@@ -409,6 +409,17 @@ export default function SrtMergerTab({ onSendToName, onTransform, clearKey, inco
     setSrtEntries(updated);
   };
 
+  const removeSentence = (i: number) => {
+    const updated = sentences.filter((_, idx) => idx !== i);
+    setSentenceHistory((h) => [...h, sentenceText]);
+    setSentenceText(updated.join("\n"));
+  };
+
+  const updateSentence = (i: number, value: string) => {
+    const updated = sentences.map((s, idx) => (idx === i ? value : s));
+    setSentenceText(updated.join("\n"));
+  };
+
   const clearSRT = () => {
     setSrtEntries([]);
     setFileName("");
@@ -846,16 +857,28 @@ export default function SrtMergerTab({ onSendToName, onTransform, clearKey, inco
                 {sentences.map((sentence, i) => (
                   <div
                     key={i}
-                    className={`flex gap-2 p-2.5 rounded-lg border transition-colors ${
+                    className={`flex gap-2 p-2.5 rounded-lg border transition-colors group ${
                       i < srtEntries.length
-                        ? "border-emerald-100 bg-emerald-50/40"
-                        : "border-orange-100 bg-orange-50/40"
+                        ? "border-emerald-100 bg-emerald-50/40 hover:border-emerald-200"
+                        : "border-orange-100 bg-orange-50/40 hover:border-orange-200"
                     }`}
                   >
-                    <span className="text-xs font-semibold text-gray-400 dark:text-gray-500 mt-0.5 w-5 flex-shrink-0 text-right">
+                    <span className="text-xs font-semibold text-gray-400 dark:text-gray-500 mt-1.5 w-5 flex-shrink-0 text-right">
                       {i + 1}.
                     </span>
-                    <p className="text-sm text-gray-700 dark:text-gray-200 leading-relaxed">{sentence}</p>
+                    <textarea
+                      value={sentence}
+                      onChange={(e) => updateSentence(i, e.target.value)}
+                      rows={Math.max(1, Math.ceil(sentence.length / 55))}
+                      className="flex-1 text-sm text-gray-700 dark:text-gray-200 leading-relaxed bg-transparent border-none outline-none resize-none focus:ring-1 focus:ring-emerald-300 focus:bg-white dark:focus:bg-gray-800 rounded px-1 -mx-1 transition-colors"
+                    />
+                    <button
+                      onClick={() => removeSentence(i)}
+                      title="Remove this sentence"
+                      className="flex-shrink-0 mt-0.5 w-5 h-5 flex items-center justify-center rounded-full text-gray-300 hover:text-white hover:bg-red-400 transition-colors opacity-0 group-hover:opacity-100"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
                   </div>
                 ))}
               </div>
