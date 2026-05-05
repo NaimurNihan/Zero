@@ -242,7 +242,7 @@ type Stage = "idle" | "reading" | "cutting" | "done" | "error";
 type CardState = {
   canCut: boolean;
   isWorking: boolean;
-  mode?: "speedup" | "slowdown" | null;
+  mode?: "speedup" | "slowdown" | "extreme-slowpad" | "extreme-speedtrim" | null;
   isEqual?: boolean;
   hasAudio: boolean;
   hasVideo: boolean;
@@ -822,7 +822,13 @@ function VideoCutterApp({
   const anyWorking =
     running || archiving || cardStates.some((c) => c.isWorking);
   const anyCanSpeed = cardStates.some(
-    (c) => (c.canCut && (c.mode === "speedup" || c.mode === "slowdown")) || c.isEqual,
+    (c) =>
+      (c.canCut &&
+        (c.mode === "speedup" ||
+          c.mode === "slowdown" ||
+          c.mode === "extreme-slowpad" ||
+          c.mode === "extreme-speedtrim")) ||
+      c.isEqual,
   );
   const audioPoolCount = pool.filter((p) => p.kind === "audio").length;
   const videoPoolCount = pool.filter((p) => p.kind === "video").length;
@@ -831,6 +837,11 @@ function VideoCutterApp({
   ).length;
   const slowDownCount = cardStates.filter(
     (c) => c.canCut && c.mode === "slowdown",
+  ).length;
+  const extremeCount = cardStates.filter(
+    (c) =>
+      c.canCut &&
+      (c.mode === "extreme-slowpad" || c.mode === "extreme-speedtrim"),
   ).length;
   const activeCount = cardStates.filter(
     (c) => c.hasAudio && c.hasVideo && !c.isDone,
@@ -860,7 +871,13 @@ function VideoCutterApp({
       for (let i = 0; i < numCards; i++) {
         const cs = cardStatesRef.current[i];
         if (!cardRefs.current[i]) continue;
-        if (cs?.canCut && (cs.mode === "speedup" || cs.mode === "slowdown")) {
+        if (
+          cs?.canCut &&
+          (cs.mode === "speedup" ||
+            cs.mode === "slowdown" ||
+            cs.mode === "extreme-slowpad" ||
+            cs.mode === "extreme-speedtrim")
+        ) {
           queue.push(i);
         } else if (cs?.isEqual) {
           equalQueue.push(i);
@@ -1166,6 +1183,17 @@ function VideoCutterApp({
               </span>
               <span className="ml-auto text-sm font-bold text-slate-800" data-testid="info-speedup-count">
                 {speedUpCount} <span className="text-[10px] font-medium text-slate-500">cards</span>
+              </span>
+            </div>
+            <div className={`flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50/60 px-2.5 py-1 transition-opacity ${extremeCount === 0 ? "opacity-20" : ""}`}>
+              <span className="flex h-6 w-6 items-center justify-center rounded-md bg-amber-500 text-white">
+                <AlertTriangle className="h-3 w-3" />
+              </span>
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-700">
+                Extreme
+              </span>
+              <span className="ml-auto text-sm font-bold text-slate-800" data-testid="info-extreme-count">
+                {extremeCount} <span className="text-[10px] font-medium text-slate-500">cards</span>
               </span>
             </div>
             <div className={`flex items-center gap-2 rounded-lg border border-rose-200 bg-rose-50/60 px-2.5 py-1 transition-opacity ${errorCount === 0 ? "opacity-20" : ""}`}>
@@ -1614,16 +1642,16 @@ const CutterCard = forwardRef<CutterCardHandle, CutterCardProps>(
       speedFactor >= MIN_SPEED_FACTOR &&
       speedFactor <= MAX_SPEED_FACTOR;
 
-    const speedTooExtreme =
-      speedFactor !== null &&
-      speedDelta > SPEED_EPSILON &&
-      !speedInRange;
 
-    const mode: "speedup" | "slowdown" | null =
-      speedFactor !== null && speedInRange && speedDelta > SPEED_EPSILON
-        ? speedFactor < 1
-          ? "speedup"
-          : "slowdown"
+    const mode: "speedup" | "slowdown" | "extreme-slowpad" | "extreme-speedtrim" | null =
+      speedFactor !== null && speedDelta > SPEED_EPSILON
+        ? speedInRange
+          ? speedFactor < 1
+            ? "speedup"
+            : "slowdown"
+          : speedFactor > MAX_SPEED_FACTOR
+            ? "extreme-slowpad"
+            : "extreme-speedtrim"
         : null;
 
     const isEqual =
@@ -1701,6 +1729,186 @@ const CutterCard = forwardRef<CutterCardHandle, CutterCardProps>(
       setArchived(false);
     };
 
+    // Handles "too extreme" cards:
+    //   extreme-slowpad  : speedFactor > 4  (audio >> video)
+    //     → slow video to 0.25× (itsscale 4.0), then freeze-pad last frame
+    //       for the remaining time so total = audioDuration.
+    //   extreme-speedtrim: speedFactor < 0.25 (video >> audio)
+    //     → speed video to 4× (itsscale 0.25), then trim to audioDuration.
+    const runCutExtreme = async (
+      extremeMode: "extreme-slowpad" | "extreme-speedtrim",
+    ): Promise<{ blob: Blob; name: string } | null> => {
+      if (!videoFile || audioDuration === null || videoDuration === null)
+        return null;
+
+      setErrorMsg("");
+      setProgress(0);
+      if (outputUrl) URL.revokeObjectURL(outputUrl);
+      if (mergedUrl) URL.revokeObjectURL(mergedUrl);
+      setOutputUrl(null);
+      setMergedUrl(null);
+      setMergedBlob(null);
+      setArchived(false);
+
+      let producedBlob: Blob | null = null;
+      let producedName: string = "";
+
+      const ns = `c${index}_`;
+      const ext = (videoFile.name.split(".").pop() || "mp4").toLowerCase();
+      const inputName = `${ns}input.${ext}`;
+      const outputExt = "mp4";
+      const mergedFileName = `Merged ${index}.${outputExt}`;
+      const mergedFile = `${ns}${mergedFileName}`;
+      const mimeType = "video/mp4";
+
+      const slot = await acquireSlot((p) => setProgress(p));
+      let cachedData: Uint8Array | null = null;
+
+      const doWork = async (eng: FFmpeg) => {
+        setStage("reading");
+        if (!cachedData) {
+          cachedData = await fetchFile(videoFile);
+        }
+        await eng.writeFile(inputName, cachedData);
+        setStage("cutting");
+
+        if (extremeMode === "extreme-slowpad") {
+          // Slow video to 0.25× speed (itsscale 4.0).
+          // slowedDuration = videoDuration * 4  (always < audioDuration here)
+          // pauseDuration  = audioDuration - slowedDuration  (always > 0)
+          const slowedDuration = videoDuration * 4;
+          const pauseDuration = Math.max(0, audioDuration - slowedDuration);
+          const slowedFile = `${ns}slowed.mp4`;
+
+          // Step 1: slow to 0.25×
+          try {
+            await eng.exec([
+              "-itsscale", "4.0",
+              "-i", inputName,
+              "-an", "-c", "copy",
+              "-movflags", "+faststart",
+              slowedFile,
+            ]);
+          } catch {
+            // Fallback re-encode
+            try { await eng.deleteFile(slowedFile); } catch { /* ignore */ }
+            const ptsExpr = `4.000000*PTS`;
+            await eng.exec([
+              "-i", inputName,
+              "-an",
+              "-vf", `setpts=${ptsExpr}`,
+              "-vsync", "vfr",
+              "-c:v", "libx264", "-preset", "ultrafast",
+              "-tune", "fastdecode", "-crf", "26",
+              "-pix_fmt", "yuv420p", "-threads", "0",
+              "-movflags", "+faststart",
+              slowedFile,
+            ]);
+          }
+
+          // Step 2: freeze-pad last frame for pauseDuration seconds
+          if (pauseDuration > 0.001) {
+            await eng.exec([
+              "-i", slowedFile,
+              "-vf", `tpad=stop_mode=clone:stop_duration=${pauseDuration.toFixed(6)}`,
+              "-c:v", "libx264", "-preset", "ultrafast",
+              "-tune", "fastdecode", "-crf", "26",
+              "-pix_fmt", "yuv420p", "-threads", "0",
+              "-movflags", "+faststart",
+              mergedFile,
+            ]);
+            try { await eng.deleteFile(slowedFile); } catch { /* ignore */ }
+          } else {
+            // No pad needed — rename slowed as final output
+            const slowedData = await eng.readFile(slowedFile);
+            await eng.writeFile(mergedFile, slowedData as Uint8Array);
+            try { await eng.deleteFile(slowedFile); } catch { /* ignore */ }
+          }
+        } else {
+          // extreme-speedtrim: speedFactor < 0.25 (video >> audio)
+          // Speed video to 4× (itsscale 0.25), then trim to audioDuration.
+          try {
+            await eng.exec([
+              "-itsscale", "0.25",
+              "-i", inputName,
+              "-an", "-t", audioDuration.toFixed(6),
+              "-c", "copy",
+              "-movflags", "+faststart",
+              mergedFile,
+            ]);
+          } catch {
+            try { await eng.deleteFile(mergedFile); } catch { /* ignore */ }
+            const ptsExpr = `0.250000*PTS`;
+            await eng.exec([
+              "-i", inputName,
+              "-an",
+              "-vf", `setpts=${ptsExpr}`,
+              "-t", audioDuration.toFixed(6),
+              "-vsync", "vfr",
+              "-c:v", "libx264", "-preset", "ultrafast",
+              "-tune", "fastdecode", "-crf", "26",
+              "-pix_fmt", "yuv420p", "-threads", "0",
+              "-movflags", "+faststart",
+              mergedFile,
+            ]);
+          }
+        }
+
+        const mergedData = await eng.readFile(mergedFile);
+        const mergedBuf = mergedData as Uint8Array;
+        const blob = new Blob([mergedBuf.slice().buffer], { type: mimeType });
+        producedBlob = blob;
+        producedName = mergedFileName;
+        setMergedBlob(blob);
+        setMergedName(mergedFileName);
+        setMergedSize(blob.size);
+        setMergedDuration(audioDuration);
+        setStage("done");
+        setProgress(100);
+
+        try { await eng.deleteFile(inputName); } catch { /* ignore */ }
+        try { await eng.deleteFile(mergedFile); } catch { /* ignore */ }
+      };
+
+      try {
+        try {
+          await doWork(slot.ffmpeg!);
+          slot.jobsSinceRecycle += 1;
+        } catch (e) {
+          const msg = (e as Error).message || String(e);
+          if (isMemoryError(msg)) {
+            try { await recycleSlot(slot); } catch (loadErr) {
+              console.error(`[Speed+- card ${index}] Recycle load failed:`, loadErr);
+              throw e;
+            }
+            producedBlob = null;
+            producedName = "";
+            await doWork(slot.ffmpeg!);
+            slot.jobsSinceRecycle = 1;
+          } else {
+            throw e;
+          }
+        }
+      } catch (e) {
+        console.error(e);
+        setStage("error");
+        const msg = (e as Error).message || String(e);
+        if (isMemoryError(msg)) {
+          setErrorMsg("Out of memory. Try processing fewer cards at a time or refresh the page.");
+        } else {
+          setErrorMsg(msg || "Cutting failed. Try a different video format.");
+        }
+        return null;
+      } finally {
+        releaseSlot(slot);
+      }
+
+      if (producedBlob && producedName) {
+        return { blob: producedBlob, name: producedName };
+      }
+      return null;
+    };
+
     const runCut = async (): Promise<{ blob: Blob; name: string } | null> => {
       if (
         !audioFile ||
@@ -1711,6 +1919,13 @@ const CutterCard = forwardRef<CutterCardHandle, CutterCardProps>(
         mode === null
       )
         return null;
+
+      // ── Extreme cases ──────────────────────────────────────────────────────
+      // Instead of showing an error we clamp to the nearest allowed factor and
+      // pad / trim to reach exactly audioDuration.
+      if (mode === "extreme-slowpad" || mode === "extreme-speedtrim") {
+        return runCutExtreme(mode);
+      }
 
       setErrorMsg("");
       setProgress(0);
@@ -1870,7 +2085,7 @@ const CutterCard = forwardRef<CutterCardHandle, CutterCardProps>(
               throw e;
             }
             // Reset the produced markers — the retry rebuilds the output.
-            producedUrl = null;
+            producedBlob = null;
             producedName = "";
             await doWork(slot.ffmpeg!);
             slot.jobsSinceRecycle = 1;
@@ -1942,10 +2157,10 @@ const CutterCard = forwardRef<CutterCardHandle, CutterCardProps>(
     return (
       <div
         className={`rounded-2xl border-2 bg-white p-4 shadow-sm transition-colors ${
-          speedTooExtreme
+          (!!audioFile !== !!videoFile)
             ? "border-rose-500 shadow-md shadow-rose-200/50 bg-rose-50/40"
-            : (!!audioFile !== !!videoFile)
-            ? "border-rose-500 shadow-md shadow-rose-200/50 bg-rose-50/40"
+            : mode === "extreme-slowpad" || mode === "extreme-speedtrim"
+            ? "border-amber-500 shadow-md shadow-amber-200/50 bg-amber-50/40"
             : mode === "speedup"
             ? "border-green-500 shadow-md shadow-green-200/50 bg-green-50/40"
             : mode === "slowdown"
@@ -2059,14 +2274,18 @@ const CutterCard = forwardRef<CutterCardHandle, CutterCardProps>(
         </div>
 
         {/* Status row */}
-        {(isWorking || errorMsg || speedTooExtreme || mode !== null || mergedBlob) && (
+        {(isWorking || errorMsg || mode !== null || mergedBlob) && (
           <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500">
-            {speedTooExtreme && !mergedBlob && (
-              <span className="inline-flex items-center gap-1.5 rounded border border-rose-400 bg-rose-100 px-2 py-0.5 font-semibold text-rose-700">
+            {mode === "extreme-slowpad" && !mergedBlob && speedFactor !== null && videoDuration !== null && audioDuration !== null && (
+              <span className="inline-flex items-center gap-1.5 rounded border border-amber-400 bg-amber-100 px-2 py-0.5 font-semibold text-amber-800">
                 <AlertTriangle className="h-3 w-3" />
-                {(speedFactor as number) < MIN_SPEED_FACTOR
-                  ? `Video > 4× audio (${(speedFactor as number).toFixed(2)}× — too extreme)`
-                  : `Audio > 4× video (${(speedFactor as number).toFixed(2)}× — too extreme)`}
+                {`${speedFactor.toFixed(2)}× → 0.25× slow (${formatSeconds(videoDuration * 4)}) + freeze ${formatSeconds(Math.max(0, audioDuration - videoDuration * 4))}`}
+              </span>
+            )}
+            {mode === "extreme-speedtrim" && !mergedBlob && speedFactor !== null && audioDuration !== null && (
+              <span className="inline-flex items-center gap-1.5 rounded border border-amber-400 bg-amber-100 px-2 py-0.5 font-semibold text-amber-800">
+                <AlertTriangle className="h-3 w-3" />
+                {`${speedFactor.toFixed(2)}× → 4× speed + trim to ${formatSeconds(audioDuration)}`}
               </span>
             )}
             {mode === "speedup" && !mergedBlob && speedFactor !== null && (
