@@ -602,6 +602,7 @@ function VideoCutterApp({
   const [zipping, setZipping] = useState(false);
   const [archivedCount, setArchivedCount] = useState(0);
   const [archiving, setArchiving] = useState(false);
+  const [showErrorCards, setShowErrorCards] = useState(false);
 
   // Accumulating ZIP that holds outputs from completed batches. Blob URLs
   // for archived cards are revoked after they're added here, so RAM stays
@@ -847,16 +848,13 @@ function VideoCutterApp({
     (c) => c.hasAudio && c.hasVideo && !c.isDone,
   ).length;
   const completeCount = cardStates.filter((c) => c.isDone).length;
-  const errorCount = cardStates.filter(
-    (c) =>
-      c.hasAudio !== c.hasVideo ||
-      (c.hasAudio &&
-        c.hasVideo &&
-        !c.isDone &&
-        !c.isWorking &&
-        !c.canCut &&
-        !c.mode),
-  ).length;
+  const isErrorCard = (c: CardState) =>
+    c.hasAudio !== c.hasVideo ||
+    (c.hasAudio && c.hasVideo && !c.isDone && !c.isWorking && !c.canCut && !c.mode);
+  const errorCount = cardStates.filter(isErrorCard).length;
+  const errorCardNumbers = cardStates
+    .map((c, i) => (isErrorCard(c) ? i + 1 : null))
+    .filter((n): n is number => n !== null);
   const canRunSpeed = ffmpegReady && anyCanSpeed && !anyWorking;
 
   const runSpeed = async () => {
@@ -1210,16 +1208,51 @@ function VideoCutterApp({
                 {videoPoolCount} <span className="text-[10px] font-medium text-slate-500">files</span>
               </span>
             </div>
-            <div className={`flex items-center gap-2 rounded-lg border border-rose-200 bg-rose-50/60 px-2.5 py-1 transition-opacity ${errorCount === 0 ? "opacity-20" : ""}`}>
-              <span className="flex h-6 w-6 items-center justify-center rounded-md bg-rose-500 text-white">
-                <AlertCircle className="h-3 w-3" />
-              </span>
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-rose-700">
-                Error
-              </span>
-              <span className="ml-auto text-sm font-bold text-slate-800" data-testid="info-error-count">
-                {errorCount} <span className="text-[10px] font-medium text-slate-500">cards</span>
-              </span>
+            <div className="relative">
+              <div
+                className={`flex items-center gap-2 rounded-lg border px-2.5 py-1 transition-all ${
+                  errorCount === 0
+                    ? "border-rose-200 bg-rose-50/60 opacity-20 cursor-default"
+                    : showErrorCards
+                    ? "border-rose-500 bg-rose-100 cursor-pointer shadow-sm"
+                    : "border-rose-200 bg-rose-50/60 cursor-pointer hover:border-rose-400 hover:bg-rose-100/80"
+                }`}
+                onClick={() => errorCount > 0 && setShowErrorCards((v) => !v)}
+                title={errorCount > 0 ? "Click to see error card numbers" : undefined}
+              >
+                <span className="flex h-6 w-6 items-center justify-center rounded-md bg-rose-500 text-white">
+                  <AlertCircle className="h-3 w-3" />
+                </span>
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-rose-700">
+                  Error
+                </span>
+                <span className="ml-auto text-sm font-bold text-slate-800" data-testid="info-error-count">
+                  {errorCount} <span className="text-[10px] font-medium text-slate-500">cards</span>
+                </span>
+              </div>
+              {showErrorCards && errorCardNumbers.length > 0 && (
+                <div className="absolute left-0 top-full z-50 mt-1 w-56 rounded-lg border border-rose-300 bg-white shadow-lg">
+                  <div className="flex items-center justify-between border-b border-rose-100 px-3 py-2">
+                    <span className="text-[11px] font-semibold text-rose-700">Error Cards</span>
+                    <button
+                      className="text-slate-400 hover:text-slate-600"
+                      onClick={() => setShowErrorCards(false)}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 p-2.5">
+                    {errorCardNumbers.map((num) => (
+                      <span
+                        key={num}
+                        className="inline-flex items-center rounded border border-rose-300 bg-rose-50 px-2 py-0.5 font-mono text-[11px] font-bold text-rose-700"
+                      >
+                        {String(num).padStart(3, "0")}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
             <div className={`flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50/60 px-2.5 py-1 transition-opacity ${slowDownCount === 0 ? "opacity-20" : ""}`}>
               <span className="flex h-6 w-6 items-center justify-center rounded-md bg-blue-500 text-white">
