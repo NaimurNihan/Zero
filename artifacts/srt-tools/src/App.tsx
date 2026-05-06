@@ -624,6 +624,11 @@ export default function App() {
           incomingName={noteIncomingName}
           incomingKey={noteIncomingKey}
           onRunToAiAudio={(lines, label) => {
+            autoRunModeRef.current = "run2";
+            autoRun2PausedRef.current = false;
+            autoRun2QueueRef.current = [];
+            setIsAutoRun2Active(true);
+            setIsAutoRun2Paused(false);
             triggerRunForLang(lines, label ?? "");
           }}
           onAutoRunAll={(langs) => {

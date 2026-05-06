@@ -144,7 +144,7 @@ export default function VoiceTrimmerTab({ onSendToSpeed, incomingAudioFiles }: V
     const a = document.createElement("a");
     a.href = url;
     const labelSlug = currentLabelRef.current ? currentLabelRef.current.trim() : "Audio";
-    a.download = `${labelSlug}.zip`;
+    a.download = `${labelSlug}.Audio.zip`;
     document.body.appendChild(a);
     a.click();
     a.remove();

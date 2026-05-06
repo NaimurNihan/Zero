@@ -686,7 +686,7 @@ function VideoCutterApp({
       a.href = url;
       const labelSlug = currentLabelRef.current ? currentLabelRef.current.trim() : "";
       a.download = labelSlug
-        ? `${labelSlug} Video.zip`
+        ? `${labelSlug}.Video.zip`
         : `video-clips-${new Date().toISOString().replace(/[:.]/g, "-")}.zip`;
       document.body.appendChild(a);
       a.click();
