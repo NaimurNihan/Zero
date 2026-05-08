@@ -843,8 +843,11 @@ function Home({
     };
 
     // Run a single clip cut. Returns null on success, or an error message.
-    const cutOnce = async (eng: FFmpeg, clip: ClipMeta, outName: string) => {
-      const duration = clip.endSec - clip.startSec;
+    // extraSec = headExtra for this clip (keyframe snap-back offset).
+    // The input-seek (-ss before -i) snaps to the prior keyframe, so the
+    // output must cover headExtra + cue-duration to reach the SRT end time.
+    const cutOnce = async (eng: FFmpeg, clip: ClipMeta, outName: string, extraSec = 0) => {
+      const duration = (clip.endSec - clip.startSec) + extraSec;
       const args: string[] = [
         "-y",
         "-hide_banner",
@@ -913,9 +916,12 @@ function Home({
           );
 
           const outName = `out_${String(clip.index).padStart(padWidth, "0")}${ext}`;
+          // Pass the pre-computed headExtra so the clip covers from the
+          // keyframe snap-back all the way to the SRT cue end time.
+          const clipHeadExtra = clipExtrasRef.current.get(clip.index) ?? 0;
 
           // ── First attempt ─────────────────────────────────────────
-          let clipErr = await cutOnce(ffmpeg, clip, outName);
+          let clipErr = await cutOnce(ffmpeg, clip, outName, clipHeadExtra);
 
           // ── On memory error: recycle once and retry the same clip ─
           if (clipErr && isMemoryError(clipErr)) {
@@ -923,7 +929,7 @@ function Home({
               ffmpeg = await recycleFFmpeg();
               await reloadInput(ffmpeg);
               sinceRecycle = 0;
-              clipErr = await cutOnce(ffmpeg, clip, outName);
+              clipErr = await cutOnce(ffmpeg, clip, outName, clipHeadExtra);
             } catch (err) {
               clipErr = err instanceof Error ? err.message : String(err);
             }
