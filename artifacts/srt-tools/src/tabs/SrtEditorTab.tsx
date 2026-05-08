@@ -451,8 +451,21 @@ export default function SrtEditorTab({ subtitles, filename, setSubtitles, setFil
     if (!match) return;
     const el = cardRefs.current.get(match.id);
     if (el) {
-      el.scrollIntoView({ behavior: "smooth", block: "start" });
       setHighlightedJumpId(match.id);
+      let scrollParent: HTMLElement | null = el.parentElement;
+      while (scrollParent) {
+        const style = window.getComputedStyle(scrollParent);
+        if (style.overflowY === "auto" || style.overflowY === "scroll") break;
+        scrollParent = scrollParent.parentElement;
+      }
+      if (scrollParent) {
+        const parentRect = scrollParent.getBoundingClientRect();
+        const elRect = el.getBoundingClientRect();
+        const offset = elRect.top - parentRect.top + scrollParent.scrollTop - 80;
+        scrollParent.scrollTo({ top: offset, behavior: "smooth" });
+      } else {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
     }
   }, [jumpTime, subtitles]);
 
