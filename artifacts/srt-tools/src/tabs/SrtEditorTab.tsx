@@ -192,7 +192,7 @@ export default function SrtEditorTab({ subtitles, filename, setSubtitles, setFil
   const [isDragging, setIsDragging] = useState(false);
   const [fixedCount, setFixedCount] = useState<number | null>(null);
   const [cascadeMode, setCascadeMode] = useState(true);
-  const [jumpTime, setJumpTime] = useState("");
+  const [jumpTime, setJumpTime] = useState("00:00:00,000");
   const [highlightedJumpId, setHighlightedJumpId] = useState<number | null>(null);
   const cardRefs = useRef(new Map<number, HTMLDivElement | null>());
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -211,7 +211,7 @@ export default function SrtEditorTab({ subtitles, filename, setSubtitles, setFil
       setConvertStats(null);
       setConverted(false);
       setFixedCount(null);
-      setJumpTime("");
+      setJumpTime("00:00:00,000");
       setHighlightedJumpId(null);
     };
     reader.readAsText(file, "utf-8");
@@ -411,18 +411,23 @@ export default function SrtEditorTab({ subtitles, filename, setSubtitles, setFil
   }, []);
 
   useEffect(() => {
-    const term = jumpTime.trim();
-    if (!term) {
+    const targetMs = timeToMs(jumpTime);
+    if (targetMs === 0) {
       setHighlightedJumpId(null);
       return;
     }
-    const match = subtitles.find(
-      (s) => s.startTime.includes(term) || s.endTime.includes(term)
+    if (subtitles.length === 0) return;
+    let match = subtitles.find(
+      (s) => timeToMs(s.startTime) <= targetMs && targetMs <= timeToMs(s.endTime)
     );
     if (!match) {
-      setHighlightedJumpId(null);
-      return;
+      match = subtitles.reduce((best, s) => {
+        const bestDiff = Math.abs(timeToMs(best.startTime) - targetMs);
+        const currDiff = Math.abs(timeToMs(s.startTime) - targetMs);
+        return currDiff < bestDiff ? s : best;
+      }, subtitles[0]);
     }
+    if (!match) return;
     const el = cardRefs.current.get(match.id);
     if (el) {
       el.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -590,25 +595,22 @@ export default function SrtEditorTab({ subtitles, filename, setSubtitles, setFil
               {CHECK_MARK} Converted
             </span>
           )}
-          <div className="relative w-44 shrink-0">
-            <input
-              type="text"
+          <div className="flex items-center gap-1.5" title="Type a time — matching subtitle scrolls into view">
+            <Search className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+            <TimeInput
               value={jumpTime}
-              onChange={(e) => setJumpTime(e.target.value)}
-              placeholder="Jump to time... (e.g. 00:12)"
-              title="Type a time — matching subtitle scrolls into view"
-              className="w-full h-8 pl-3 pr-8 text-xs rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-200 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-sky-300 focus:border-sky-300 transition-colors"
+              onChange={setJumpTime}
+              hasOverlap={false}
             />
-            {jumpTime ? (
+            {timeToMs(jumpTime) > 0 && (
               <button
                 type="button"
-                onClick={() => setJumpTime("")}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                onClick={() => setJumpTime("00:00:00,000")}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                title="Reset"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
-            ) : (
-              <Search className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
             )}
           </div>
 
