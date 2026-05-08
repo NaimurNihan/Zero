@@ -527,6 +527,8 @@ function Home({
   // belt-and-braces alongside cancelRef in case a new job is started
   // while the previous loop is still mid-iteration.
   const jobIdRef = useRef<string | null>(null);
+  // Prevents the auto-ZIP from firing more than once per job.
+  const autoZippedRef = useRef<boolean>(false);
 
   function revokeAllClipUrls() {
     for (const url of clipUrlsRef.current.values()) {
@@ -675,6 +677,7 @@ function Home({
     setUploadPct(0);
     // Fresh job → clear any stale cancel signal from a previous job.
     cancelRef.current = false;
+    autoZippedRef.current = false;
 
     let cues: SrtCue[];
     try {
@@ -1003,6 +1006,7 @@ function Home({
     // still mid-iteration bails on its next cancel-check.
     cancelRef.current = true;
     jobIdRef.current = null;
+    autoZippedRef.current = false;
     // Hard-stop the WASM engine if it's currently exec()-ing a clip.
     // terminate() makes the in-flight ffmpeg.exec() reject, which lets
     // the loop's catch path run and the cancel-check break the loop.
@@ -1131,6 +1135,44 @@ function Home({
   }
 
   const canRun = !!videoFile && !!srtFile && !uploading && !job;
+
+  // Auto-ZIP: when all clips finish, trigger ZIP download once automatically.
+  useEffect(() => {
+    if (!status?.finished) return;
+    if (autoZippedRef.current) return;
+    if (!job) return;
+    const doneClips = job.clips.filter(
+      (c) => status.clips.find((s) => s.index === c.index)?.status === "done",
+    );
+    if (doneClips.length === 0) return;
+    autoZippedRef.current = true;
+    void (async () => {
+      try {
+        const zip = new JSZip();
+        for (const clip of doneClips) {
+          const blob = clipBlobsRef.current.get(clip.index);
+          if (!blob) continue;
+          zip.file(clip.filename, blob);
+        }
+        const zipBlob = await zip.generateAsync({
+          type: "blob",
+          compression: "STORE",
+        });
+        const url = URL.createObjectURL(zipBlob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${job.baseName || "clips"}.zip`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 30_000);
+        toast({ title: `ZIP downloaded — ${doneClips.length} clips` });
+      } catch {
+        // silent — user can still click the ZIP button manually
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status?.finished]);
 
   // Notify parent of currently-available output files (done clips) so other
   // tabs (e.g. Cutting +) can pull them in on demand.
