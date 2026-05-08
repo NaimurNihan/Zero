@@ -365,7 +365,17 @@ export default function SrtEditorTab({ subtitles, filename, setSubtitles, setFil
     const delta = timeToMs(value) - timeToMs(subtitles[idx][field]);
     if (cascadeMode && delta !== 0 && subtitles.length > 2) {
       const arr = subtitles.map((s, i) => {
-        if (s.id === id) return { ...s, [field]: value, edited: true };
+        if (s.id === id) {
+          if (field === "startTime") {
+            return {
+              ...s,
+              startTime: value,
+              endTime: msToTime(timeToMs(s.endTime) + delta),
+              edited: true,
+            };
+          }
+          return { ...s, [field]: value, edited: true };
+        }
         if (i > idx && i < subtitles.length - 1) {
           const newStart = timeToMs(s.startTime) + delta;
           const newEnd = timeToMs(s.endTime) + delta;
@@ -380,7 +390,18 @@ export default function SrtEditorTab({ subtitles, filename, setSubtitles, setFil
       });
       setSubtitles(arr);
     } else {
-      setSubtitles(subtitles.map((s) => s.id === id ? { ...s, [field]: value, edited: true } : s));
+      setSubtitles(subtitles.map((s) => {
+        if (s.id !== id) return s;
+        if (field === "startTime") {
+          return {
+            ...s,
+            startTime: value,
+            endTime: msToTime(timeToMs(s.endTime) + delta),
+            edited: true,
+          };
+        }
+        return { ...s, [field]: value, edited: true };
+      }));
     }
   }
 
