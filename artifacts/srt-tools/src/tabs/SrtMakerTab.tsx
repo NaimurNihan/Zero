@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { Upload, Download, Sparkles, X, Music, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -52,7 +52,11 @@ function stripWrapperBraces(line: string): string {
   return line.replace(/^\s*[\{\[\(]\s*([\s\S]*?)\s*[\}\]\)]\s*$/, "$1");
 }
 
-export default function SrtMakerTab() {
+interface SrtMakerTabProps {
+  incomingSentences?: { text: string; label: string; key: number };
+}
+
+export default function SrtMakerTab({ incomingSentences }: SrtMakerTabProps = {}) {
   const [audioEntries, setAudioEntries] = useState<AudioEntry[]>([]);
   const [loadingFiles, setLoadingFiles] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -62,9 +66,24 @@ export default function SrtMakerTab() {
   const [generated, setGenerated] = useState(false);
   const [lang, setLang] = useState<"en" | "ar" | "de">("en");
   const [langOpen, setLangOpen] = useState(false);
+  const [downloadLabel, setDownloadLabel] = useState("");
   const langDir = lang === "ar" ? "rtl" : "ltr";
   const audioInputRef = useRef<HTMLInputElement>(null);
+  const lastIncomingKeyRef = useRef<number | undefined>(undefined);
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (!incomingSentences) return;
+    if (incomingSentences.key === lastIncomingKeyRef.current) return;
+    lastIncomingKeyRef.current = incomingSentences.key;
+    const { text, label } = incomingSentences;
+    if (!text.trim()) return;
+    setSentenceHistory((h) => [...h, sentenceText]);
+    setSentenceText(text);
+    setDownloadLabel(label);
+    setGenerated(false);
+    toast({ title: `"${label}" text loaded`, description: "Sentences loaded into SRT Maker" });
+  }, [incomingSentences]);
 
   const appendLinesToSentences = (lines: string[]) => {
     if (lines.length === 0) return;
@@ -182,7 +201,8 @@ export default function SrtMakerTab() {
     const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = url; a.download = "output.srt"; a.click();
+    const name = downloadLabel ? `${downloadLabel.toUpperCase()}.srt` : "output.srt";
+    a.href = url; a.download = name; a.click();
     URL.revokeObjectURL(url);
   }
 

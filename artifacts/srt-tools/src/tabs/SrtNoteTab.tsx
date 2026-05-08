@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect, type ClipboardEvent as ReactClipboardEvent } from "react";
-import { Plus, Search, FileText, RotateCcw, X, ScanSearch, Download, Trash2, Scissors, Copy, Folder, FolderOpen, ArchiveRestore, ChevronDown, ChevronRight, MoreVertical, Play, Menu, PanelLeftOpen, Zap, Loader2, ClipboardPaste } from "lucide-react";
+import { Plus, Search, FileText, RotateCcw, X, ScanSearch, Download, Trash2, Scissors, Copy, Folder, FolderOpen, ArchiveRestore, ChevronDown, ChevronRight, MoreVertical, Play, Menu, PanelLeftOpen, Zap, Loader2, ClipboardPaste, SendToBack } from "lucide-react";
 interface TaskRow { checked: boolean; values: string[]; }
 interface Project {
   id: string;
@@ -271,8 +271,9 @@ interface SrtNoteTabProps {
   onRunToAiAudio?: (lines: string[], label?: string) => void;
   onAutoRunAll?: (langs: { label: string; lines: string[] }[]) => void;
   onAutoRun2?: (langs: { label: string; lines: string[] }[]) => void;
+  onSendToSrtMaker?: (text: string, label: string) => void;
 }
-export default function SrtNoteTab({ incomingText, incomingName, incomingKey, onRunToAiAudio, onAutoRunAll, onAutoRun2 }: SrtNoteTabProps = {}) {
+export default function SrtNoteTab({ incomingText, incomingName, incomingKey, onRunToAiAudio, onAutoRunAll, onAutoRun2, onSendToSrtMaker }: SrtNoteTabProps = {}) {
   const initialStateRef = useRef<SavedState | null>(null);
   if (initialStateRef.current === null) initialStateRef.current = readSavedState();
   const initialState = initialStateRef.current;
@@ -742,6 +743,19 @@ export default function SrtNoteTab({ incomingText, incomingName, incomingKey, on
                   <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${ptuCount !== lineCount ? "text-red-500 bg-red-100 dark:bg-red-950" : "text-muted-foreground bg-muted"}`}>{ptuCount} ptu</span>
                 </div>
                 <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                  {onSendToSrtMaker && (
+                    <button
+                      title="Send to SRT Maker"
+                      onClick={() => {
+                        const text = activeProject?.langs[idx]?.content ?? "";
+                        if (!text.trim()) return;
+                        onSendToSrtMaker(text, lang.label);
+                      }}
+                      className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      <SendToBack size={14} />
+                    </button>
+                  )}
                   <button
                     title="Paste from clipboard (append to end)"
                     onClick={() => handlePasteFromClipboard(idx)}

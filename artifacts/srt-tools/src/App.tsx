@@ -199,6 +199,7 @@ export default function App() {
   const autoRun2ResumeCallbackRef = useRef<(() => void) | null>(null);
   const [isAutoRun2Active, setIsAutoRun2Active] = useState(false);
   const [isAutoRun2Paused, setIsAutoRun2Paused] = useState(false);
+  const [makerIncomingSentences, setMakerIncomingSentences] = useState<{ text: string; label: string; key: number }>({ text: "", label: "", key: 0 });
   const [cuttingPlusIncomingVideos, setCuttingPlusIncomingVideos] = useState<{ files: File[]; key: number; autoLoad?: boolean; extras?: number[] }>({ files: [], key: 0 });
   const [speedIncomingVideos, setSpeedIncomingVideos] = useState<{ files: File[]; key: number }>({ files: [], key: 0 });
   const [speedIncomingAudio, setSpeedIncomingAudio] = useState<{ files: File[]; key: number; label?: string }>({ files: [], key: 0 });
@@ -613,7 +614,7 @@ export default function App() {
 
       {/* SRT Maker — always mounted, hidden when inactive */}
       <div style={{ display: activeTab === "maker" ? "flex" : "none" }} className="flex-col flex-1 overflow-y-auto">
-        <SrtMakerTab />
+        <SrtMakerTab incomingSentences={makerIncomingSentences.key > 0 ? makerIncomingSentences : undefined} />
       </div>
 
       {/* SRT Note — always mounted, full width, hidden when inactive */}
@@ -622,6 +623,10 @@ export default function App() {
           incomingText={noteIncomingText}
           incomingName={noteIncomingName}
           incomingKey={noteIncomingKey}
+          onSendToSrtMaker={(text, label) => {
+            setMakerIncomingSentences({ text, label, key: Date.now() });
+            handleSelectTab("maker");
+          }}
           onRunToAiAudio={(lines, label) => {
             autoRunModeRef.current = "run2";
             autoRun2PausedRef.current = false;
