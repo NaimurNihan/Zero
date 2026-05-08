@@ -342,6 +342,33 @@ export default function SrtTimeSplitterTab({ incomingSrt, incomingFilename, inco
     });
   };
 
+  const handleRoundMilliseconds = () => {
+    if (outputBlocks.length === 0) {
+      toast({
+        title: "No output cards",
+        description: "Run Split Lines first to generate cards.",
+        variant: "destructive",
+      });
+      return;
+    }
+    const roundMs = (ms: number) => {
+      const wholeSecs = Math.floor(ms / 1000);
+      const remainder = ms % 1000;
+      return remainder >= 500 ? (wholeSecs + 1) * 1000 : wholeSecs * 1000;
+    };
+    setOutputBlocks(prev =>
+      prev.map(b => ({
+        ...b,
+        startTime: roundMs(b.startTime),
+        endTime: roundMs(b.endTime),
+      }))
+    );
+    toast({
+      title: "Milliseconds rounded",
+      description: "≥500ms rounded up to next second, <500ms rounded down to 000.",
+    });
+  };
+
   const handleShiftMinus05s = () => {
     if (outputBlocks.length === 0) {
       toast({
@@ -505,6 +532,13 @@ export default function SrtTimeSplitterTab({ incomingSrt, incomingFilename, inco
           <div className="flex items-center gap-2.5">
             {isOutputView && (
               <>
+                <Button
+                  onClick={handleRoundMilliseconds}
+                  title="Round all milliseconds: ≥500ms → round up to next second (ms=000), <500ms → round down (ms=000)"
+                  className="h-6 rounded-md bg-gradient-to-b from-[#8b5cf6] to-[#7c3aed] px-2 text-[10px] font-semibold tracking-wide text-white shadow-[0_3px_10px_rgba(124,58,237,0.28)] ring-1 ring-white/15 transition-all duration-200 hover:-translate-y-px hover:from-[#7c3aed] hover:to-[#6d28d9] hover:shadow-[0_5px_14px_rgba(124,58,237,0.32)]"
+                >
+                  mls
+                </Button>
                 <Button
                   onClick={handleShiftMinus05s}
                   title="Shift all cards back by 0.5 second (first card start stays at 0)"
