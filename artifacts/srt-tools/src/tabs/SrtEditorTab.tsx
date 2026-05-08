@@ -190,6 +190,7 @@ export default function SrtEditorTab({ subtitles, filename, setSubtitles, setFil
   const [pasteText, setPasteText] = useState("");
   const [isDragging, setIsDragging] = useState(false);
   const [fixedCount, setFixedCount] = useState<number | null>(null);
+  const [cascadeMode, setCascadeMode] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const autoResize = (el: HTMLTextAreaElement) => {
@@ -353,7 +354,28 @@ export default function SrtEditorTab({ subtitles, filename, setSubtitles, setFil
   }
 
   function handleTimeChange(id: number, field: "startTime" | "endTime", value: string) {
-    setSubtitles(subtitles.map((s) => s.id === id ? { ...s, [field]: value, edited: true } : s));
+    const idx = subtitles.findIndex((s) => s.id === id);
+    if (idx < 0) return;
+    const delta = timeToMs(value) - timeToMs(subtitles[idx][field]);
+    if (cascadeMode && delta !== 0 && subtitles.length > 2) {
+      const arr = subtitles.map((s, i) => {
+        if (s.id === id) return { ...s, [field]: value, edited: true };
+        if (i > idx && i < subtitles.length - 1) {
+          const newStart = timeToMs(s.startTime) + delta;
+          const newEnd = timeToMs(s.endTime) + delta;
+          return {
+            ...s,
+            startTime: msToTime(newStart),
+            endTime: msToTime(newEnd),
+            edited: true,
+          };
+        }
+        return s;
+      });
+      setSubtitles(arr);
+    } else {
+      setSubtitles(subtitles.map((s) => s.id === id ? { ...s, [field]: value, edited: true } : s));
+    }
   }
 
   function handleConvert() {
@@ -424,6 +446,21 @@ export default function SrtEditorTab({ subtitles, filename, setSubtitles, setFil
         )}
 
         <div className="flex-1" />
+
+        <button
+          onClick={() => setCascadeMode((v) => !v)}
+          title={cascadeMode ? "Cascade ON — click to turn off" : "Cascade OFF — click to turn on"}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold shadow-sm transition-colors border ${
+            cascadeMode
+              ? "bg-sky-500 text-white border-sky-500 hover:bg-sky-600"
+              : "bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800"
+          }`}
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
+          Cascade {cascadeMode ? "ON" : "OFF"}
+        </button>
 
         <button
           onClick={handleFixTiming}
