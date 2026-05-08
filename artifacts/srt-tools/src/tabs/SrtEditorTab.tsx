@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { type Subtitle, parseSrt, downloadSrt } from "@/lib/srt";
+import { Search, X } from "lucide-react";
 
 const CHECK_MARK = "✅";
 
@@ -191,6 +192,9 @@ export default function SrtEditorTab({ subtitles, filename, setSubtitles, setFil
   const [isDragging, setIsDragging] = useState(false);
   const [fixedCount, setFixedCount] = useState<number | null>(null);
   const [cascadeMode, setCascadeMode] = useState(true);
+  const [jumpTime, setJumpTime] = useState("");
+  const [highlightedJumpId, setHighlightedJumpId] = useState<number | null>(null);
+  const cardRefs = useRef(new Map<number, HTMLDivElement | null>());
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const autoResize = (el: HTMLTextAreaElement) => {
@@ -207,6 +211,8 @@ export default function SrtEditorTab({ subtitles, filename, setSubtitles, setFil
       setConvertStats(null);
       setConverted(false);
       setFixedCount(null);
+      setJumpTime("");
+      setHighlightedJumpId(null);
     };
     reader.readAsText(file, "utf-8");
   }
@@ -404,6 +410,26 @@ export default function SrtEditorTab({ subtitles, filename, setSubtitles, setFil
     return () => window.removeEventListener("srt-tools:editor-convert", h);
   }, []);
 
+  useEffect(() => {
+    const term = jumpTime.trim();
+    if (!term) {
+      setHighlightedJumpId(null);
+      return;
+    }
+    const match = subtitles.find(
+      (s) => s.startTime.includes(term) || s.endTime.includes(term)
+    );
+    if (!match) {
+      setHighlightedJumpId(null);
+      return;
+    }
+    const el = cardRefs.current.get(match.id);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+      setHighlightedJumpId(match.id);
+    }
+  }, [jumpTime, subtitles]);
+
   const punctCount = subtitles.reduce(
     (acc, s) => acc + (s.text.match(/[.?!।]/g) || []).length, 0
   );
@@ -564,6 +590,28 @@ export default function SrtEditorTab({ subtitles, filename, setSubtitles, setFil
               {CHECK_MARK} Converted
             </span>
           )}
+          <div className="relative w-44 shrink-0">
+            <input
+              type="text"
+              value={jumpTime}
+              onChange={(e) => setJumpTime(e.target.value)}
+              placeholder="Jump to time... (e.g. 00:12)"
+              title="Type a time — matching subtitle scrolls into view"
+              className="w-full h-8 pl-3 pr-8 text-xs rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-200 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-sky-300 focus:border-sky-300 transition-colors"
+            />
+            {jumpTime ? (
+              <button
+                type="button"
+                onClick={() => setJumpTime("")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            ) : (
+              <Search className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+            )}
+          </div>
+
           <div className="flex-1" />
           <button onClick={handleClear}
             className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-gray-200 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-red-500 transition-colors">
@@ -588,8 +636,14 @@ export default function SrtEditorTab({ subtitles, filename, setSubtitles, setFil
             const hasOverlap = overlapSet.has(idx);
             return (
               <div key={sub.id}
-                className={`bg-white dark:bg-gray-900 rounded-2xl border shadow-sm transition-all ${
-                  hasOverlap
+                ref={(el) => {
+                  if (el) cardRefs.current.set(sub.id, el);
+                  else cardRefs.current.delete(sub.id);
+                }}
+                className={`scroll-mt-2 bg-white dark:bg-gray-900 rounded-2xl border shadow-sm transition-all ${
+                  highlightedJumpId === sub.id
+                    ? "ring-2 ring-sky-400 ring-offset-2"
+                    : hasOverlap
                     ? "border-orange-400 shadow-orange-100"
                     : sub.edited ? "border-emerald-300 shadow-emerald-100" : "border-gray-200"
                 }`}>
