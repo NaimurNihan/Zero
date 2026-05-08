@@ -373,6 +373,29 @@ export default function SrtTimeSplitterTab({ incomingSrt, incomingFilename, inco
     });
   };
 
+  const handleShiftPlus1s = () => {
+    if (outputBlocks.length === 0) {
+      toast({
+        title: "No output cards",
+        description: "Run Split Lines first to generate cards.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setOutputBlocks(prev => {
+      const lastIdx = prev.length - 1;
+      return prev.map((b, idx) => {
+        const newStart = idx === 0 ? 0 : b.startTime + 1000;
+        const newEnd = idx === lastIdx ? b.endTime : b.endTime + 1000;
+        return { ...b, startTime: newStart, endTime: newEnd };
+      });
+    });
+    toast({
+      title: "Shifted +1s",
+      description: "All cards shifted forward 1 second. First card start and last card end kept fixed.",
+    });
+  };
+
   const handleEmojiToDot = () => {
     if (outputBlocks.length > 0) {
       setOutputBlocks(prev => prev.map(b => ({ ...b, text: b.text.replace(/✅/g, ".") })));
@@ -495,6 +518,13 @@ export default function SrtTimeSplitterTab({ incomingSrt, incomingFilename, inco
                   className="h-6 rounded-md bg-gradient-to-b from-[#8b5cf6] to-[#7c3aed] px-2 text-[10px] font-semibold tracking-wide text-white shadow-[0_3px_10px_rgba(124,58,237,0.28)] ring-1 ring-white/15 transition-all duration-200 hover:-translate-y-px hover:from-[#7c3aed] hover:to-[#6d28d9] hover:shadow-[0_5px_14px_rgba(124,58,237,0.32)]"
                 >
                   -1s
+                </Button>
+                <Button
+                  onClick={handleShiftPlus1s}
+                  title="Shift all cards forward by 1 second (first card start and last card end stay fixed)"
+                  className="h-6 rounded-md bg-gradient-to-b from-[#8b5cf6] to-[#7c3aed] px-2 text-[10px] font-semibold tracking-wide text-white shadow-[0_3px_10px_rgba(124,58,237,0.28)] ring-1 ring-white/15 transition-all duration-200 hover:-translate-y-px hover:from-[#7c3aed] hover:to-[#6d28d9] hover:shadow-[0_5px_14px_rgba(124,58,237,0.32)]"
+                >
+                  +1s
                 </Button>
               </>
             )}
