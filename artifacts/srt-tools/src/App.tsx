@@ -502,14 +502,13 @@ export default function App() {
                     key={g.id}
                     onClick={() => toggleGroup(g.id)}
                     title={`${isActive ? "Hide" : "Show"} ${g.label} tabs`}
-                    className={`flex items-center gap-1 px-2 py-1 rounded-md border text-xs font-semibold transition-all duration-150 select-none ${
+                    className={`flex items-center justify-center w-8 h-8 rounded-lg border transition-all duration-150 select-none ${
                       isActive
                         ? `${g.activeBg} ${g.activeColor} ${g.activeBorder}`
                         : "bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 border-gray-200 dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700"
                     }`}
                   >
                     {g.icon}
-                    <span className="hidden sm:inline">{g.label}</span>
                   </button>
                 );
               })}
