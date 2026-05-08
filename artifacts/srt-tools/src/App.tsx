@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import JSZip from "jszip";
 import PassKeyLock from "@/components/PassKeyLock";
 import { type Subtitle, formatSrt, parseSrt } from "@/lib/srt";
 import SrtEditorTab from "@/tabs/SrtEditorTab";
@@ -226,6 +227,21 @@ export default function App() {
   }, [theme]);
 
   const toggleTheme = () => setTheme((t) => (t === "dark" ? "light" : "dark"));
+
+  const downloadLanguageFolders = async () => {
+    const zip = new JSZip();
+    const folders = ["ARABIC", "GERMAN", "ENGLISH", "SPANISH", "FRENCH"];
+    folders.forEach((name) => {
+      zip.folder(name);
+    });
+    const blob = await zip.generateAsync({ type: "blob" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "language-folders.zip";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const toggleGroup = (group: Group) => {
     setActiveGroups((prev) => {
@@ -478,6 +494,16 @@ export default function App() {
               </svg>
             </div>
             <span className="text-base font-bold text-gray-900 dark:text-gray-100">SRT Tools</span>
+            <button
+              onClick={downloadLanguageFolders}
+              title="Download 5 language folders (Arabic, German, English, Spanish, French)"
+              className="flex items-center justify-center w-8 h-8 rounded-lg border border-yellow-300 dark:border-yellow-700 bg-yellow-50 dark:bg-yellow-950 text-yellow-700 dark:text-yellow-300 hover:bg-yellow-100 dark:hover:bg-yellow-900 transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 13v4m0 0l-2-2m2 2l2-2" />
+              </svg>
+            </button>
             <button
               onClick={toggleTheme}
               aria-label={theme === "dark" ? "Switch to day mode" : "Switch to night mode"}
