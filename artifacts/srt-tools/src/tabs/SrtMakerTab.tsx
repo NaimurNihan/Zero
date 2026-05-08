@@ -210,6 +210,22 @@ export default function SrtMakerTab() {
             )}
           </div>
           <div className="flex gap-2">
+            {(audioEntries.length > 0 || sentenceText || generated) && (
+              <Button
+                onClick={() => {
+                  setAudioEntries([]);
+                  setSentenceText("");
+                  setSentenceHistory([]);
+                  setAddMoreText("");
+                  setGenerated(false);
+                }}
+                variant="outline"
+                className="text-red-500 border-red-200 hover:bg-red-50 hover:border-red-400 hover:text-red-600 text-sm h-8 px-3 gap-1.5"
+              >
+                <X className="w-3.5 h-3.5" />
+                All Clear
+              </Button>
+            )}
             <Button
               onClick={() => { if (canGenerate) setGenerated(true); }}
               disabled={!canGenerate}
