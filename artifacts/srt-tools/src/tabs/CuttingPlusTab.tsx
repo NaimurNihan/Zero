@@ -71,6 +71,7 @@ interface VideoItem {
   resultUrl?: string;
   selected: boolean;
   headExtra?: number;
+  passthrough?: boolean;
 }
 
 function formatTime(s: number): string {
@@ -382,6 +383,28 @@ export default function CuttingPlusTab({
         ),
       );
 
+      // Check if clip is too short to cut — pass through original file as-is.
+      const isAligned = !!(target.headExtra && target.headExtra > 0);
+      const newDuration =
+        target.duration != null
+          ? isAligned
+            ? target.duration - (target.headExtra ?? 0)
+            : target.duration - cutSeconds * (mode === "both" ? 2 : 1)
+          : null;
+      if (newDuration !== null && newDuration <= 0) {
+        const url = URL.createObjectURL(target.file);
+        setItems((prev) =>
+          prev.map((p) =>
+            p.id === target.id
+              ? { ...p, status: "done", progress: 1, resultBlob: target.file, resultUrl: url, passthrough: true }
+              : p,
+          ),
+        );
+        completed += 1;
+        setOverallProgress(completed / queue.length);
+        return;
+      }
+
       const slot = await acquireSlot();
       try {
         const onProgress = (r: number) => {
@@ -447,9 +470,11 @@ export default function CuttingPlusTab({
   };
 
   const outputName = (item: VideoItem) =>
-    item.headExtra && item.headExtra > 0
-      ? headTrimmedFileName(item.file.name)
-      : trimmedFileName(item.file.name);
+    item.passthrough
+      ? item.file.name
+      : item.headExtra && item.headExtra > 0
+        ? headTrimmedFileName(item.file.name)
+        : trimmedFileName(item.file.name);
 
   const downloadOne = (item: VideoItem) => {
     if (!item.resultUrl) return;
@@ -873,7 +898,12 @@ function VideoRow({
           </Badge>
         );
       case "done":
-        return (
+        return item.passthrough ? (
+          <Badge className="gap-1.5 bg-amber-500 text-white">
+            <CheckCircle2 className="h-3 w-3" />
+            Passed
+          </Badge>
+        ) : (
           <Badge className="gap-1.5 bg-emerald-500 text-white">
             <CheckCircle2 className="h-3 w-3" />
             Done
