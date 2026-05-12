@@ -1062,20 +1062,13 @@ function VideoCutterApp({
    <PoolContext.Provider value={poolCtx}>
     <div className="min-h-screen w-full bg-slate-50 text-slate-900">
       <style>{`
-        @keyframes btn-pop {
-          0%   { transform: translateY(0) scale(1); }
-          40%  { transform: translateY(-6px) scale(1.07); }
-          70%  { transform: translateY(-3px) scale(1.04); }
-          100% { transform: translateY(-5px) scale(1.05); }
-        }
-        .btn-3d {
-          position: relative;
+        .btn-flat {
           display: inline-flex;
           align-items: center;
           justify-content: center;
           gap: 7px;
           padding: 8px 18px;
-          min-width: 120px;
+          min-width: 110px;
           border: none;
           border-radius: 9px;
           font-size: 13px;
@@ -1084,62 +1077,26 @@ function VideoCutterApp({
           cursor: pointer;
           color: #fff;
           white-space: nowrap;
-          transition: transform 0.15s cubic-bezier(0.34,1.56,0.64,1),
-                      box-shadow 0.15s cubic-bezier(0.34,1.56,0.64,1),
-                      filter 0.12s ease;
+          transition: filter 0.12s ease, opacity 0.12s ease;
           user-select: none;
         }
-        .btn-3d:disabled {
+        .btn-flat:disabled {
           cursor: not-allowed;
-          opacity: 0.4;
-          filter: grayscale(0.5);
-          transform: none !important;
-          box-shadow: var(--btn-shadow-base) !important;
+          opacity: 0.38;
+          filter: grayscale(0.4);
         }
-        .btn-3d:not(:disabled):hover {
-          transform: translateY(-5px) scale(1.05);
-          animation: btn-pop 0.3s cubic-bezier(0.34,1.56,0.64,1) 1;
-          filter: brightness(1.1) saturate(1.15);
-          box-shadow: var(--btn-shadow-hover) !important;
-        }
-        .btn-3d:not(:disabled):active {
-          transform: translateY(2px) scale(0.97) !important;
-          filter: brightness(0.9) !important;
-          box-shadow: var(--btn-shadow-press) !important;
-          transition-duration: 0.07s !important;
-        }
+        .btn-flat:not(:disabled):hover  { filter: brightness(1.12); }
+        .btn-flat:not(:disabled):active { filter: brightness(0.88); }
 
-        /* LOAD — green */
-        .btn-load {
-          background: #22c55e;
-          --btn-shadow-base:  0 4px 0 #15803d, 0 6px 14px rgba(34,197,94,0.4);
-          --btn-shadow-hover: 0 8px 0 #15803d, 0 12px 24px rgba(34,197,94,0.5);
-          --btn-shadow-press: 0 1px 0 #15803d, 0 2px 6px rgba(34,197,94,0.3);
-          box-shadow: 0 4px 0 #15803d, 0 6px 14px rgba(34,197,94,0.4);
-        }
-
-        /* DOWNLOAD ZIP — blue */
-        .btn-download {
-          background: #3b82f6;
-          --btn-shadow-base:  0 4px 0 #1d4ed8, 0 6px 14px rgba(59,130,246,0.4);
-          --btn-shadow-hover: 0 8px 0 #1d4ed8, 0 12px 24px rgba(59,130,246,0.5);
-          --btn-shadow-press: 0 1px 0 #1d4ed8, 0 2px 6px rgba(59,130,246,0.3);
-          box-shadow: 0 4px 0 #1d4ed8, 0 6px 14px rgba(59,130,246,0.4);
-        }
-
-        /* SPEED +- — orange */
-        .btn-speed {
-          background: #f97316;
-          --btn-shadow-base:  0 4px 0 #c2410c, 0 6px 14px rgba(249,115,22,0.4);
-          --btn-shadow-hover: 0 8px 0 #c2410c, 0 12px 24px rgba(249,115,22,0.5);
-          --btn-shadow-press: 0 1px 0 #c2410c, 0 2px 6px rgba(249,115,22,0.3);
-          box-shadow: 0 4px 0 #c2410c, 0 6px 14px rgba(249,115,22,0.4);
-        }
+        .btn-load     { background: #22c55e; }
+        .btn-speed    { background: #f97316; }
+        .btn-download { background: #3b82f6; }
+        .btn-clear    { background: #ef4444; }
       `}</style>
       <div className="mx-auto max-w-6xl px-6 py-8">
         {/* Header bar */}
         <div className="mb-8 flex items-center justify-between gap-4 rounded-2xl border-2 border-slate-300 bg-white px-6 py-3 shadow-sm">
-          {/* LEFT: title + engine status + LOAD */}
+          {/* LEFT: title + engine status */}
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-semibold tracking-tight text-slate-800">
               Video Clip Cutter
@@ -1159,59 +1116,72 @@ function VideoCutterApp({
             {ffmpegError && (
               <span className="text-xs text-rose-600">{ffmpegError}</span>
             )}
-            <button
-              className="btn-3d btn-load"
-              onClick={() => {
-                loadPoolToCards("audio");
-                loadPoolToCards("video");
-              }}
-              title="Load both Audio Pool and Video Pool into cards"
-            >
-              <UploadCloud className="h-4 w-4" />
-              LOAD
-            </button>
           </div>
 
-          {/* RIGHT: Download ZIP + Speed +- */}
+          {/* RIGHT: LOAD + SPEED+-  OR  ZIP + Clear All (when output exists) */}
           <div className="flex items-center gap-3">
-            {completeCount > 0 && (
-              <button
-                onClick={handleDownloadZip}
-                disabled={zipping}
-                data-testid="button-download-zip"
-                className="btn-3d btn-download"
-              >
-                {zipping ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    ZIPPING…
-                  </>
-                ) : (
-                  <>
-                    <Download className="h-4 w-4" />
-                    ZIP ({completeCount})
-                  </>
-                )}
-              </button>
+            {completeCount > 0 ? (
+              <>
+                <button
+                  onClick={handleDownloadZip}
+                  disabled={zipping}
+                  data-testid="button-download-zip"
+                  className="btn-flat btn-download"
+                >
+                  {zipping ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      ZIPPING…
+                    </>
+                  ) : (
+                    <>
+                      <Download className="h-4 w-4" />
+                      ZIP ({completeCount})
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={clearAllCards}
+                  disabled={numCards === 0}
+                  className="btn-flat btn-clear"
+                >
+                  <X className="h-4 w-4" />
+                  CLEAR ALL
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  className="btn-flat btn-load"
+                  onClick={() => {
+                    loadPoolToCards("audio");
+                    loadPoolToCards("video");
+                  }}
+                  title="Load both Audio Pool and Video Pool into cards"
+                >
+                  <UploadCloud className="h-4 w-4" />
+                  LOAD
+                </button>
+                <button
+                  onClick={handleSpeed}
+                  disabled={!canRunSpeed}
+                  data-testid="button-speed"
+                  className="btn-flat btn-speed"
+                >
+                  {anyWorking ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      WORKING…
+                    </>
+                  ) : (
+                    <>
+                      <Gauge className="h-4 w-4" />
+                      SPEED +-
+                    </>
+                  )}
+                </button>
+              </>
             )}
-            <button
-              onClick={handleSpeed}
-              disabled={!canRunSpeed}
-              data-testid="button-speed"
-              className="btn-3d btn-speed"
-            >
-              {anyWorking ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  WORKING…
-                </>
-              ) : (
-                <>
-                  <Gauge className="h-4 w-4" />
-                  SPEED +-
-                </>
-              )}
-            </button>
           </div>
         </div>
 
