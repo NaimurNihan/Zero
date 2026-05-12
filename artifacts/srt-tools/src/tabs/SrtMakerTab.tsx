@@ -54,9 +54,10 @@ function stripWrapperBraces(line: string): string {
 
 interface SrtMakerTabProps {
   incomingSentences?: { text: string; label: string; key: number };
+  incomingAudio?: { files: File[]; key: number };
 }
 
-export default function SrtMakerTab({ incomingSentences }: SrtMakerTabProps = {}) {
+export default function SrtMakerTab({ incomingSentences, incomingAudio }: SrtMakerTabProps = {}) {
   const [audioEntries, setAudioEntries] = useState<AudioEntry[]>([]);
   const [loadingFiles, setLoadingFiles] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -160,6 +161,15 @@ export default function SrtMakerTab({ incomingSentences }: SrtMakerTabProps = {}
     setGenerated(false);
     setLoadingFiles(false);
   }, []);
+
+  const lastIncomingAudioKeyRef = useRef<number | undefined>(undefined);
+  useEffect(() => {
+    if (!incomingAudio) return;
+    if (incomingAudio.key === lastIncomingAudioKeyRef.current) return;
+    if (!incomingAudio.files || incomingAudio.files.length === 0) return;
+    lastIncomingAudioKeyRef.current = incomingAudio.key;
+    void processFiles(incomingAudio.files);
+  }, [incomingAudio, processFiles]);
 
   function handleDrop(e: React.DragEvent) { e.preventDefault(); setIsDragging(false); processFiles(Array.from(e.dataTransfer.files)); }
   function handleFileInput(e: React.ChangeEvent<HTMLInputElement>) { processFiles(Array.from(e.target.files || [])); e.target.value = ""; }

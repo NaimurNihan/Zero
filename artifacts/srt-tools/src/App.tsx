@@ -201,6 +201,7 @@ export default function App() {
   const [isAutoRun2Active, setIsAutoRun2Active] = useState(false);
   const [isAutoRun2Paused, setIsAutoRun2Paused] = useState(false);
   const [makerIncomingSentences, setMakerIncomingSentences] = useState<{ text: string; label: string; key: number }>({ text: "", label: "", key: 0 });
+  const [makerIncomingAudio, setMakerIncomingAudio] = useState<{ files: File[]; key: number }>({ files: [], key: 0 });
   const [cuttingPlusIncomingVideos, setCuttingPlusIncomingVideos] = useState<{ files: File[]; key: number; autoLoad?: boolean; extras?: number[] }>({ files: [], key: 0 });
   const [speedIncomingVideos, setSpeedIncomingVideos] = useState<{ files: File[]; key: number }>({ files: [], key: 0 });
   const [speedIncomingAudio, setSpeedIncomingAudio] = useState<{ files: File[]; key: number; label?: string }>({ files: [], key: 0 });
@@ -640,7 +641,10 @@ export default function App() {
 
       {/* SRT Maker — always mounted, hidden when inactive */}
       <div style={{ display: activeTab === "maker" ? "flex" : "none" }} className="flex-col flex-1 overflow-y-auto">
-        <SrtMakerTab incomingSentences={makerIncomingSentences.key > 0 ? makerIncomingSentences : undefined} />
+        <SrtMakerTab
+          incomingSentences={makerIncomingSentences.key > 0 ? makerIncomingSentences : undefined}
+          incomingAudio={makerIncomingAudio.key > 0 ? makerIncomingAudio : undefined}
+        />
       </div>
 
       {/* SRT Note — always mounted, full width, hidden when inactive */}
@@ -780,7 +784,14 @@ export default function App() {
 
       {/* Speed +- — full width, hidden when inactive */}
       <div style={{ display: activeTab === "speed" ? "flex" : "none" }} className="flex-col flex-1 overflow-y-auto">
-        <SpeedPlusMinusTab incomingVideoFiles={speedIncomingVideos} incomingAudioFiles={speedIncomingAudio} />
+        <SpeedPlusMinusTab
+          incomingVideoFiles={speedIncomingVideos}
+          incomingAudioFiles={speedIncomingAudio}
+          onSendToSrtMaker={(files) => {
+            setMakerIncomingAudio({ files, key: Date.now() });
+            setActiveTab("maker");
+          }}
+        />
       </div>
 
       {/* Audio To SRT — full width, hidden when inactive */}

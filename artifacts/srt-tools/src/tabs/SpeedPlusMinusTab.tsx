@@ -291,9 +291,11 @@ type IncomingAudioFiles = { files: File[]; key: number; label?: string };
 function VideoCutterApp({
   incomingAudioFiles,
   incomingVideoFiles,
+  onSendToSrtMaker,
 }: {
   incomingAudioFiles?: IncomingAudioFiles;
   incomingVideoFiles?: { files: File[]; key: number };
+  onSendToSrtMaker?: (files: File[]) => void;
 }) {
   const [ffmpegReady, setFfmpegReady] = useState(false);
   const [ffmpegLoading, setFfmpegLoading] = useState(true);
@@ -1147,6 +1149,10 @@ function VideoCutterApp({
             onAdd={addLangFiles}
             onClear={clearLangPool}
             onSend={sendLangToPool}
+            onSendToMaker={(lang) => {
+              const files = langPools[lang] || [];
+              if (files.length > 0) onSendToSrtMaker?.(files);
+            }}
           />
           {/* RIGHT: main content */}
           <div className="flex-1 min-w-0">
@@ -1501,12 +1507,14 @@ function LangAudioPools({
   onAdd,
   onClear,
   onSend,
+  onSendToMaker,
 }: {
   langPools: Record<string, File[]>;
   sentLangs: Set<string>;
   onAdd: (lang: string, files: File[]) => void;
   onClear: (lang: string) => void;
   onSend: (lang: string) => void;
+  onSendToMaker: (lang: string) => void;
 }) {
   return (
     <div
@@ -1530,6 +1538,7 @@ function LangAudioPools({
             onAdd={(files) => onAdd(cfg.key, files)}
             onClear={() => onClear(cfg.key)}
             onSend={() => onSend(cfg.key)}
+            onSendToMaker={() => onSendToMaker(cfg.key)}
           />
         ))}
       </div>
@@ -1544,6 +1553,7 @@ function LangPoolSection({
   onAdd,
   onClear,
   onSend,
+  onSendToMaker,
 }: {
   config: (typeof LANG_POOL_CONFIG)[number];
   files: File[];
@@ -1551,6 +1561,7 @@ function LangPoolSection({
   onAdd: (files: File[]) => void;
   onClear: () => void;
   onSend: () => void;
+  onSendToMaker: () => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
@@ -1596,6 +1607,15 @@ function LangPoolSection({
       {/* Body: empty drop zone -or- send button */}
       {hasFiles ? (
         <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={onSendToMaker}
+            className="flex h-7 w-7 items-center justify-center rounded-lg text-white shadow transition hover:brightness-110 active:brightness-90"
+            style={{ background: "#6366f1" }}
+            title="Send to SRT Maker Voice Input"
+          >
+            <ArrowRight className="h-3.5 w-3.5 rotate-180" />
+          </button>
           <button
             type="button"
             onClick={onSend}
@@ -2963,15 +2983,18 @@ function PlayablePreview({
 export default function SpeedPlusMinusTab({
   incomingAudioFiles,
   incomingVideoFiles,
+  onSendToSrtMaker,
 }: {
   incomingAudioFiles?: { files: File[]; key: number; label?: string };
   incomingVideoFiles?: { files: File[]; key: number };
+  onSendToSrtMaker?: (files: File[]) => void;
 } = {}) {
   return (
     <TooltipProvider>
       <VideoCutterApp
         incomingAudioFiles={incomingAudioFiles}
         incomingVideoFiles={incomingVideoFiles}
+        onSendToSrtMaker={onSendToSrtMaker}
       />
       <Toaster />
     </TooltipProvider>
