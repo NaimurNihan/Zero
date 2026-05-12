@@ -1510,7 +1510,7 @@ function LangAudioPools({
 }) {
   return (
     <div
-      style={{ width: 230, flexShrink: 0 }}
+      style={{ width: 290, flexShrink: 0 }}
       className="rounded-2xl border-2 border-slate-300 bg-white shadow-sm self-start sticky top-4"
     >
       {/* Header */}
