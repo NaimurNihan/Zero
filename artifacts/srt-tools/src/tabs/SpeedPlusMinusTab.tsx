@@ -1488,19 +1488,6 @@ function VideoCutterApp({
                 {slowDownCount} <span className="text-[10px] font-medium text-slate-500">cards</span>
               </span>
             </div>
-            <div className={`flex items-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50/60 px-2.5 py-1 transition-opacity ${downloadCount === 0 ? "opacity-20" : ""}`}>
-              <span className="flex h-6 w-6 items-center justify-center rounded-md bg-indigo-500 text-white">
-                <Download className="h-3 w-3" />
-              </span>
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-indigo-700">
-                Download
-              </span>
-              <span className="ml-auto text-sm font-bold text-slate-800" data-testid="info-download-count">
-                {downloadCount} <span className="text-[10px] font-medium text-slate-500">files</span>
-              </span>
-            </div>
-
-            {/* Row 3: MATCH | ARCHIVED | COMPLETE */}
             <div className={`flex items-center gap-2 rounded-lg border border-teal-200 bg-teal-50/60 px-2.5 py-1 transition-opacity ${matchCount === 0 ? "opacity-20" : ""}`}>
               <span className="flex h-6 w-6 items-center justify-center rounded-md bg-teal-500 text-white">
                 <Equal className="h-3 w-3" />
@@ -1512,6 +1499,8 @@ function VideoCutterApp({
                 {matchCount} <span className="text-[10px] font-medium text-slate-500">cards</span>
               </span>
             </div>
+
+            {/* Row 3: ARCHIVED | COMPLETE | DOWNLOAD */}
             <div className={`flex items-center gap-2 rounded-lg border border-emerald-300 bg-emerald-50/60 px-2.5 py-1 transition-opacity ${archivedCount === 0 ? "opacity-20" : ""}`}>
               <span className="flex h-6 w-6 items-center justify-center rounded-md bg-emerald-600 text-white">
                 {archiving ? (
@@ -1536,6 +1525,17 @@ function VideoCutterApp({
               </span>
               <span className="ml-auto text-sm font-bold text-slate-800" data-testid="info-complete-count">
                 {completeCount} <span className="text-[10px] font-medium text-slate-500">cards</span>
+              </span>
+            </div>
+            <div className={`flex items-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50/60 px-2.5 py-1 transition-opacity ${downloadCount === 0 ? "opacity-20" : ""}`}>
+              <span className="flex h-6 w-6 items-center justify-center rounded-md bg-indigo-500 text-white">
+                <Download className="h-3 w-3" />
+              </span>
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-indigo-700">
+                Download
+              </span>
+              <span className="ml-auto text-sm font-bold text-slate-800" data-testid="info-download-count">
+                {downloadCount} <span className="text-[10px] font-medium text-slate-500">files</span>
               </span>
             </div>
           </div>
