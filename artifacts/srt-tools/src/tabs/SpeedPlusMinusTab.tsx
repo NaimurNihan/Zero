@@ -518,6 +518,8 @@ function VideoCutterApp({
     [],
   );
 
+  const [loadLocked, setLoadLocked] = useState(false);
+
   const addPoolFiles = (files: FileList | File[]) => {
     const arr = Array.from(files);
     const newItems: PoolItem[] = [];
@@ -538,6 +540,7 @@ function VideoCutterApp({
     // setPool() re-renders cause the tab to hang. Each card reads its own
     // file's duration lazily when the file is loaded into it.
     setPool((p) => [...p, ...newItems]);
+    setLoadLocked(false);
   };
 
   const removePoolItem = (id: string) => {
@@ -1191,9 +1194,11 @@ function VideoCutterApp({
               <>
                 <button
                   className="btn-flat btn-load"
+                  style={{ opacity: loadLocked ? 0.5 : 1 }}
                   onClick={() => {
                     loadPoolToCards("audio");
-                    loadPoolToCards("video");
+                    setTimeout(() => loadPoolToCards("video"), 120);
+                    setLoadLocked(true);
                   }}
                   title="Load both Audio Pool and Video Pool into cards"
                 >
