@@ -9,6 +9,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { toast as sonnerToast } from "sonner";
 import { FFmpeg } from "@ffmpeg/ffmpeg";
 import { fetchFile, toBlobURL } from "@ffmpeg/util";
 import { Toaster } from "@/components/ui/toaster";
@@ -37,6 +38,9 @@ import {
   FastForward,
   Rewind,
   Equal,
+  PlayCircle,
+  StopCircle,
+  ChevronRight,
 } from "lucide-react";
 
 // Speed +- constraint: video may be slowed down or sped up only within
@@ -1130,6 +1134,122 @@ function VideoCutterApp({
   const allCardsSettledRef = useRef(true);
   allCardsSettledRef.current = cardStates.every((c) => !c.isReadingDuration);
 
+  // ── A.G.E.S.F Full Automation (RUN button) ────────────────────────────────
+  const [autoRunning, setAutoRunning] = useState(false);
+  const [autoCurrentLang, setAutoCurrentLang] = useState<string | null>(null);
+  const [autoStep, setAutoStep] = useState<string>("");
+  const autoStopRef = useRef(false);
+  const langPoolsRef = useRef(langPools);
+  langPoolsRef.current = langPools;
+  const sendLangToPoolRef = useRef(sendLangToPool);
+  sendLangToPoolRef.current = sendLangToPool;
+
+  const runAutomation = async () => {
+    if (autoRunning) return;
+    autoStopRef.current = false;
+    setAutoRunning(true);
+
+    const langs = LANG_POOL_CONFIG.map((c) => c.key);
+    const activeLangs = langs.filter((l) => (langPoolsRef.current[l] || []).length > 0);
+
+    if (activeLangs.length === 0) {
+      sonnerToast.error("No audio files loaded in any pool. Add audio files first.");
+      setAutoRunning(false);
+      return;
+    }
+
+    // Wait for ffmpeg engine to be ready
+    let waited = 0;
+    while (!ffmpegReadyRef.current && waited < 60000) {
+      await new Promise((r) => setTimeout(r, 500));
+      waited += 500;
+    }
+    if (!ffmpegReadyRef.current) {
+      sonnerToast.error("Engine not ready. Please wait and try again.");
+      setAutoRunning(false);
+      return;
+    }
+
+    for (const lang of activeLangs) {
+      if (autoStopRef.current) {
+        sonnerToast.info("Automation stopped.");
+        break;
+      }
+
+      const langLabel = LANG_POOL_CONFIG.find((c) => c.key === lang)?.label ?? lang.toUpperCase();
+      const files = langPoolsRef.current[lang] || [];
+      if (files.length === 0) continue;
+
+      setAutoCurrentLang(lang);
+      sonnerToast.info(`▶ ${langLabel} — Starting…`);
+
+      try {
+        // Step 1: Send lang pool → Audio Pool
+        setAutoStep("Sending to Audio Pool…");
+        sendLangToPoolRef.current(lang);
+        await new Promise((r) => setTimeout(r, 600));
+
+        if (autoStopRef.current) { sonnerToast.info("Automation stopped."); break; }
+
+        // Step 2: LOAD (audio + video)
+        setAutoStep("Loading pools into cards…");
+        loadPoolToCardsRef.current("audio");
+        loadPoolToCardsRef.current("video");
+        await new Promise((r) => setTimeout(r, 800));
+
+        if (autoStopRef.current) { sonnerToast.info("Automation stopped."); break; }
+
+        // Step 3: Wait for all cards to settle (durations read) then run Speed+-
+        setAutoStep("Processing (Speed+-)…");
+        waited = 0;
+        while ((!canRunSpeedRef.current || !allCardsSettledRef.current) && waited < 30000) {
+          if (autoStopRef.current) break;
+          await new Promise((r) => setTimeout(r, 400));
+          waited += 400;
+        }
+
+        if (autoStopRef.current) { sonnerToast.info("Automation stopped."); break; }
+
+        if (!canRunSpeedRef.current) {
+          throw new Error(`No processable cards found for ${langLabel}. Check audio/video pairing.`);
+        }
+
+        await runSpeedRef.current();
+
+        if (autoStopRef.current) { sonnerToast.info("Automation stopped."); break; }
+
+        // Step 4: Download ZIP
+        setAutoStep("Downloading ZIP…");
+        await handleDownloadZipAutoRef.current();
+        await new Promise((r) => setTimeout(r, 800));
+
+        if (autoStopRef.current) { sonnerToast.info("Automation stopped."); break; }
+
+        // Step 5: Clear Audio Pool (which also clears cards)
+        setAutoStep("Clearing for next set…");
+        handleAudioPoolClearAllRef.current();
+        await new Promise((r) => setTimeout(r, 600));
+
+        sonnerToast.success(`✓ ${langLabel} — Done!`);
+
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        sonnerToast.error(`Error on ${langLabel}: ${msg}`);
+        setAutoRunning(false);
+        setAutoCurrentLang(null);
+        setAutoStep("");
+        return;
+      }
+    }
+
+    setAutoRunning(false);
+    setAutoCurrentLang(null);
+    setAutoStep("");
+    if (!autoStopRef.current) {
+      sonnerToast.success("🎉 All pools processed successfully!");
+    }
+  };
+
   // Register automation event listeners for Auto Run 2 flow.
   useEffect(() => {
     const onLoadAudioPool = () => {
@@ -1240,6 +1360,11 @@ function VideoCutterApp({
               const files = langPools[lang] || [];
               if (files.length > 0) onSendToSrtMaker?.(files);
             }}
+            autoRunning={autoRunning}
+            autoCurrentLang={autoCurrentLang}
+            autoStep={autoStep}
+            onRunAutomation={() => { void runAutomation(); }}
+            onStopAutomation={() => { autoStopRef.current = true; }}
           />
           {/* RIGHT: main content */}
           <div className="flex-1 min-w-0">
@@ -1606,6 +1731,11 @@ function LangAudioPools({
   onClear,
   onSend,
   onSendToMaker,
+  autoRunning,
+  autoCurrentLang,
+  autoStep,
+  onRunAutomation,
+  onStopAutomation,
 }: {
   langPools: Record<string, File[]>;
   sentLangs: Set<string>;
@@ -1613,7 +1743,16 @@ function LangAudioPools({
   onClear: (lang: string) => void;
   onSend: (lang: string) => void;
   onSendToMaker: (lang: string) => void;
+  autoRunning: boolean;
+  autoCurrentLang: string | null;
+  autoStep: string;
+  onRunAutomation: () => void;
+  onStopAutomation: () => void;
 }) {
+  const hasAnyFiles = LANG_POOL_CONFIG.some(
+    (cfg) => (langPools[cfg.key] || []).length > 0,
+  );
+
   return (
     <div
       style={{ width: 290, flexShrink: 0 }}
@@ -1626,6 +1765,52 @@ function LangAudioPools({
         </p>
       </div>
 
+      {/* RUN / STOP automation button */}
+      <div className="px-2.5 pt-2.5">
+        {autoRunning ? (
+          <div className="rounded-xl border-2 border-amber-300 bg-amber-50 p-2">
+            <div className="mb-1.5 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5">
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-amber-600" />
+                <span className="text-[11px] font-bold uppercase tracking-wider text-amber-700">
+                  Running…
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={onStopAutomation}
+                className="inline-flex items-center gap-1 rounded-lg border border-rose-400 bg-rose-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-rose-700 transition hover:bg-rose-200 active:scale-95"
+              >
+                <StopCircle className="h-3 w-3" />
+                Stop
+              </button>
+            </div>
+            {autoCurrentLang && (
+              <div className="flex items-center gap-1 text-[10px] text-amber-700">
+                <ChevronRight className="h-3 w-3 shrink-0" />
+                <span className="font-semibold uppercase">
+                  {LANG_POOL_CONFIG.find((c) => c.key === autoCurrentLang)?.label ?? autoCurrentLang}
+                </span>
+              </div>
+            )}
+            {autoStep && (
+              <p className="mt-0.5 truncate text-[10px] text-amber-600">{autoStep}</p>
+            )}
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={onRunAutomation}
+            disabled={!hasAnyFiles}
+            className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-emerald-500 bg-gradient-to-r from-emerald-500 to-green-500 py-2 text-[12px] font-bold uppercase tracking-widest text-white shadow-md transition hover:brightness-110 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
+            title={hasAnyFiles ? "Run full automation for all language pools" : "Add audio files to pools first"}
+          >
+            <PlayCircle className="h-4 w-4" />
+            RUN Automation
+          </button>
+        )}
+      </div>
+
       <div className="flex flex-col gap-2 p-2.5">
         {LANG_POOL_CONFIG.map((cfg) => (
           <LangPoolSection
@@ -1633,6 +1818,7 @@ function LangAudioPools({
             config={cfg}
             files={langPools[cfg.key] || []}
             sent={sentLangs.has(cfg.key)}
+            isActive={autoCurrentLang === cfg.key}
             onAdd={(files) => onAdd(cfg.key, files)}
             onClear={() => onClear(cfg.key)}
             onSend={() => onSend(cfg.key)}
@@ -1648,6 +1834,7 @@ function LangPoolSection({
   config,
   files,
   sent,
+  isActive,
   onAdd,
   onClear,
   onSend,
@@ -1656,6 +1843,7 @@ function LangPoolSection({
   config: (typeof LANG_POOL_CONFIG)[number];
   files: File[];
   sent: boolean;
+  isActive?: boolean;
   onAdd: (files: File[]) => void;
   onClear: () => void;
   onSend: () => void;
@@ -1668,13 +1856,16 @@ function LangPoolSection({
   const SENT_GREEN = "#16a34a";
   const SENT_BG   = "#dcfce7";
   const SENT_BORDER = "#86efac";
+  const ACTIVE_BG = "#fffbeb";
+  const ACTIVE_BORDER = "#fbbf24";
 
   return (
     <div
       className="rounded-xl border p-2 transition-all"
       style={{
-        borderColor: sent ? SENT_BORDER : config.border,
-        background:  sent ? SENT_BG    : config.bg,
+        borderColor: isActive ? ACTIVE_BORDER : sent ? SENT_BORDER : config.border,
+        background:  isActive ? ACTIVE_BG    : sent ? SENT_BG    : config.bg,
+        boxShadow: isActive ? "0 0 0 2px #fbbf2466" : undefined,
       }}
     >
       {/* Row: label + file count + clear */}
