@@ -1571,13 +1571,13 @@ function LangPoolSection({
       {/* Row: label + file count + clear */}
       <div className="mb-1.5 flex items-center justify-between gap-1">
         <span
-          className="text-[9px] font-bold tracking-widest uppercase"
+          className="text-[12px] font-bold tracking-widest uppercase"
           style={{ color: sent ? SENT_GREEN : config.accent }}
         >
           {config.label}
         </span>
         <div className="flex items-center gap-1 shrink-0">
-          <span className="font-mono text-[9px] text-slate-500">
+          <span className="font-mono text-[13px] font-semibold text-slate-600">
             {files.length} Files
           </span>
           {hasFiles && (
@@ -1628,26 +1628,14 @@ function LangPoolSection({
             }
           }}
           onClick={() => inputRef.current?.click()}
-          className="flex cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed py-2 text-[10px] text-slate-400 transition"
+          className="flex cursor-pointer items-center justify-center rounded-lg border border-dashed py-2 text-slate-400 transition"
           style={{
             borderColor: dragOver ? config.accent : config.border,
             background: dragOver ? config.bg : "transparent",
           }}
         >
-          <UploadCloud className="mb-0.5 h-3.5 w-3.5" />
-          <span>Drop audio files here, or click "Add files"</span>
+          <UploadCloud className="h-4 w-4" />
         </div>
-      )}
-
-      {/* Hidden: + button to add more even when files exist */}
-      {hasFiles && (
-        <button
-          type="button"
-          onClick={() => inputRef.current?.click()}
-          className="mt-1 flex w-full items-center justify-center gap-1 rounded text-[9px] text-slate-400 hover:text-slate-600 transition"
-        >
-          <Plus className="h-2.5 w-2.5" /> Add more
-        </button>
       )}
 
       <input
