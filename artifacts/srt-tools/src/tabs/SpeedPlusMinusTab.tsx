@@ -968,15 +968,16 @@ function VideoCutterApp({
   const audioPoolCount = pool.filter((p) => p.kind === "audio").length;
   const videoPoolCount = pool.filter((p) => p.kind === "video").length;
   const speedUpCount = cardStates.filter(
-    (c) => c.canCut && c.mode === "speedup",
+    (c) => c.canCut && c.mode === "speedup" && !c.isDone,
   ).length;
   const slowDownCount = cardStates.filter(
-    (c) => c.canCut && c.mode === "slowdown",
+    (c) => c.canCut && c.mode === "slowdown" && !c.isDone,
   ).length;
   const extremeCount = cardStates.filter(
     (c) =>
       c.canCut &&
-      (c.mode === "extreme-slowpad" || c.mode === "extreme-speedtrim"),
+      (c.mode === "extreme-slowpad" || c.mode === "extreme-speedtrim") &&
+      !c.isDone,
   ).length;
   const activeCount = cardStates.filter(
     (c) => c.hasAudio && c.hasVideo && !c.isDone,
