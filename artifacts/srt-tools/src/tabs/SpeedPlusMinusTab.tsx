@@ -507,6 +507,7 @@ function VideoCutterApp({
   const sendLangToPool = (lang: string) => {
     const files = langPools[lang] || [];
     if (files.length === 0) return;
+    currentLabelRef.current = lang.toUpperCase() + " AUDIO";
     addPoolFiles(files);
   };
 
@@ -717,7 +718,7 @@ function VideoCutterApp({
       a.href = url;
       const labelSlug = currentLabelRef.current ? currentLabelRef.current.trim() : "";
       a.download = labelSlug
-        ? `${labelSlug}.Video.zip`
+        ? `${labelSlug}.zip`
         : `video-clips-${new Date().toISOString().replace(/[:.]/g, "-")}.zip`;
       document.body.appendChild(a);
       a.click();
