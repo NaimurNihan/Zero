@@ -767,26 +767,25 @@ function VideoCutterApp({
     return n;
   };
 
-  const pendingLoadRef = useRef<{
+  type PendingLoad = {
     kind: "audio" | "video";
     assignments: { cardIndex: number; file: File }[];
     fallbackFiles: File[];
     requiredCards: number;
-  } | null>(null);
+  };
 
-  const flushPendingLoad = () => {
-    const pending = pendingLoadRef.current;
-    if (!pending) return;
+  // Separate pending refs per kind so audio and video never overwrite each other.
+  const pendingAudioLoadRef = useRef<PendingLoad | null>(null);
+  const pendingVideoLoadRef = useRef<PendingLoad | null>(null);
+
+  const flushPendingKind = (pending: PendingLoad, ref: React.MutableRefObject<PendingLoad | null>) => {
     const { kind, assignments, fallbackFiles } = pending;
     const used = new Set<number>();
     let allAssigned = true;
 
     for (const { cardIndex, file } of assignments) {
       const handle = cardRefs.current[cardIndex];
-      if (!handle) {
-        allAssigned = false;
-        continue;
-      }
+      if (!handle) { allAssigned = false; continue; }
       if (kind === "audio") handle.loadAudio(file);
       else handle.loadVideo(file);
       used.add(cardIndex);
@@ -796,24 +795,30 @@ function VideoCutterApp({
     for (const file of fallbackFiles) {
       while (used.has(nextSlot)) nextSlot++;
       const handle = cardRefs.current[nextSlot];
-      if (!handle) {
-        allAssigned = false;
-        break;
-      }
+      if (!handle) { allAssigned = false; break; }
       if (kind === "audio") handle.loadAudio(file);
       else handle.loadVideo(file);
       used.add(nextSlot);
       nextSlot++;
     }
 
-    if (allAssigned) {
-      pendingLoadRef.current = null;
-    }
+    if (allAssigned) ref.current = null;
+  };
+
+  const flushPendingLoad = () => {
+    if (pendingAudioLoadRef.current) flushPendingKind(pendingAudioLoadRef.current, pendingAudioLoadRef);
+    if (pendingVideoLoadRef.current) flushPendingKind(pendingVideoLoadRef.current, pendingVideoLoadRef);
   };
 
   useEffect(() => {
-    if (!pendingLoadRef.current) return;
-    if (numCards < pendingLoadRef.current.requiredCards) return;
+    const audioPending = pendingAudioLoadRef.current;
+    const videoPending = pendingVideoLoadRef.current;
+    const maxRequired = Math.max(
+      audioPending ? audioPending.requiredCards : 0,
+      videoPending ? videoPending.requiredCards : 0,
+    );
+    if (!audioPending && !videoPending) return;
+    if (numCards < maxRequired) return;
     const id = requestAnimationFrame(() => flushPendingLoad());
     return () => cancelAnimationFrame(id);
   }, [numCards]);
@@ -845,7 +850,10 @@ function VideoCutterApp({
       assignments.length + fallbackFiles.length,
     );
 
-    pendingLoadRef.current = { kind, assignments, fallbackFiles, requiredCards };
+    const pending: PendingLoad = { kind, assignments, fallbackFiles, requiredCards };
+    if (kind === "audio") pendingAudioLoadRef.current = pending;
+    else pendingVideoLoadRef.current = pending;
+
     if (requiredCards > numCards) {
       ensureCards(requiredCards);
     } else {
@@ -1197,7 +1205,7 @@ function VideoCutterApp({
                   style={{ opacity: loadLocked ? 0.5 : 1 }}
                   onClick={() => {
                     loadPoolToCards("audio");
-                    setTimeout(() => loadPoolToCards("video"), 120);
+                    loadPoolToCards("video");
                     setLoadLocked(true);
                   }}
                   title="Load both Audio Pool and Video Pool into cards"
