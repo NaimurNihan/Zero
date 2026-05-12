@@ -482,6 +482,34 @@ function VideoCutterApp({
   const poolRef = useRef<PoolItem[]>([]);
   poolRef.current = pool;
 
+  // ── Language-specific audio pools (A.G.E.S.F) ────────────────────────────
+  const [langPools, setLangPools] = useState<Record<string, File[]>>({
+    arabic: [],
+    german: [],
+    english: [],
+    spanish: [],
+    french: [],
+  });
+
+  const addLangFiles = (lang: string, files: File[]) => {
+    const audioFiles = files.filter((f) => f.type.startsWith("audio/"));
+    if (audioFiles.length === 0) return;
+    setLangPools((prev) => ({
+      ...prev,
+      [lang]: [...(prev[lang] || []), ...audioFiles],
+    }));
+  };
+
+  const clearLangPool = (lang: string) => {
+    setLangPools((prev) => ({ ...prev, [lang]: [] }));
+  };
+
+  const sendLangToPool = (lang: string) => {
+    const files = langPools[lang] || [];
+    if (files.length === 0) return;
+    addPoolFiles(files);
+  };
+
   const poolCtx = useMemo(
     () => ({
       getFile: (id: string) =>
@@ -1093,7 +1121,17 @@ function VideoCutterApp({
         .btn-download { background: #3b82f6; }
         .btn-clear    { background: #ef4444; }
       `}</style>
-      <div className="mx-auto max-w-6xl px-6 py-8">
+      <div className="mx-auto max-w-[1600px] px-4 py-6">
+        <div className="flex gap-4 items-start">
+          {/* LEFT: A.G.E.S.F Language Audio Pools sidebar */}
+          <LangAudioPools
+            langPools={langPools}
+            onAdd={addLangFiles}
+            onClear={clearLangPool}
+            onSend={sendLangToPool}
+          />
+          {/* RIGHT: main content */}
+          <div className="flex-1 min-w-0">
         {/* Header bar */}
         <div className="mb-8 flex items-center justify-between gap-4 rounded-2xl border-2 border-slate-300 bg-white px-6 py-3 shadow-sm">
           {/* LEFT: title + engine status */}
@@ -1419,9 +1457,182 @@ function VideoCutterApp({
         <div className="mt-10 text-center text-xs text-slate-500">
           Files never leave your device. All processing happens in your browser.
         </div>
+          </div>
+        </div>
       </div>
     </div>
    </PoolContext.Provider>
+  );
+}
+
+// ── A.G.E.S.F Language Audio Pools sidebar ───────────────────────────────
+
+const LANG_POOL_CONFIG = [
+  { key: "arabic",  label: "ARABIC AUDIO POOL",  accent: "#f97316", bg: "#fff7ed", border: "#fdba74" },
+  { key: "german",  label: "GERMAN AUDIO POOL",  accent: "#eab308", bg: "#fefce8", border: "#fde047" },
+  { key: "english", label: "ENGLISH AUDIO POOL", accent: "#3b82f6", bg: "#eff6ff", border: "#93c5fd" },
+  { key: "spanish", label: "SPANISH AUDIO POOL", accent: "#ef4444", bg: "#fef2f2", border: "#fca5a5" },
+  { key: "french",  label: "FRENCH AUDIO POOL",  accent: "#8b5cf6", bg: "#f5f3ff", border: "#c4b5fd" },
+] as const;
+
+function LangAudioPools({
+  langPools,
+  onAdd,
+  onClear,
+  onSend,
+}: {
+  langPools: Record<string, File[]>;
+  onAdd: (lang: string, files: File[]) => void;
+  onClear: (lang: string) => void;
+  onSend: (lang: string) => void;
+}) {
+  return (
+    <div
+      style={{ width: 230, flexShrink: 0 }}
+      className="rounded-2xl border-2 border-slate-300 bg-white shadow-sm self-start sticky top-4"
+    >
+      {/* Header */}
+      <div className="rounded-t-xl bg-gradient-to-r from-slate-700 to-slate-800 px-3 py-2.5">
+        <p className="text-center text-[11px] font-bold tracking-widest text-white uppercase">
+          A.G.E.S.F Audio Pools
+        </p>
+      </div>
+
+      <div className="flex flex-col gap-2 p-2.5">
+        {LANG_POOL_CONFIG.map((cfg) => (
+          <LangPoolSection
+            key={cfg.key}
+            config={cfg}
+            files={langPools[cfg.key] || []}
+            onAdd={(files) => onAdd(cfg.key, files)}
+            onClear={() => onClear(cfg.key)}
+            onSend={() => onSend(cfg.key)}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function LangPoolSection({
+  config,
+  files,
+  onAdd,
+  onClear,
+  onSend,
+}: {
+  config: (typeof LANG_POOL_CONFIG)[number];
+  files: File[];
+  onAdd: (files: File[]) => void;
+  onClear: () => void;
+  onSend: () => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [dragOver, setDragOver] = useState(false);
+  const hasFiles = files.length > 0;
+
+  return (
+    <div
+      className="rounded-xl border p-2 transition-all"
+      style={{
+        borderColor: config.border,
+        background: config.bg,
+      }}
+    >
+      {/* Row: label + file count + clear */}
+      <div className="mb-1.5 flex items-center justify-between gap-1">
+        <span
+          className="text-[9px] font-bold tracking-widest uppercase"
+          style={{ color: config.accent }}
+        >
+          {config.label}
+        </span>
+        <div className="flex items-center gap-1 shrink-0">
+          <span className="font-mono text-[9px] text-slate-500">
+            {files.length} Files
+          </span>
+          {hasFiles && (
+            <button
+              type="button"
+              onClick={onClear}
+              className="flex h-4 w-4 items-center justify-center rounded-full text-slate-400 hover:bg-rose-100 hover:text-rose-600 transition"
+              title="Clear this pool"
+            >
+              <X className="h-2.5 w-2.5" />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Body: empty drop zone -or- send button */}
+      {hasFiles ? (
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={onSend}
+            className="flex flex-1 items-center justify-center gap-1 rounded-lg py-1.5 text-[10px] font-bold uppercase tracking-wide text-white shadow transition hover:brightness-110 active:brightness-90"
+            style={{ background: "#22c55e" }}
+            title={`Send all ${files.length} files to Audio Pool`}
+          >
+            <Music className="h-3 w-3" />
+            All Audio Files
+          </button>
+          <button
+            type="button"
+            onClick={onSend}
+            className="flex h-7 w-7 items-center justify-center rounded-lg text-white shadow transition hover:brightness-110 active:brightness-90"
+            style={{ background: config.accent }}
+            title="Send to Audio Pool"
+          >
+            <ArrowRight className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      ) : (
+        <div
+          onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            setDragOver(false);
+            if (e.dataTransfer.files?.length) {
+              onAdd(Array.from(e.dataTransfer.files));
+            }
+          }}
+          onClick={() => inputRef.current?.click()}
+          className="flex cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed py-2 text-[10px] text-slate-400 transition"
+          style={{
+            borderColor: dragOver ? config.accent : config.border,
+            background: dragOver ? config.bg : "transparent",
+          }}
+        >
+          <UploadCloud className="mb-0.5 h-3.5 w-3.5" />
+          <span>Drop audio files here, or click "Add files"</span>
+        </div>
+      )}
+
+      {/* Hidden: + button to add more even when files exist */}
+      {hasFiles && (
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          className="mt-1 flex w-full items-center justify-center gap-1 rounded text-[9px] text-slate-400 hover:text-slate-600 transition"
+        >
+          <Plus className="h-2.5 w-2.5" /> Add more
+        </button>
+      )}
+
+      <input
+        ref={inputRef}
+        type="file"
+        multiple
+        accept="audio/*"
+        className="hidden"
+        onChange={(e) => {
+          if (e.target.files) onAdd(Array.from(e.target.files));
+          e.target.value = "";
+        }}
+      />
+    </div>
   );
 }
 
