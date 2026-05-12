@@ -1061,13 +1061,92 @@ function VideoCutterApp({
   return (
    <PoolContext.Provider value={poolCtx}>
     <div className="min-h-screen w-full bg-slate-50 text-slate-900">
+      <style>{`
+        @keyframes haka-pulse {
+          0%,100% { transform: translateY(0) scale(1); }
+          50% { transform: translateY(-3px) scale(1.04); }
+        }
+        .btn-3d {
+          position: relative;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          padding: 7px 20px;
+          min-width: 130px;
+          border: none;
+          border-radius: 12px;
+          font-size: 13px;
+          font-weight: 700;
+          letter-spacing: 0.06em;
+          cursor: pointer;
+          color: #fff;
+          transition: transform 0.13s cubic-bezier(0.34,1.56,0.64,1),
+                      box-shadow 0.13s cubic-bezier(0.34,1.56,0.64,1),
+                      filter 0.13s ease;
+          user-select: none;
+        }
+        .btn-3d:disabled {
+          cursor: not-allowed;
+          opacity: 0.38;
+          filter: grayscale(0.4);
+          transform: none !important;
+          box-shadow: none !important;
+        }
+        .btn-3d:not(:disabled):hover {
+          transform: translateY(-5px) scale(1.06);
+          animation: haka-pulse 0.45s ease-in-out 1;
+          filter: brightness(1.12);
+        }
+        .btn-3d:not(:disabled):active {
+          transform: translateY(3px) scale(0.97) !important;
+          filter: brightness(0.92) !important;
+        }
+
+        /* LOAD button — teal */
+        .btn-load {
+          background: linear-gradient(135deg, #0d9488 0%, #0891b2 100%);
+          box-shadow: 0 6px 0 #0f766e, 0 8px 18px rgba(13,148,136,0.45);
+        }
+        .btn-load:not(:disabled):hover {
+          box-shadow: 0 10px 0 #0f766e, 0 14px 28px rgba(13,148,136,0.55);
+        }
+        .btn-load:not(:disabled):active {
+          box-shadow: 0 2px 0 #0f766e, 0 2px 8px rgba(13,148,136,0.3) !important;
+        }
+
+        /* DOWNLOAD ZIP button — indigo */
+        .btn-download {
+          background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+          box-shadow: 0 6px 0 #3730a3, 0 8px 18px rgba(99,102,241,0.45);
+        }
+        .btn-download:not(:disabled):hover {
+          box-shadow: 0 10px 0 #3730a3, 0 14px 28px rgba(99,102,241,0.55);
+        }
+        .btn-download:not(:disabled):active {
+          box-shadow: 0 2px 0 #3730a3, 0 2px 8px rgba(99,102,241,0.3) !important;
+        }
+
+        /* SPEED +- button — violet */
+        .btn-speed {
+          background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+          box-shadow: 0 6px 0 #5b21b6, 0 8px 18px rgba(139,92,246,0.45);
+        }
+        .btn-speed:not(:disabled):hover {
+          box-shadow: 0 10px 0 #5b21b6, 0 14px 28px rgba(139,92,246,0.55);
+        }
+        .btn-speed:not(:disabled):active {
+          box-shadow: 0 2px 0 #5b21b6, 0 2px 8px rgba(139,92,246,0.3) !important;
+        }
+      `}</style>
       <div className="mx-auto max-w-6xl px-6 py-8">
         {/* Header bar */}
         <div className="mb-8 flex items-center justify-between gap-4 rounded-2xl border-2 border-slate-300 bg-white px-6 py-3 shadow-sm">
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-800">
-            Video Clip Cutter
-          </h1>
+          {/* LEFT: title + engine status + LOAD */}
           <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-semibold tracking-tight text-slate-800">
+              Video Clip Cutter
+            </h1>
             {ffmpegLoading && (
               <span className="inline-flex items-center gap-1.5 text-xs text-slate-500">
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -1075,7 +1154,7 @@ function VideoCutterApp({
               </span>
             )}
             {!ffmpegLoading && ffmpegReady && (
-              <span className="inline-flex items-center gap-1.5 text-xs text-emerald-600">
+              <span className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
                 <CheckCircle2 className="h-3.5 w-3.5" />
                 Ready
               </span>
@@ -1083,23 +1162,38 @@ function VideoCutterApp({
             {ffmpegError && (
               <span className="text-xs text-rose-600">{ffmpegError}</span>
             )}
+            <button
+              className="btn-3d btn-load"
+              onClick={() => {
+                loadPoolToCards("audio");
+                loadPoolToCards("video");
+              }}
+              title="Load both Audio Pool and Video Pool into cards"
+            >
+              <UploadCloud className="h-4 w-4" />
+              LOAD
+            </button>
+          </div>
+
+          {/* RIGHT: Download ZIP + Speed +- */}
+          <div className="flex items-center gap-3">
             {completeCount > 0 && (
               <button
                 onClick={handleDownloadZip}
                 disabled={zipping}
                 data-testid="button-download-zip"
-                className="inline-flex min-w-[140px] items-center justify-center rounded-xl border-2 border-indigo-400 bg-white px-5 py-1.5 text-sm font-semibold tracking-wider text-indigo-700 transition hover:border-indigo-600 hover:bg-indigo-50 disabled:cursor-not-allowed disabled:opacity-40"
+                className="btn-3d btn-download"
               >
                 {zipping ? (
-                  <span className="inline-flex items-center">
-                    <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
                     ZIPPING…
-                  </span>
+                  </>
                 ) : (
-                  <span className="inline-flex items-center">
-                    <Download className="mr-2 h-3.5 w-3.5" />
-                    DOWNLOAD ZIP ({completeCount})
-                  </span>
+                  <>
+                    <Download className="h-4 w-4" />
+                    ZIP ({completeCount})
+                  </>
                 )}
               </button>
             )}
@@ -1107,18 +1201,18 @@ function VideoCutterApp({
               onClick={handleSpeed}
               disabled={!canRunSpeed}
               data-testid="button-speed"
-              className="inline-flex min-w-[140px] items-center justify-center rounded-xl border-2 border-violet-400 bg-white px-5 py-1.5 text-sm font-semibold tracking-wider text-violet-700 transition hover:border-violet-600 hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-40"
+              className="btn-3d btn-speed"
             >
               {anyWorking ? (
-                <span className="inline-flex items-center">
-                  <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
                   WORKING…
-                </span>
+                </>
               ) : (
-                <span className="inline-flex items-center">
-                  <Gauge className="mr-2 h-3.5 w-3.5" />
+                <>
+                  <Gauge className="h-4 w-4" />
                   SPEED +-
-                </span>
+                </>
               )}
             </button>
           </div>
