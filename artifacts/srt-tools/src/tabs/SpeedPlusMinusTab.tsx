@@ -1062,81 +1062,78 @@ function VideoCutterApp({
    <PoolContext.Provider value={poolCtx}>
     <div className="min-h-screen w-full bg-slate-50 text-slate-900">
       <style>{`
-        @keyframes haka-pulse {
-          0%,100% { transform: translateY(0) scale(1); }
-          50% { transform: translateY(-3px) scale(1.04); }
+        @keyframes btn-pop {
+          0%   { transform: translateY(0) scale(1); }
+          40%  { transform: translateY(-6px) scale(1.07); }
+          70%  { transform: translateY(-3px) scale(1.04); }
+          100% { transform: translateY(-5px) scale(1.05); }
         }
         .btn-3d {
           position: relative;
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          gap: 6px;
-          padding: 7px 20px;
-          min-width: 130px;
+          gap: 7px;
+          padding: 8px 18px;
+          min-width: 120px;
           border: none;
-          border-radius: 12px;
+          border-radius: 9px;
           font-size: 13px;
           font-weight: 700;
-          letter-spacing: 0.06em;
+          letter-spacing: 0.05em;
           cursor: pointer;
           color: #fff;
-          transition: transform 0.13s cubic-bezier(0.34,1.56,0.64,1),
-                      box-shadow 0.13s cubic-bezier(0.34,1.56,0.64,1),
-                      filter 0.13s ease;
+          white-space: nowrap;
+          transition: transform 0.15s cubic-bezier(0.34,1.56,0.64,1),
+                      box-shadow 0.15s cubic-bezier(0.34,1.56,0.64,1),
+                      filter 0.12s ease;
           user-select: none;
         }
         .btn-3d:disabled {
           cursor: not-allowed;
-          opacity: 0.38;
-          filter: grayscale(0.4);
+          opacity: 0.4;
+          filter: grayscale(0.5);
           transform: none !important;
-          box-shadow: none !important;
+          box-shadow: var(--btn-shadow-base) !important;
         }
         .btn-3d:not(:disabled):hover {
-          transform: translateY(-5px) scale(1.06);
-          animation: haka-pulse 0.45s ease-in-out 1;
-          filter: brightness(1.12);
+          transform: translateY(-5px) scale(1.05);
+          animation: btn-pop 0.3s cubic-bezier(0.34,1.56,0.64,1) 1;
+          filter: brightness(1.1) saturate(1.15);
+          box-shadow: var(--btn-shadow-hover) !important;
         }
         .btn-3d:not(:disabled):active {
-          transform: translateY(3px) scale(0.97) !important;
-          filter: brightness(0.92) !important;
+          transform: translateY(2px) scale(0.97) !important;
+          filter: brightness(0.9) !important;
+          box-shadow: var(--btn-shadow-press) !important;
+          transition-duration: 0.07s !important;
         }
 
-        /* LOAD button — teal */
+        /* LOAD — green */
         .btn-load {
-          background: linear-gradient(135deg, #0d9488 0%, #0891b2 100%);
-          box-shadow: 0 6px 0 #0f766e, 0 8px 18px rgba(13,148,136,0.45);
-        }
-        .btn-load:not(:disabled):hover {
-          box-shadow: 0 10px 0 #0f766e, 0 14px 28px rgba(13,148,136,0.55);
-        }
-        .btn-load:not(:disabled):active {
-          box-shadow: 0 2px 0 #0f766e, 0 2px 8px rgba(13,148,136,0.3) !important;
+          background: #22c55e;
+          --btn-shadow-base:  0 4px 0 #15803d, 0 6px 14px rgba(34,197,94,0.4);
+          --btn-shadow-hover: 0 8px 0 #15803d, 0 12px 24px rgba(34,197,94,0.5);
+          --btn-shadow-press: 0 1px 0 #15803d, 0 2px 6px rgba(34,197,94,0.3);
+          box-shadow: 0 4px 0 #15803d, 0 6px 14px rgba(34,197,94,0.4);
         }
 
-        /* DOWNLOAD ZIP button — indigo */
+        /* DOWNLOAD ZIP — blue */
         .btn-download {
-          background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
-          box-shadow: 0 6px 0 #3730a3, 0 8px 18px rgba(99,102,241,0.45);
-        }
-        .btn-download:not(:disabled):hover {
-          box-shadow: 0 10px 0 #3730a3, 0 14px 28px rgba(99,102,241,0.55);
-        }
-        .btn-download:not(:disabled):active {
-          box-shadow: 0 2px 0 #3730a3, 0 2px 8px rgba(99,102,241,0.3) !important;
+          background: #3b82f6;
+          --btn-shadow-base:  0 4px 0 #1d4ed8, 0 6px 14px rgba(59,130,246,0.4);
+          --btn-shadow-hover: 0 8px 0 #1d4ed8, 0 12px 24px rgba(59,130,246,0.5);
+          --btn-shadow-press: 0 1px 0 #1d4ed8, 0 2px 6px rgba(59,130,246,0.3);
+          box-shadow: 0 4px 0 #1d4ed8, 0 6px 14px rgba(59,130,246,0.4);
         }
 
-        /* SPEED +- button — violet */
+        /* SPEED +- — orange */
         .btn-speed {
-          background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
-          box-shadow: 0 6px 0 #5b21b6, 0 8px 18px rgba(139,92,246,0.45);
-        }
-        .btn-speed:not(:disabled):hover {
-          box-shadow: 0 10px 0 #5b21b6, 0 14px 28px rgba(139,92,246,0.55);
-        }
-        .btn-speed:not(:disabled):active {
-          box-shadow: 0 2px 0 #5b21b6, 0 2px 8px rgba(139,92,246,0.3) !important;
+          background: #f97316;
+          --btn-shadow-base:  0 4px 0 #c2410c, 0 6px 14px rgba(249,115,22,0.4);
+          --btn-shadow-hover: 0 8px 0 #c2410c, 0 12px 24px rgba(249,115,22,0.5);
+          --btn-shadow-press: 0 1px 0 #c2410c, 0 2px 6px rgba(249,115,22,0.3);
+          box-shadow: 0 4px 0 #c2410c, 0 6px 14px rgba(249,115,22,0.4);
         }
       `}</style>
       <div className="mx-auto max-w-6xl px-6 py-8">
