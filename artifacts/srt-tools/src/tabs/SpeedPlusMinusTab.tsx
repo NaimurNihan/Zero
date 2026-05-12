@@ -136,7 +136,7 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
 }
 
-const DURATION_CONCURRENCY = 3;
+const DURATION_CONCURRENCY = 8;
 let __durationActive = 0;
 const __durationQueue: (() => void)[] = [];
 
