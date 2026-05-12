@@ -705,7 +705,7 @@ export default function SrtNoteTab({ incomingText, incomingName, incomingKey, on
                     <span className={`text-[10px] font-bold uppercase tracking-wider ${isCopied ? "text-emerald-700 dark:text-emerald-300" : "text-primary"}`}>
                       {chunk.length === 0 ? `${startLine}` : `${startLine}–${endLine}`}
                     </span>
-                    <span className={`text-[10px] ${isCopied ? "text-emerald-700/80 dark:text-emerald-300/80" : "text-muted-foreground"}`}>{chunk.length} lines</span>
+                    <span className={`text-[10px] ${isCopied ? "text-emerald-700/80 dark:text-emerald-300/80" : "text-muted-foreground"}`}>{chunk.length}L</span>
                     {isCopied && <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-300">✓ Copied</span>}
                   </div>
                   <button onClick={handleChunkCopy} title={isCopied ? "Copy again" : "Copy this section"}
@@ -739,8 +739,8 @@ export default function SrtNoteTab({ incomingText, incomingName, incomingKey, on
               <div className="shrink-0 flex items-center justify-between px-4 py-3 border-b border-border bg-card rounded-t-xl">
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-semibold text-foreground uppercase tracking-wider">{lang.label}</span>
-                  <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">{lineCount} {lineCount === 1 ? "line" : "lines"}</span>
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${ptuCount !== lineCount ? "text-red-500 bg-red-100 dark:bg-red-950" : "text-muted-foreground bg-muted"}`}>{ptuCount} ptu</span>
+                  <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">{lineCount}L</span>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${ptuCount !== lineCount ? "text-red-500 bg-red-100 dark:bg-red-950" : "text-muted-foreground bg-muted"}`}>{ptuCount}P</span>
                 </div>
                 <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                   {onSendToSrtMaker && (
