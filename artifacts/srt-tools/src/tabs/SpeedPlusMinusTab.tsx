@@ -491,6 +491,8 @@ function VideoCutterApp({
     french: [],
   });
 
+  const [sentLangs, setSentLangs] = useState<Set<string>>(new Set());
+
   const addLangFiles = (lang: string, files: File[]) => {
     const audioFiles = files.filter((f) => f.type.startsWith("audio/"));
     if (audioFiles.length === 0) return;
@@ -498,10 +500,12 @@ function VideoCutterApp({
       ...prev,
       [lang]: [...(prev[lang] || []), ...audioFiles],
     }));
+    setSentLangs((prev) => { const next = new Set(prev); next.delete(lang); return next; });
   };
 
   const clearLangPool = (lang: string) => {
     setLangPools((prev) => ({ ...prev, [lang]: [] }));
+    setSentLangs((prev) => { const next = new Set(prev); next.delete(lang); return next; });
   };
 
   const sendLangToPool = (lang: string) => {
@@ -509,6 +513,7 @@ function VideoCutterApp({
     if (files.length === 0) return;
     currentLabelRef.current = lang.toUpperCase() + " AUDIO";
     addPoolFiles(files);
+    setSentLangs((prev) => new Set([...prev, lang]));
   };
 
   const poolCtx = useMemo(
@@ -1138,6 +1143,7 @@ function VideoCutterApp({
           {/* LEFT: A.G.E.S.F Language Audio Pools sidebar */}
           <LangAudioPools
             langPools={langPools}
+            sentLangs={sentLangs}
             onAdd={addLangFiles}
             onClear={clearLangPool}
             onSend={sendLangToPool}
@@ -1491,11 +1497,13 @@ const LANG_POOL_CONFIG = [
 
 function LangAudioPools({
   langPools,
+  sentLangs,
   onAdd,
   onClear,
   onSend,
 }: {
   langPools: Record<string, File[]>;
+  sentLangs: Set<string>;
   onAdd: (lang: string, files: File[]) => void;
   onClear: (lang: string) => void;
   onSend: (lang: string) => void;
@@ -1518,6 +1526,7 @@ function LangAudioPools({
             key={cfg.key}
             config={cfg}
             files={langPools[cfg.key] || []}
+            sent={sentLangs.has(cfg.key)}
             onAdd={(files) => onAdd(cfg.key, files)}
             onClear={() => onClear(cfg.key)}
             onSend={() => onSend(cfg.key)}
@@ -1531,12 +1540,14 @@ function LangAudioPools({
 function LangPoolSection({
   config,
   files,
+  sent,
   onAdd,
   onClear,
   onSend,
 }: {
   config: (typeof LANG_POOL_CONFIG)[number];
   files: File[];
+  sent: boolean;
   onAdd: (files: File[]) => void;
   onClear: () => void;
   onSend: () => void;
@@ -1545,19 +1556,23 @@ function LangPoolSection({
   const [dragOver, setDragOver] = useState(false);
   const hasFiles = files.length > 0;
 
+  const SENT_GREEN = "#16a34a";
+  const SENT_BG   = "#dcfce7";
+  const SENT_BORDER = "#86efac";
+
   return (
     <div
       className="rounded-xl border p-2 transition-all"
       style={{
-        borderColor: config.border,
-        background: config.bg,
+        borderColor: sent ? SENT_BORDER : config.border,
+        background:  sent ? SENT_BG    : config.bg,
       }}
     >
       {/* Row: label + file count + clear */}
       <div className="mb-1.5 flex items-center justify-between gap-1">
         <span
           className="text-[9px] font-bold tracking-widest uppercase"
-          style={{ color: config.accent }}
+          style={{ color: sent ? SENT_GREEN : config.accent }}
         >
           {config.label}
         </span>
@@ -1585,20 +1600,20 @@ function LangPoolSection({
             type="button"
             onClick={onSend}
             className="flex flex-1 items-center justify-center gap-1 rounded-lg py-1.5 text-[10px] font-bold uppercase tracking-wide text-white shadow transition hover:brightness-110 active:brightness-90"
-            style={{ background: "#22c55e" }}
+            style={{ background: sent ? SENT_GREEN : "#22c55e" }}
             title={`Send all ${files.length} files to Audio Pool`}
           >
-            <Music className="h-3 w-3" />
-            All Audio Files
+            {sent ? <CheckCircle2 className="h-3 w-3" /> : <Music className="h-3 w-3" />}
+            {sent ? "Sent!" : "All Audio Files"}
           </button>
           <button
             type="button"
             onClick={onSend}
             className="flex h-7 w-7 items-center justify-center rounded-lg text-white shadow transition hover:brightness-110 active:brightness-90"
-            style={{ background: config.accent }}
+            style={{ background: sent ? SENT_GREEN : config.accent }}
             title="Send to Audio Pool"
           >
-            <ArrowRight className="h-3.5 w-3.5" />
+            {sent ? <CheckCircle2 className="h-3.5 w-3.5" /> : <ArrowRight className="h-3.5 w-3.5" />}
           </button>
         </div>
       ) : (
