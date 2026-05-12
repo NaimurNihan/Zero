@@ -95,9 +95,16 @@ function pickPoolSize(): number {
 const ENGINE_POOL_SIZE = pickPoolSize();
 
 // Recycle each engine every N successful jobs to keep WASM heap
-// healthy. Cutting++ does ~3 exec + 2 writeFile + 2 readFile per job
-// (much heavier than Cutting+), so we recycle more aggressively.
-const RECYCLE_EVERY_PP = 5;
+// healthy. Set to 10 so pauses happen every ~20 cards (2 slots × 10)
+// instead of every 10, giving background pre-warm enough runway.
+const RECYCLE_EVERY_PP = 10;
+
+// Pre-warm a replacement engine when a slot has completed this many jobs.
+// At RECYCLE_EVERY_PP/2 (job 5 of 10) the new engine starts loading in
+// the background. For 5-10 s clips (~10-20 s per encode), 5 remaining
+// jobs ≈ 50-100 s of runway — enough time to load ffmpeg.wasm (~45-60 s)
+// so the replacement is ready before the slot actually needs recycling.
+const PREWARM_AT = Math.ceil(RECYCLE_EVERY_PP / 2);
 
 // Auto-archive successful jobs into the ZIP after every BATCH_SIZE_PP cuts
 // and revoke their blob URLs to keep RAM bounded. Lets users process 200+
@@ -317,6 +324,10 @@ function VideoCutterApp({
     busy: boolean;
     loading: Promise<FFmpeg> | null;
     progressCb: ((p: number) => void) | null;
+    // Pre-warm: a replacement engine loaded in the background so that
+    // recycleSlot can swap it in instantly with zero wait time.
+    nextFfmpeg: FFmpeg | null;
+    preWarmLoading: Promise<void> | null;
   };
 
   const slotsRef = useRef<EngineSlot[]>([]);
@@ -384,6 +395,8 @@ function VideoCutterApp({
         busy: false,
         loading: null,
         progressCb: null,
+        nextFfmpeg: null,
+        preWarmLoading: null,
       }),
     );
     slotsRef.current = slots;
@@ -418,17 +431,77 @@ function VideoCutterApp({
             /* ignore */
           }
         }
+        // Also clean up any pre-warmed engine waiting in the wings.
+        const nxt = s.nextFfmpeg;
+        if (nxt) {
+          try {
+            nxt.terminate();
+          } catch {
+            /* ignore */
+          }
+        }
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Start loading a replacement engine in the background so it is ready
+  // before the slot actually needs recycling. Called from releaseSlot when
+  // jobsSinceRecycle reaches PREWARM_AT. Safe to call multiple times —
+  // does nothing if a pre-warm is already in progress or already done.
+  const preWarmSlot = (slot: EngineSlot): void => {
+    if (slot.preWarmLoading || slot.nextFfmpeg) return;
+    slot.preWarmLoading = (async () => {
+      try {
+        console.log(`[Speed+-] slot ${slot.id}: pre-warming replacement engine…`);
+        const fresh = await loadFreshFFmpeg(slot);
+        if (!slot.nextFfmpeg) {
+          slot.nextFfmpeg = fresh;
+          console.log(`[Speed+-] slot ${slot.id}: pre-warm ready ✓`);
+        } else {
+          // Already have one (shouldn't happen) — discard the extra.
+          try { fresh.terminate(); } catch { /* ignore */ }
+        }
+      } catch (err) {
+        console.warn(`[Speed+-] slot ${slot.id}: pre-warm failed (will fall back to sync recycle):`, err);
+      } finally {
+        slot.preWarmLoading = null;
+      }
+    })();
+  };
+
   // Force-terminate one slot's engine and load a fresh one in place.
+  // If a pre-warmed engine is available (nextFfmpeg) it is swapped in
+  // instantly — no wait. If the pre-warm is still in progress we await
+  // its completion. Only falls back to a full synchronous load when no
+  // pre-warm was started at all (e.g. first use after page load).
   const recycleSlot = async (slot: EngineSlot): Promise<void> => {
     if (slot.loading) {
       await slot.loading;
       return;
     }
+
+    // Wait for any in-progress pre-warm to finish.
+    if (slot.preWarmLoading) {
+      console.log(`[Speed+-] slot ${slot.id}: awaiting in-progress pre-warm…`);
+      await slot.preWarmLoading;
+    }
+
+    // Instant swap if the pre-warmed engine is ready.
+    if (slot.nextFfmpeg) {
+      console.log(`[Speed+-] slot ${slot.id}: instant recycle from pre-warm ✓ (no pause)`);
+      const old = slot.ffmpeg;
+      slot.ffmpeg = slot.nextFfmpeg;
+      slot.nextFfmpeg = null;
+      slot.jobsSinceRecycle = 0;
+      if (old) {
+        try { old.terminate(); } catch { /* ignore */ }
+      }
+      return;
+    }
+
+    // Fallback: synchronous load (only happens when no pre-warm ran).
+    console.log(`[Speed+-] slot ${slot.id}: no pre-warm available, loading synchronously…`);
     const old = slot.ffmpeg;
     slot.ffmpeg = null;
     slot.loading = (async () => {
@@ -476,6 +549,17 @@ function VideoCutterApp({
   const releaseSlot = (slot: EngineSlot) => {
     slot.busy = false;
     slot.progressCb = null;
+    // Kick off background pre-warm once the slot has reached the halfway
+    // point of its recycle cycle. This gives ~PREWARM_AT more jobs worth
+    // of time (50-100 s for 5-10 s clips) for the new engine to load
+    // before the slot actually needs recycling — eliminating the pause.
+    if (
+      slot.jobsSinceRecycle >= PREWARM_AT &&
+      !slot.nextFfmpeg &&
+      !slot.preWarmLoading
+    ) {
+      preWarmSlot(slot);
+    }
     const next = slotWaitersRef.current.shift();
     if (next) next();
   };
