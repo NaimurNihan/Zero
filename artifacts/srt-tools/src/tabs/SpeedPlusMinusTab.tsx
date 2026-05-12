@@ -36,6 +36,7 @@ import {
   Gauge,
   FastForward,
   Rewind,
+  Equal,
 } from "lucide-react";
 
 // Speed +- constraint: video may be slowed down or sped up only within
@@ -981,9 +982,10 @@ function VideoCutterApp({
     (c) => c.hasAudio && c.hasVideo && !c.isDone,
   ).length;
   const completeCount = cardStates.filter((c) => c.isDone).length;
+  const matchCount = cardStates.filter((c) => c.isEqual && !c.isDone).length;
   const isErrorCard = (c: CardState) =>
     c.hasAudio !== c.hasVideo ||
-    (c.hasAudio && c.hasVideo && !c.isDone && !c.isWorking && !c.canCut && !c.mode);
+    (c.hasAudio && c.hasVideo && !c.isDone && !c.isWorking && !c.canCut && !c.mode && !c.isEqual);
   const errorCount = cardStates.filter(isErrorCard).length;
   const errorCardNumbers = cardStates
     .map((c, i) => (isErrorCard(c) ? i + 1 : null))
@@ -1498,7 +1500,18 @@ function VideoCutterApp({
               </span>
             </div>
 
-            {/* Row 3: ARCHIVED | COMPLETE */}
+            {/* Row 3: MATCH | ARCHIVED | COMPLETE */}
+            <div className={`flex items-center gap-2 rounded-lg border border-teal-200 bg-teal-50/60 px-2.5 py-1 transition-opacity ${matchCount === 0 ? "opacity-20" : ""}`}>
+              <span className="flex h-6 w-6 items-center justify-center rounded-md bg-teal-500 text-white">
+                <Equal className="h-3 w-3" />
+              </span>
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-teal-700">
+                Match
+              </span>
+              <span className="ml-auto text-sm font-bold text-slate-800" data-testid="info-match-count">
+                {matchCount} <span className="text-[10px] font-medium text-slate-500">cards</span>
+              </span>
+            </div>
             <div className={`flex items-center gap-2 rounded-lg border border-emerald-300 bg-emerald-50/60 px-2.5 py-1 transition-opacity ${archivedCount === 0 ? "opacity-20" : ""}`}>
               <span className="flex h-6 w-6 items-center justify-center rounded-md bg-emerald-600 text-white">
                 {archiving ? (
