@@ -602,7 +602,7 @@ function VideoCutterApp({
   const sendLangToPool = (lang: string) => {
     const files = langPools[lang] || [];
     if (files.length === 0) return;
-    currentLabelRef.current = lang.toUpperCase() + " AUDIO";
+    currentLabelRef.current = lang.toUpperCase() + " VIDEO";
     addPoolFiles(files);
     setSentLangs((prev) => new Set([...prev, lang]));
   };
