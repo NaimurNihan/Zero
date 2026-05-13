@@ -314,6 +314,10 @@ function VideoCutterApp({
   const [ffmpegReady, setFfmpegReady] = useState(false);
   const [ffmpegLoading, setFfmpegLoading] = useState(true);
   const [ffmpegError, setFfmpegError] = useState<string>("");
+  // Tracks how many slots have a pre-warmed standby engine ready (0, 1, or 2).
+  const [standbyCount, setStandbyCount] = useState(0);
+  // Tracks how many slots are currently loading a replacement engine.
+  const [prewarmingSlots, setPrewarmingSlots] = useState(0);
 
   // Whether we're using the multi-threaded core. Decided once at boot,
   // based on cross-origin isolation. Falls back automatically if MT load
@@ -466,6 +470,7 @@ function VideoCutterApp({
   // does nothing if a pre-warm is already in progress or already done.
   const preWarmSlot = (slot: EngineSlot): void => {
     if (slot.preWarmLoading || slot.nextFfmpeg) return;
+    setPrewarmingSlots((n) => n + 1);
     slot.preWarmLoading = (async () => {
       try {
         console.log(`[Speed+-] slot ${slot.id}: pre-warming replacement engine…`);
@@ -473,6 +478,7 @@ function VideoCutterApp({
         if (!slot.nextFfmpeg) {
           slot.nextFfmpeg = fresh;
           console.log(`[Speed+-] slot ${slot.id}: pre-warm ready ✓`);
+          setStandbyCount((n) => n + 1);
         } else {
           // Already have one (shouldn't happen) — discard the extra.
           try { fresh.terminate(); } catch { /* ignore */ }
@@ -481,6 +487,7 @@ function VideoCutterApp({
         console.warn(`[Speed+-] slot ${slot.id}: pre-warm failed (will fall back to sync recycle):`, err);
       } finally {
         slot.preWarmLoading = null;
+        setPrewarmingSlots((n) => Math.max(0, n - 1));
       }
     })();
   };
@@ -509,6 +516,7 @@ function VideoCutterApp({
       slot.ffmpeg = slot.nextFfmpeg;
       slot.nextFfmpeg = null;
       slot.jobsSinceRecycle = 0;
+      setStandbyCount((n) => Math.max(0, n - 1));
       if (old) {
         try { old.terminate(); } catch { /* ignore */ }
       }
@@ -1420,6 +1428,25 @@ function VideoCutterApp({
                 <CheckCircle2 className="h-3.5 w-3.5" />
                 Ready
               </span>
+            )}
+            {/* Standby engine status badge */}
+            {ffmpegReady && (
+              standbyCount >= ENGINE_POOL_SIZE ? (
+                <span className="inline-flex items-center gap-1.5 rounded-lg border border-green-300 bg-green-50 px-2.5 py-0.5 text-xs font-semibold text-green-700" title="All standby engines pre-warmed — engine swaps will be instant with zero pause">
+                  <CheckCheck className="h-3.5 w-3.5" />
+                  Standby {standbyCount}/{ENGINE_POOL_SIZE} ✓
+                </span>
+              ) : prewarmingSlots > 0 ? (
+                <span className="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700" title="Standby engines loading in background — will be ready before first engine recycle">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  Standby {standbyCount}/{ENGINE_POOL_SIZE}…
+                </span>
+              ) : standbyCount > 0 ? (
+                <span className="inline-flex items-center gap-1.5 rounded-lg border border-sky-200 bg-sky-50 px-2.5 py-0.5 text-xs font-semibold text-sky-700" title={`${standbyCount} of ${ENGINE_POOL_SIZE} standby engines ready`}>
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  Standby {standbyCount}/{ENGINE_POOL_SIZE}
+                </span>
+              ) : null
             )}
             {ffmpegError && (
               <span className="text-xs text-rose-600">{ffmpegError}</span>
