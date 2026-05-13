@@ -100,16 +100,17 @@ function pickPoolSize(): number {
 const ENGINE_POOL_SIZE = pickPoolSize();
 
 // Recycle each engine every N successful jobs to keep WASM heap
-// healthy. Set to 10 so pauses happen every ~20 cards (2 slots × 10)
-// instead of every 10, giving background pre-warm enough runway.
-const RECYCLE_EVERY_PP = 10;
+// healthy. Set to 20 so pauses happen every ~40 cards (2 slots × 20).
+// Increased from 10 → 20 to give pre-warm more runway, especially for
+// short clips (2-6 s) where 10 jobs finish too quickly for ffmpeg to load.
+const RECYCLE_EVERY_PP = 20;
 
 // Pre-warm a replacement engine when a slot has completed this many jobs.
-// At RECYCLE_EVERY_PP/2 (job 5 of 10) the new engine starts loading in
-// the background. For 5-10 s clips (~10-20 s per encode), 5 remaining
-// jobs ≈ 50-100 s of runway — enough time to load ffmpeg.wasm (~45-60 s)
-// so the replacement is ready before the slot actually needs recycling.
-const PREWARM_AT = Math.ceil(RECYCLE_EVERY_PP / 2);
+// Set to 1 so the replacement starts loading after the very first job.
+// For short clips (2-6 s, ~5-15 s encode time on i3), starting at job 1
+// gives ~155 s of runway before recycle at job 20 — more than enough for
+// ffmpeg.wasm to load (~45-60 s), guaranteeing instant swap with zero pause.
+const PREWARM_AT = 1;
 
 // Auto-archive successful jobs into the ZIP after every BATCH_SIZE_PP cuts
 // and revoke their blob URLs to keep RAM bounded. Lets users process 200+
