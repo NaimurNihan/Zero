@@ -41,6 +41,8 @@ import {
   PlayCircle,
   StopCircle,
   ChevronRight,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 
 // Speed +- constraint: video may be slowed down or sped up only within
@@ -1821,6 +1823,7 @@ function LangAudioPools({
   const hasAnyFiles = LANG_POOL_CONFIG.some(
     (cfg) => (langPools[cfg.key] || []).length > 0,
   );
+  const [poolsVisible, setPoolsVisible] = useState(true);
 
   return (
     <div
@@ -1829,7 +1832,14 @@ function LangAudioPools({
     >
       {/* Header */}
       <div className="rounded-t-xl bg-gradient-to-r from-slate-700 to-slate-800 px-3 py-2.5 flex items-center justify-between">
-        <div className="w-5" />
+        <button
+          type="button"
+          onClick={() => setPoolsVisible((v) => !v)}
+          title={poolsVisible ? "Hide audio pools" : "Show audio pools"}
+          className="flex h-5 w-5 items-center justify-center rounded border border-white/30 bg-white/10 text-white transition hover:bg-white/25 active:scale-90"
+        >
+          {poolsVisible ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
+        </button>
         <p className="text-center text-[11px] font-bold tracking-widest text-white uppercase">
           A.G.E.S.F Audio Pools
         </p>
@@ -1842,6 +1852,16 @@ function LangAudioPools({
           <X className="h-3 w-3" />
         </button>
       </div>
+
+      {/* Collapsible body — hidden when eye is off */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateRows: poolsVisible ? "1fr" : "0fr",
+          transition: "grid-template-rows 0.25s ease",
+        }}
+      >
+      <div style={{ overflow: "hidden" }}>
 
       {/* RUN / PAUSE / RESUME / STOP automation button */}
       <div className="px-2.5 pt-2.5">
@@ -1948,6 +1968,9 @@ function LangAudioPools({
           />
         ))}
       </div>
+
+      </div>{/* /overflow:hidden */}
+      </div>{/* /grid collapsible */}
     </div>
   );
 }
