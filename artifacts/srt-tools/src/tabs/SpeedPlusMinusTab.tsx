@@ -802,7 +802,12 @@ function VideoCutterApp({
     const liveReady = cardStates
       .map((c, i) => ({ c, i }))
       .filter(
-        ({ c }) => c.isDone && !c.isArchived && c.mergedBlob && c.mergedName,
+        ({ c }) =>
+          c.isDone &&
+          !c.isArchived &&
+          c.mergedBlob &&
+          c.mergedName &&
+          !archivedNamesRef.current.has(c.mergedName),
       );
     const hasArchive = !!archiveZipRef.current;
     if (!hasArchive && liveReady.length === 0) return;
