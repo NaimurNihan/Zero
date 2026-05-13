@@ -100,10 +100,11 @@ function pickPoolSize(): number {
 const ENGINE_POOL_SIZE = pickPoolSize();
 
 // Recycle each engine every N successful jobs to keep WASM heap
-// healthy. Set to 20 so pauses happen every ~40 cards (2 slots × 20).
-// Increased from 10 → 20 to give pre-warm more runway, especially for
-// short clips (2-6 s) where 10 jobs finish too quickly for ffmpeg to load.
-const RECYCLE_EVERY_PP = 20;
+// healthy. Set to 35 so pauses happen every ~70 cards (2 slots × 35).
+// Increased from 20 → 35: on i3-10100, two simultaneous pre-warm loads
+// take ~80-90 s (CPU contention). 35 jobs × ~4 s/clip = 140 s before
+// recycle — gives a comfortable 50 s buffer even with concurrent loading.
+const RECYCLE_EVERY_PP = 35;
 
 // Pre-warm a replacement engine when a slot has completed this many jobs.
 // Set to 1 so the replacement starts loading after the very first job.
@@ -417,6 +418,14 @@ function VideoCutterApp({
         if (cancelled) return;
         setFfmpegReady(true);
         setFfmpegLoading(false);
+        // Eagerly pre-warm replacement engines right after startup so they
+        // are ready before the first recycle hits. Stagger slot 0 and slot 1
+        // by 25 s so their WASM loads don't fight for CPU simultaneously on
+        // low-core machines (i3 / 4-core). By the time the user loads 200
+        // files into the pools (~60-120 s of human interaction), both
+        // replacements are fully loaded and the first recycle is instant.
+        if (slots[0]) preWarmSlot(slots[0]);
+        if (slots[1]) setTimeout(() => { if (!cancelled) preWarmSlot(slots[1]); }, 25000);
       })
       .catch((err) => {
         if (cancelled) return;
