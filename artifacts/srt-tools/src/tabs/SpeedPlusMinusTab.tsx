@@ -759,6 +759,7 @@ function VideoCutterApp({
   // bounded even when processing 200+ files.
   const archiveZipRef = useRef<unknown>(null);
   const archivedNamesRef = useRef<Set<string>>(new Set());
+  const archivedIndicesRef = useRef<Set<number>>(new Set());
 
   const archiveBatch = useCallback(
     async (
@@ -781,6 +782,7 @@ function VideoCutterApp({
               finalName = `${base}-${idx + 1}${ext}`;
             }
             archivedNamesRef.current.add(finalName);
+            archivedIndicesRef.current.add(idx);
             zip.file(finalName, blob);
             cardRefs.current[idx]?.markArchived();
           } catch (e) {
@@ -802,11 +804,12 @@ function VideoCutterApp({
     const liveReady = cardStates
       .map((c, i) => ({ c, i }))
       .filter(
-        ({ c }) =>
+        ({ c, i }) =>
           c.isDone &&
           !c.isArchived &&
           c.mergedBlob &&
           c.mergedName &&
+          !archivedIndicesRef.current.has(i) &&
           !archivedNamesRef.current.has(c.mergedName),
       );
     const hasArchive = !!archiveZipRef.current;
@@ -1110,6 +1113,7 @@ function VideoCutterApp({
     pendingUpdatesRef.current.clear();
     archiveZipRef.current = null;
     archivedNamesRef.current = new Set();
+    archivedIndicesRef.current = new Set();
     setArchivedCount(0);
     setNumCards(0);
     setCardStates([]);
@@ -1126,6 +1130,7 @@ function VideoCutterApp({
     resetAllCardOutputs();
     archiveZipRef.current = null;
     archivedNamesRef.current = new Set();
+    archivedIndicesRef.current = new Set();
     setArchivedCount(0);
     setDownloadCount(0);
     window.dispatchEvent(
