@@ -1385,6 +1385,10 @@ function VideoCutterApp({
             onPauseAutomation={() => { autoPausedRef.current = true; setAutoPaused(true); }}
             onResumeAutomation={() => { autoPausedRef.current = false; setAutoPaused(false); }}
             onStopAutomation={() => { autoStopRef.current = true; autoPausedRef.current = false; setAutoPaused(false); }}
+            onClearAll={() => {
+              LANG_POOL_CONFIG.forEach((cfg) => clearLangPool(cfg.key));
+              setSentLangs(new Set());
+            }}
           />
           {/* RIGHT: main content */}
           <div className="flex-1 min-w-0">
@@ -1759,6 +1763,7 @@ function LangAudioPools({
   onPauseAutomation,
   onResumeAutomation,
   onStopAutomation,
+  onClearAll,
 }: {
   langPools: Record<string, File[]>;
   sentLangs: Set<string>;
@@ -1774,6 +1779,7 @@ function LangAudioPools({
   onPauseAutomation: () => void;
   onResumeAutomation: () => void;
   onStopAutomation: () => void;
+  onClearAll: () => void;
 }) {
   const hasAnyFiles = LANG_POOL_CONFIG.some(
     (cfg) => (langPools[cfg.key] || []).length > 0,
@@ -1785,10 +1791,19 @@ function LangAudioPools({
       className="rounded-2xl border-2 border-slate-300 bg-white shadow-sm self-start sticky top-4"
     >
       {/* Header */}
-      <div className="rounded-t-xl bg-gradient-to-r from-slate-700 to-slate-800 px-3 py-2.5">
+      <div className="rounded-t-xl bg-gradient-to-r from-slate-700 to-slate-800 px-3 py-2.5 flex items-center justify-between">
+        <div className="w-5" />
         <p className="text-center text-[11px] font-bold tracking-widest text-white uppercase">
           A.G.E.S.F Audio Pools
         </p>
+        <button
+          type="button"
+          onClick={onClearAll}
+          title="Clear all audio pools"
+          className="flex h-5 w-5 items-center justify-center rounded border border-white/30 bg-white/10 text-white transition hover:bg-rose-500 hover:border-rose-400 active:scale-90"
+        >
+          <X className="h-3 w-3" />
+        </button>
       </div>
 
       {/* RUN / PAUSE / RESUME / STOP automation button */}
