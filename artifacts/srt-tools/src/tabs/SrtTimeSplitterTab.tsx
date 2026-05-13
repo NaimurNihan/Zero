@@ -85,6 +85,10 @@ export default function SrtTimeSplitterTab({ incomingSrt, incomingFilename, inco
   const markerCount = useMemo(() => (input.match(/✅/g) ?? []).length, [input]);
   const hasInput = input.trim().length > 0;
   const isOutputView = outputBlocks.length > 0;
+  const shortDurationCount = useMemo(
+    () => activeBlocks.filter(b => (b.endTime - b.startTime) < 1000).length,
+    [activeBlocks]
+  );
 
   const loadSrtText = (text: string, name: string) => {
     setInput(text);
@@ -528,6 +532,11 @@ export default function SrtTimeSplitterTab({ incomingSrt, incomingFilename, inco
                 {isOutputView ? `+${outputBlocks.length} cards` : `${markerCount} emoji sentence breaks found`}
               </span>
             )}
+            {hasInput && shortDurationCount > 0 && (
+              <span className="rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-[13px] font-semibold text-red-600 shadow-sm">
+                ⚠ {shortDurationCount} card{shortDurationCount > 1 ? "s" : ""} under 1s
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-2.5">
             {isOutputView && (
@@ -817,6 +826,9 @@ function SubtitleRow({
   findText: string;
   replacedWith?: string;
 }) {
+  const durationMs = block.endTime - block.startTime;
+  const durationSec = durationMs / 1000;
+  const isShort = durationSec < 1;
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [isEditing, setIsEditing] = useState(false);
 
@@ -917,11 +929,23 @@ function SubtitleRow({
             </Badge>
           )}
         </div>
-        <div className="flex items-center gap-4 text-slate-300">
-          <ChevronUp className="h-4 w-4" />
-          <ChevronDown className="h-4 w-4" />
-          <Plus className="h-4 w-4" />
-          <Trash2 className="h-4 w-4 text-slate-300" />
+        <div className="flex items-center gap-3">
+          <span
+            className={`rounded-md px-2 py-0.5 text-[12px] font-bold tabular-nums ${
+              isShort
+                ? "bg-red-100 text-red-600 ring-1 ring-red-300"
+                : "bg-slate-100 text-slate-500"
+            }`}
+            title={isShort ? "Duration is under 1 second!" : `Duration: ${durationSec.toFixed(2)}s`}
+          >
+            {durationSec.toFixed(2)}s
+          </span>
+          <div className="flex items-center gap-4 text-slate-300">
+            <ChevronUp className="h-4 w-4" />
+            <ChevronDown className="h-4 w-4" />
+            <Plus className="h-4 w-4" />
+            <Trash2 className="h-4 w-4 text-slate-300" />
+          </div>
         </div>
       </div>
       {showHighlightedView ? (
