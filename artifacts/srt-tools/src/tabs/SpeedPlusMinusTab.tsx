@@ -1136,17 +1136,31 @@ function VideoCutterApp({
 
   // ── A.G.E.S.F Full Automation (RUN button) ────────────────────────────────
   const [autoRunning, setAutoRunning] = useState(false);
+  const [autoPaused, setAutoPaused] = useState(false);
   const [autoCurrentLang, setAutoCurrentLang] = useState<string | null>(null);
   const [autoStep, setAutoStep] = useState<string>("");
   const autoStopRef = useRef(false);
+  const autoPausedRef = useRef(false);
   const langPoolsRef = useRef(langPools);
   langPoolsRef.current = langPools;
   const sendLangToPoolRef = useRef(sendLangToPool);
   sendLangToPoolRef.current = sendLangToPool;
 
+  // Waits while paused; resolves immediately if not paused.
+  // Returns true if we should STOP (stop was requested during pause).
+  const waitWhilePaused = async (): Promise<boolean> => {
+    while (autoPausedRef.current) {
+      if (autoStopRef.current) return true;
+      await new Promise((r) => setTimeout(r, 200));
+    }
+    return autoStopRef.current;
+  };
+
   const runAutomation = async () => {
     if (autoRunning) return;
     autoStopRef.current = false;
+    autoPausedRef.current = false;
+    setAutoPaused(false);
     setAutoRunning(true);
 
     const langs = LANG_POOL_CONFIG.map((c) => c.key);
@@ -1171,10 +1185,7 @@ function VideoCutterApp({
     }
 
     for (const lang of activeLangs) {
-      if (autoStopRef.current) {
-        sonnerToast.info("Automation stopped.");
-        break;
-      }
+      if (await waitWhilePaused()) { sonnerToast.info("Automation stopped."); break; }
 
       const langLabel = LANG_POOL_CONFIG.find((c) => c.key === lang)?.label ?? lang.toUpperCase();
       const files = langPoolsRef.current[lang] || [];
@@ -1189,7 +1200,7 @@ function VideoCutterApp({
         sendLangToPoolRef.current(lang);
         await new Promise((r) => setTimeout(r, 600));
 
-        if (autoStopRef.current) { sonnerToast.info("Automation stopped."); break; }
+        if (await waitWhilePaused()) { sonnerToast.info("Automation stopped."); break; }
 
         // Step 2: LOAD (audio + video)
         setAutoStep("Loading pools into cards…");
@@ -1197,18 +1208,22 @@ function VideoCutterApp({
         loadPoolToCardsRef.current("video");
         await new Promise((r) => setTimeout(r, 800));
 
-        if (autoStopRef.current) { sonnerToast.info("Automation stopped."); break; }
+        if (await waitWhilePaused()) { sonnerToast.info("Automation stopped."); break; }
 
         // Step 3: Wait for all cards to settle (durations read) then run Speed+-
         setAutoStep("Processing (Speed+-)…");
         waited = 0;
         while ((!canRunSpeedRef.current || !allCardsSettledRef.current) && waited < 30000) {
           if (autoStopRef.current) break;
+          // Honor pause even inside the settle-wait loop
+          if (autoPausedRef.current) {
+            if (await waitWhilePaused()) break;
+          }
           await new Promise((r) => setTimeout(r, 400));
           waited += 400;
         }
 
-        if (autoStopRef.current) { sonnerToast.info("Automation stopped."); break; }
+        if (await waitWhilePaused()) { sonnerToast.info("Automation stopped."); break; }
 
         if (!canRunSpeedRef.current) {
           throw new Error(`No processable cards found for ${langLabel}. Check audio/video pairing.`);
@@ -1216,14 +1231,14 @@ function VideoCutterApp({
 
         await runSpeedRef.current();
 
-        if (autoStopRef.current) { sonnerToast.info("Automation stopped."); break; }
+        if (await waitWhilePaused()) { sonnerToast.info("Automation stopped."); break; }
 
         // Step 4: Download ZIP
         setAutoStep("Downloading ZIP…");
         await handleDownloadZipAutoRef.current();
         await new Promise((r) => setTimeout(r, 800));
 
-        if (autoStopRef.current) { sonnerToast.info("Automation stopped."); break; }
+        if (await waitWhilePaused()) { sonnerToast.info("Automation stopped."); break; }
 
         // Step 5: Clear Audio Pool (which also clears cards)
         setAutoStep("Clearing for next set…");
@@ -1236,6 +1251,7 @@ function VideoCutterApp({
         const msg = err instanceof Error ? err.message : String(err);
         sonnerToast.error(`Error on ${langLabel}: ${msg}`);
         setAutoRunning(false);
+        setAutoPaused(false);
         setAutoCurrentLang(null);
         setAutoStep("");
         return;
@@ -1243,6 +1259,7 @@ function VideoCutterApp({
     }
 
     setAutoRunning(false);
+    setAutoPaused(false);
     setAutoCurrentLang(null);
     setAutoStep("");
     if (!autoStopRef.current) {
@@ -1361,10 +1378,13 @@ function VideoCutterApp({
               if (files.length > 0) onSendToSrtMaker?.(files);
             }}
             autoRunning={autoRunning}
+            autoPaused={autoPaused}
             autoCurrentLang={autoCurrentLang}
             autoStep={autoStep}
             onRunAutomation={() => { void runAutomation(); }}
-            onStopAutomation={() => { autoStopRef.current = true; }}
+            onPauseAutomation={() => { autoPausedRef.current = true; setAutoPaused(true); }}
+            onResumeAutomation={() => { autoPausedRef.current = false; setAutoPaused(false); }}
+            onStopAutomation={() => { autoStopRef.current = true; autoPausedRef.current = false; setAutoPaused(false); }}
           />
           {/* RIGHT: main content */}
           <div className="flex-1 min-w-0">
@@ -1732,9 +1752,12 @@ function LangAudioPools({
   onSend,
   onSendToMaker,
   autoRunning,
+  autoPaused,
   autoCurrentLang,
   autoStep,
   onRunAutomation,
+  onPauseAutomation,
+  onResumeAutomation,
   onStopAutomation,
 }: {
   langPools: Record<string, File[]>;
@@ -1744,9 +1767,12 @@ function LangAudioPools({
   onSend: (lang: string) => void;
   onSendToMaker: (lang: string) => void;
   autoRunning: boolean;
+  autoPaused: boolean;
   autoCurrentLang: string | null;
   autoStep: string;
   onRunAutomation: () => void;
+  onPauseAutomation: () => void;
+  onResumeAutomation: () => void;
   onStopAutomation: () => void;
 }) {
   const hasAnyFiles = LANG_POOL_CONFIG.some(
@@ -1765,28 +1791,36 @@ function LangAudioPools({
         </p>
       </div>
 
-      {/* RUN / STOP automation button */}
+      {/* RUN / PAUSE / RESUME / STOP automation button */}
       <div className="px-2.5 pt-2.5">
         {autoRunning ? (
-          <div className="rounded-xl border-2 border-amber-300 bg-amber-50 p-2">
-            <div className="mb-1.5 flex items-center justify-between gap-2">
-              <div className="flex items-center gap-1.5">
+          <div
+            className="rounded-xl border-2 p-2 transition-all"
+            style={{
+              borderColor: autoPaused ? "#a78bfa" : "#fcd34d",
+              background: autoPaused ? "#f5f3ff" : "#fffbeb",
+            }}
+          >
+            {/* Status row */}
+            <div className="mb-1.5 flex items-center gap-1.5">
+              {autoPaused ? (
+                <div className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-violet-500">
+                  <div className="h-1.5 w-1.5 rounded-full bg-white" />
+                </div>
+              ) : (
                 <Loader2 className="h-3.5 w-3.5 animate-spin text-amber-600" />
-                <span className="text-[11px] font-bold uppercase tracking-wider text-amber-700">
-                  Running…
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={onStopAutomation}
-                className="inline-flex items-center gap-1 rounded-lg border border-rose-400 bg-rose-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-rose-700 transition hover:bg-rose-200 active:scale-95"
+              )}
+              <span
+                className="text-[11px] font-bold uppercase tracking-wider"
+                style={{ color: autoPaused ? "#7c3aed" : "#b45309" }}
               >
-                <StopCircle className="h-3 w-3" />
-                Stop
-              </button>
+                {autoPaused ? "Paused" : "Running…"}
+              </span>
             </div>
+
+            {/* Current lang + step */}
             {autoCurrentLang && (
-              <div className="flex items-center gap-1 text-[10px] text-amber-700">
+              <div className="flex items-center gap-1 text-[10px]" style={{ color: autoPaused ? "#7c3aed" : "#b45309" }}>
                 <ChevronRight className="h-3 w-3 shrink-0" />
                 <span className="font-semibold uppercase">
                   {LANG_POOL_CONFIG.find((c) => c.key === autoCurrentLang)?.label ?? autoCurrentLang}
@@ -1794,8 +1828,44 @@ function LangAudioPools({
               </div>
             )}
             {autoStep && (
-              <p className="mt-0.5 truncate text-[10px] text-amber-600">{autoStep}</p>
+              <p className="mt-0.5 truncate text-[10px]" style={{ color: autoPaused ? "#8b5cf6" : "#d97706" }}>
+                {autoPaused ? "⏸ " : ""}{autoStep}
+              </p>
             )}
+
+            {/* Control buttons row */}
+            <div className="mt-2 flex items-center gap-1.5">
+              {autoPaused ? (
+                <button
+                  type="button"
+                  onClick={onResumeAutomation}
+                  className="inline-flex flex-1 items-center justify-center gap-1 rounded-lg border border-emerald-400 bg-emerald-100 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-emerald-700 transition hover:bg-emerald-200 active:scale-95"
+                >
+                  <PlayCircle className="h-3 w-3" />
+                  Resume
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={onPauseAutomation}
+                  className="inline-flex flex-1 items-center justify-center gap-1 rounded-lg border border-violet-400 bg-violet-100 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-violet-700 transition hover:bg-violet-200 active:scale-95"
+                >
+                  <div className="flex gap-0.5">
+                    <div className="h-2.5 w-0.5 rounded-full bg-violet-600" />
+                    <div className="h-2.5 w-0.5 rounded-full bg-violet-600" />
+                  </div>
+                  Pause
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={onStopAutomation}
+                className="inline-flex flex-1 items-center justify-center gap-1 rounded-lg border border-rose-400 bg-rose-100 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-rose-700 transition hover:bg-rose-200 active:scale-95"
+              >
+                <StopCircle className="h-3 w-3" />
+                Stop
+              </button>
+            </div>
           </div>
         ) : (
           <button
