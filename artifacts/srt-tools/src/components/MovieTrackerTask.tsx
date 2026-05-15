@@ -351,7 +351,7 @@ export default function MovieTrackerTask({ onClose }: { onClose: () => void }) {
                       >
                         <td className="px-3 py-2 align-middle">
                           <span className={`inline-flex items-center justify-center w-10 h-8 rounded-md text-xs font-bold tabular-nums ${
-                            entry.made ? "bg-accent/15 text-accent" : "bg-secondary/50 text-muted-foreground/70"
+                            entry.made ? "bg-green-100 text-green-700" : "bg-secondary/50 text-muted-foreground/70"
                           }`}>
                             {entry.number}
                           </span>
@@ -392,7 +392,7 @@ export default function MovieTrackerTask({ onClose }: { onClose: () => void }) {
                               onClick={() => toggleMade(entry.id)}
                               className={`inline-flex items-center justify-center w-6 h-6 rounded transition-all ${
                                 entry.made
-                                  ? "text-accent hover:bg-accent/20"
+                                  ? "text-green-600 hover:bg-green-100"
                                   : "text-muted-foreground hover:bg-secondary hover:text-foreground"
                               }`}
                               title={entry.made ? "Mark as not made" : "Mark as made"}
@@ -544,7 +544,6 @@ function TitleCell({ value, made, onCopy, isRtl }: TitleCellProps) {
     if (!value) return;
     onCopy();
     setCopied(true);
-    setTimeout(() => setCopied(false), 1200);
   };
 
   return (
@@ -556,7 +555,7 @@ function TitleCell({ value, made, onCopy, isRtl }: TitleCellProps) {
         copied
           ? "border-green-400 bg-green-50 text-green-800"
           : made
-            ? "border-accent/30 bg-accent/10 text-accent"
+            ? "border-green-400 bg-green-50 text-green-800"
             : "border-border bg-background text-foreground"
       } ${value ? "cursor-pointer" : "text-muted-foreground/40 italic"}`}
     >
@@ -625,7 +624,7 @@ function CellInput({ value, onChange, onCopy, onPaste, onClear, disabled, made, 
         disabled={disabled}
         className={`w-full px-2.5 py-2 text-sm rounded-lg border transition-all focus:outline-none focus:ring-2 resize-none overflow-hidden leading-snug ${isRtl ? "text-right" : ""} ${
           made
-            ? "border-accent/30 bg-accent/10 text-accent focus:ring-accent/20 focus:border-accent/50"
+            ? "border-green-400 bg-green-50 text-green-800 focus:ring-green-200 focus:border-green-400"
             : focused
               ? "border-ring bg-slate-50"
               : "border-border bg-slate-50"
