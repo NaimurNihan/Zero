@@ -1,13 +1,12 @@
 import { useState, useRef, useCallback, useEffect, type ClipboardEvent as ReactClipboardEvent } from "react";
-import { Plus, Search, FileText, RotateCcw, X, ScanSearch, Download, Trash2, Scissors, Copy, Folder, FolderOpen, ArchiveRestore, ChevronDown, ChevronRight, MoreVertical, Play, Menu, PanelLeftOpen, Zap, Loader2, ClipboardPaste, SendToBack, CheckCircle2, Circle, Type } from "lucide-react";
-interface TaskRow { id: string; number: string; values: string[]; made: boolean; trashed?: boolean; }
+import { Plus, Search, FileText, RotateCcw, X, ScanSearch, Download, Trash2, Scissors, Copy, Folder, FolderOpen, ArchiveRestore, ChevronDown, ChevronRight, MoreVertical, Play, Menu, PanelLeftOpen, Zap, Loader2, ClipboardPaste, SendToBack } from "lucide-react";
+import MovieTrackerTask from "@/components/MovieTrackerTask";
 interface Project {
   id: string;
   name: string;
   updatedAt: string;
   langs: { label: string; content: string }[];
   trashed?: boolean;
-  tasks?: TaskRow[];
 }
 interface SavedState {
   projects: Project[];
@@ -40,16 +39,6 @@ const SAMPLE_PROJECTS: Project[] = [
   { id: "2", name: "The Dark Knight", updatedAt: "Yesterday", langs: DEFAULT_LANGS.map((l) => ({ ...l })) },
   { id: "3", name: "Inception", updatedAt: "3 days ago", langs: DEFAULT_LANGS.map((l) => ({ ...l })) },
 ];
-function getTaskTitleSuffix(langLabel: string): string {
-  const l = langLabel.toLowerCase();
-  if (l.includes("arabic")) return "شرح الفيلم باللغة العربية";
-  if (l.includes("german")) return "Film auf Deutsch erklärt";
-  if (l.includes("english")) return "Movie Explained in English";
-  if (l.includes("spanish")) return "Película explicada en español";
-  if (l.includes("french")) return "Film expliqué en français";
-  return "";
-}
-function generateTaskId() { return Math.random().toString(36).slice(2) + Date.now().toString(36); }
 const STORAGE_KEY = "srt-note-autosave-v1";
 function getDefaultState(): SavedState {
   return { projects: SAMPLE_PROJECTS, activeId: "1", darkMode: false, copiedChunks: {} };
@@ -67,20 +56,7 @@ function readSavedState(): SavedState {
     const migratedProjects = parsed.projects.map((p) => {
       const existing = Array.isArray(p.langs) ? p.langs : [];
       const padded = DEFAULT_LANGS.map((def, i) => existing[i] ? { label: existing[i].label || def.label, content: existing[i].content ?? "" } : { ...def });
-      const rawTasks = Array.isArray((p as any).tasks) ? (p as any).tasks : [];
-      let activeIdx = 0;
-      const tasks: TaskRow[] = rawTasks.map((t: any) => {
-        const trashed = t.trashed ?? false;
-        if (!trashed) activeIdx++;
-        return {
-          id: t.id ?? generateTaskId(),
-          number: t.number ?? String(activeIdx).padStart(3, "0"),
-          values: Array.isArray(t.values) ? t.values : [],
-          made: t.made ?? t.checked ?? false,
-          trashed,
-        };
-      });
-      return { ...p, langs: padded, tasks };
+      return { ...p, langs: padded };
     });
     return {
       projects: migratedProjects,
@@ -287,69 +263,6 @@ function LineEditor({ editorKey, value, onChange, placeholder, divRef, onCopy }:
     />
   );
 }
-interface TaskTitleCellProps { value: string; made?: boolean; isRtl?: boolean; onCopy: () => void; }
-function TaskTitleCell({ value, made, isRtl, onCopy }: TaskTitleCellProps) {
-  const [hovered, setHovered] = useState(false);
-  return (
-    <div className="relative" onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
-      {hovered && value && (
-        <div className="absolute -top-8 left-0 z-30 flex items-center gap-0.5 bg-card border border-border rounded-md shadow-md px-1 py-0.5">
-          <button type="button" onMouseDown={e => { e.preventDefault(); onCopy(); }}
-            className="flex items-center gap-1 px-1.5 py-0.5 rounded text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors" tabIndex={-1}>
-            <Copy size={11} /><span>Copy</span>
-          </button>
-        </div>
-      )}
-      <div dir={isRtl ? "rtl" : undefined}
-        className={`w-full px-2.5 py-2 text-sm rounded-lg border leading-snug min-h-[36px] ${isRtl ? "text-right" : ""} ${made ? "border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200" : "border-border bg-background text-foreground"} ${value ? "" : "text-muted-foreground/40 italic"}`}>
-        {value || "—"}
-      </div>
-    </div>
-  );
-}
-
-interface TaskCellInputProps { value: string; made?: boolean; isRtl?: boolean; placeholder?: string; onChange: (v: string) => void; onCopy: () => void; onPaste: () => void; onClear: () => void; }
-function TaskCellInput({ value, made, isRtl, placeholder, onChange, onCopy, onPaste, onClear }: TaskCellInputProps) {
-  const [hovered, setHovered] = useState(false);
-  const [focused, setFocused] = useState(false);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  useEffect(() => {
-    const el = textareaRef.current;
-    if (!el) return;
-    el.style.height = "auto";
-    el.style.height = el.scrollHeight + "px";
-  }, [value]);
-  return (
-    <div className="relative" onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
-      {(hovered || focused) && (
-        <div className="absolute -top-8 left-0 z-30 flex items-center gap-0.5 bg-card border border-border rounded-md shadow-md px-1 py-0.5">
-          <button type="button" onMouseDown={e => { e.preventDefault(); onCopy(); }}
-            className="flex items-center gap-1 px-1.5 py-0.5 rounded text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors" tabIndex={-1}>
-            <Copy size={11} /><span>Copy</span>
-          </button>
-          {!made && (<>
-            <div className="w-px h-3 bg-border" />
-            <button type="button" onMouseDown={e => { e.preventDefault(); onPaste(); }}
-              className="flex items-center gap-1 px-1.5 py-0.5 rounded text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors" tabIndex={-1}>
-              <ClipboardPaste size={11} /><span>Paste</span>
-            </button>
-            <div className="w-px h-3 bg-border" />
-            <button type="button" onMouseDown={e => { e.preventDefault(); onClear(); }}
-              className="flex items-center gap-1 px-1.5 py-0.5 rounded text-xs text-muted-foreground hover:text-red-500 hover:bg-muted transition-colors" tabIndex={-1}>
-              <X size={11} /><span>Clear</span>
-            </button>
-          </>)}
-        </div>
-      )}
-      <textarea ref={textareaRef} value={value} onChange={e => onChange(e.target.value)}
-        placeholder={placeholder} disabled={made} dir={isRtl ? "rtl" : undefined}
-        onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
-        rows={1}
-        className={`w-full px-2.5 py-2 text-sm rounded-lg border bg-background text-foreground outline-none resize-none leading-snug min-h-[36px] overflow-hidden transition-colors ${isRtl ? "text-right" : ""} ${made ? "opacity-50 line-through border-border cursor-not-allowed" : "border-emerald-200 dark:border-emerald-800 focus:border-emerald-400 dark:focus:border-emerald-600"}`} />
-    </div>
-  );
-}
-
 interface SrtNoteTabProps {
   incomingText?: string;
   incomingName?: string;
@@ -377,9 +290,6 @@ export default function SrtNoteTab({ incomingText, incomingName, incomingKey, on
   const [trashDragOver, setTrashDragOver] = useState(false);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [taskOpen, setTaskOpen] = useState(false);
-  const [taskTitleMode, setTaskTitleMode] = useState(false);
-  const [taskSearch, setTaskSearch] = useState("");
-  const [taskTrashOpen, setTaskTrashOpen] = useState(false);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [sidebarHidden, setSidebarHidden] = useState(false);
   const [isAutoRunning, setIsAutoRunning] = useState(false);
@@ -530,61 +440,6 @@ export default function SrtNoteTab({ incomingText, incomingName, incomingKey, on
   const deleteForever = useCallback((id: string) => {
     setProjects((prev) => prev.filter((p) => p.id !== id));
   }, []);
-  const numLangs = activeProject?.langs.length ?? 3;
-  const activeTasks: TaskRow[] = (activeProject?.tasks ?? []).filter(t => !t.trashed);
-  const activeTaskTrash: TaskRow[] = (activeProject?.tasks ?? []).filter(t => !!t.trashed);
-  const updateTasks = useCallback((updater: (prev: TaskRow[]) => TaskRow[]) => {
-    setProjects((prev) => prev.map((p) => p.id === activeId ? { ...p, tasks: updater(p.tasks ?? []), updatedAt: "Just now" } : p));
-  }, [activeId]);
-  const addTaskRow = useCallback(() => {
-    updateTasks((prev) => {
-      const activeCount = prev.filter(t => !t.trashed).length;
-      return [...prev, { id: generateTaskId(), number: String(activeCount + 1).padStart(3, "0"), values: Array(numLangs).fill(""), made: false }];
-    });
-  }, [updateTasks, numLangs]);
-  const toggleTaskMade = useCallback((id: string) => {
-    updateTasks((prev) => prev.map(t => t.id === id ? { ...t, made: !t.made } : t));
-  }, [updateTasks]);
-  const updateTaskValue = useCallback((id: string, col: number, value: string) => {
-    updateTasks((prev) => prev.map((t) => {
-      if (t.id !== id) return t;
-      const values = [...t.values];
-      while (values.length < numLangs) values.push("");
-      values[col] = value;
-      return { ...t, values };
-    }));
-  }, [updateTasks, numLangs]);
-  const moveTaskToTrash = useCallback((id: string) => {
-    updateTasks((prev) => {
-      const updated = prev.map(t => t.id === id ? { ...t, trashed: true } : t);
-      let n = 0;
-      return updated.map(t => t.trashed ? t : { ...t, number: String(++n).padStart(3, "0") });
-    });
-  }, [updateTasks]);
-  const recoverTask = useCallback((id: string) => {
-    updateTasks((prev) => {
-      const activeCount = prev.filter(t => !t.trashed).length;
-      return prev.map(t => t.id === id ? { ...t, trashed: false, number: String(activeCount + 1).padStart(3, "0") } : t);
-    });
-  }, [updateTasks]);
-  const deleteTaskForever = useCallback((id: string) => {
-    updateTasks((prev) => prev.filter(t => t.id !== id));
-  }, [updateTasks]);
-  const emptyTaskTrash = useCallback(() => {
-    updateTasks((prev) => prev.filter(t => !t.trashed));
-  }, [updateTasks]);
-  const copyTaskCell = useCallback(async (text: string) => {
-    try { await navigator.clipboard.writeText(text); } catch {}
-  }, []);
-  const pasteTaskCell = useCallback(async (id: string, col: number) => {
-    try { const text = await navigator.clipboard.readText(); updateTaskValue(id, col, text); } catch {}
-  }, [updateTaskValue]);
-  const filteredTaskRows = taskSearch.trim()
-    ? activeTasks.filter(t => {
-        const q = taskSearch.trim().toLowerCase();
-        return t.number.includes(q) || t.values.some(v => v.toLowerCase().includes(q));
-      })
-    : activeTasks;
   const startEditingName = useCallback(() => { setNameInput(activeProject?.name ?? ""); setEditingName(true); setTimeout(() => nameInputRef.current?.select(), 0); }, [activeProject]);
   const saveName = useCallback(() => {
     const trimmed = nameInput.trim();
@@ -1030,149 +885,8 @@ export default function SrtNoteTab({ incomingText, incomingName, incomingKey, on
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
           onClick={() => setTaskOpen(false)}>
           <div onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-7xl max-h-[95vh] h-[92vh] flex flex-col rounded-2xl border-2 border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-950 shadow-2xl overflow-hidden">
-            {/* Header */}
-            <div className="shrink-0 flex items-center gap-3 px-5 py-3 border-b border-emerald-200 dark:border-emerald-800 bg-emerald-100/60 dark:bg-emerald-900/40">
-              <span className="bg-emerald-600 text-white text-xs font-semibold px-2.5 py-1 rounded-md shrink-0">{activeTasks.filter(t => t.made).length} Made</span>
-              <span className="bg-emerald-200 dark:bg-emerald-800 text-emerald-800 dark:text-emerald-200 text-xs font-medium px-2.5 py-1 rounded-md shrink-0">{activeTasks.filter(t => !t.made).length} Pending</span>
-              <h2 className="flex-1 text-center text-xl font-bold tracking-[0.3em] text-emerald-900 dark:text-emerald-100" style={{ fontFamily: "Georgia, serif" }}>TASK NOTE</h2>
-              <div className="flex items-center gap-2">
-                <button onClick={() => setTaskTitleMode(m => !m)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${taskTitleMode ? "bg-amber-500 text-white border-amber-500 hover:bg-amber-600" : "bg-white dark:bg-emerald-900 text-emerald-800 dark:text-emerald-200 border-emerald-300 dark:border-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-800"}`}>
-                  {taskTitleMode ? <X size={12} /> : <Type size={12} />}
-                  {taskTitleMode ? "Exit Title Mode" : "Title Mode"}
-                </button>
-                <div className="relative">
-                  <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-emerald-500 pointer-events-none" />
-                  <input type="text" value={taskSearch} onChange={e => setTaskSearch(e.target.value)} placeholder="Search..."
-                    className="pl-8 pr-6 py-1.5 text-xs rounded-lg border border-emerald-300 dark:border-emerald-700 bg-white dark:bg-emerald-900 text-foreground outline-none focus:border-emerald-500 w-40" />
-                  {taskSearch && <button onClick={() => setTaskSearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-emerald-400 hover:text-emerald-700"><X size={10} /></button>}
-                </div>
-                <button onClick={() => setTaskOpen(false)} className="p-1.5 rounded-md hover:bg-emerald-200 dark:hover:bg-emerald-800 text-emerald-900 dark:text-emerald-100 transition-colors">
-                  <X size={18} />
-                </button>
-              </div>
-            </div>
-            {/* Title Mode banner */}
-            {taskTitleMode && (
-              <div className="shrink-0 bg-amber-50 dark:bg-amber-950/30 border-b border-amber-200 dark:border-amber-800 px-5 py-2 flex items-center justify-between">
-                <span className="text-amber-800 dark:text-amber-200 text-xs font-medium">Title Mode ON — cells are read-only with formatted titles. Click any cell's Copy to copy.</span>
-                <button onClick={() => setTaskTitleMode(false)} className="text-amber-700 dark:text-amber-300 text-xs font-semibold underline hover:no-underline">Exit</button>
-              </div>
-            )}
-            {/* Table */}
-            <div className="flex-1 overflow-auto">
-              <table className="w-full table-fixed">
-                <thead className="sticky top-0 z-10">
-                  <tr className="bg-emerald-100 dark:bg-emerald-900/60 border-b border-emerald-200 dark:border-emerald-800">
-                    <th className="text-left px-3 py-2.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300 uppercase tracking-wider w-14">No</th>
-                    {(activeProject?.langs ?? []).map((lang, i) => (
-                      <th key={i} className="text-center px-2 py-2.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300 uppercase tracking-wider">
-                        {lang.label}
-                      </th>
-                    ))}
-                    <th className="w-10 px-1 py-2.5"></th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-emerald-100 dark:divide-emerald-900/60">
-                  {filteredTaskRows.length === 0 && (
-                    <tr>
-                      <td colSpan={(activeProject?.langs.length ?? 0) + 2} className="text-center py-14 text-emerald-600/50 dark:text-emerald-400/40 text-sm">
-                        {taskSearch ? `No results for "${taskSearch}"` : "No tasks yet — click Add Row to get started"}
-                      </td>
-                    </tr>
-                  )}
-                  {filteredTaskRows.map((task) => (
-                    <tr key={task.id} className={`group transition-colors ${task.made ? "bg-emerald-50/40 dark:bg-emerald-950/20" : "hover:bg-white dark:hover:bg-emerald-900/20"}`}>
-                      <td className="px-3 py-2 align-middle">
-                        <span className={`inline-flex items-center justify-center w-10 h-8 rounded-md text-xs font-bold tabular-nums ${task.made ? "bg-emerald-200 dark:bg-emerald-800 text-emerald-700 dark:text-emerald-300" : "bg-emerald-100 dark:bg-emerald-900/60 text-emerald-500 dark:text-emerald-400"}`}>
-                          {task.number}
-                        </span>
-                      </td>
-                      {(activeProject?.langs ?? []).map((lang, col) => {
-                        const raw = task.values[col] ?? "";
-                        const isRtl = lang.label.toLowerCase().includes("arabic");
-                        const suffix = getTaskTitleSuffix(lang.label);
-                        const titled = raw.trim() ? (isRtl ? `${suffix} (${raw.trim()})` : suffix ? `(${raw.trim()}) ${suffix}` : raw.trim()) : "";
-                        return (
-                          <td key={col} className="px-2 py-2 align-middle">
-                            {taskTitleMode ? (
-                              <TaskTitleCell value={titled} made={task.made} isRtl={isRtl} onCopy={() => copyTaskCell(titled)} />
-                            ) : (
-                              <TaskCellInput
-                                value={raw} made={task.made} isRtl={isRtl} placeholder={lang.label}
-                                onChange={val => updateTaskValue(task.id, col, val)}
-                                onCopy={() => copyTaskCell(raw)}
-                                onPaste={() => pasteTaskCell(task.id, col)}
-                                onClear={() => updateTaskValue(task.id, col, "")}
-                              />
-                            )}
-                          </td>
-                        );
-                      })}
-                      <td className="px-1 py-2 align-middle">
-                        <div className="flex flex-col items-center gap-0.5">
-                          <button onClick={() => toggleTaskMade(task.id)} title={task.made ? "Mark as pending" : "Mark as made"}
-                            className={`w-6 h-6 flex items-center justify-center rounded transition-all ${task.made ? "text-emerald-600 dark:text-emerald-400 hover:bg-emerald-200 dark:hover:bg-emerald-800" : "text-emerald-300 dark:text-emerald-600 hover:bg-emerald-100 dark:hover:bg-emerald-900"}`}>
-                            {task.made ? <CheckCircle2 size={15} /> : <Circle size={15} />}
-                          </button>
-                          <button onClick={() => moveTaskToTrash(task.id)} title="Move to trash"
-                            className="opacity-0 group-hover:opacity-100 w-6 h-6 flex items-center justify-center rounded text-emerald-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all">
-                            <Trash2 size={12} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            {/* Footer: Add Row + Trash toggle */}
-            <div className="shrink-0 border-t border-emerald-200 dark:border-emerald-800 px-5 py-3 flex items-center gap-3 bg-emerald-50/80 dark:bg-emerald-950/60">
-              <button onClick={addTaskRow}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg border border-emerald-300 dark:border-emerald-700 bg-white dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 text-sm font-medium hover:bg-emerald-100 dark:hover:bg-emerald-800 transition-colors">
-                <Plus size={15} />Add Row
-              </button>
-              <button onClick={() => setTaskTrashOpen(o => !o)}
-                className={`relative flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-colors ${taskTrashOpen ? "bg-red-100 dark:bg-red-950/40 border-red-300 dark:border-red-800 text-red-700 dark:text-red-300" : "bg-white dark:bg-emerald-900 border-emerald-200 dark:border-emerald-800 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50"}`}>
-                <Trash2 size={14} />
-                <span className="text-xs font-medium">Trash</span>
-                {activeTaskTrash.length > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
-                    {activeTaskTrash.length > 9 ? "9+" : activeTaskTrash.length}
-                  </span>
-                )}
-              </button>
-            </div>
-            {/* Trash panel */}
-            {taskTrashOpen && (
-              <div className="shrink-0 border-t-2 border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/20 max-h-52 flex flex-col overflow-hidden">
-                <div className="shrink-0 flex items-center gap-2 px-5 py-2.5 border-b border-red-200 dark:border-red-900">
-                  <Trash2 size={14} className="text-red-500 shrink-0" />
-                  <span className="text-sm font-semibold text-red-800 dark:text-red-300 flex-1">Trash {activeTaskTrash.length > 0 ? `(${activeTaskTrash.length})` : ""}</span>
-                  {activeTaskTrash.length > 0 && <button onClick={emptyTaskTrash} className="text-xs text-red-600 hover:text-red-800 dark:text-red-400 font-medium transition-colors">Empty All</button>}
-                  <button onClick={() => setTaskTrashOpen(false)} className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/40 text-red-500 transition-colors"><X size={14} /></button>
-                </div>
-                {activeTaskTrash.length === 0 ? (
-                  <p className="text-center text-xs text-red-400 py-6">Trash is empty</p>
-                ) : (
-                  <div className="overflow-y-auto divide-y divide-red-100 dark:divide-red-900/50">
-                    {activeTaskTrash.map(task => (
-                      <div key={task.id} className="px-5 py-2.5 flex items-center gap-3 hover:bg-red-100/50 dark:hover:bg-red-900/10 transition-colors">
-                        <span className="text-xs font-bold font-mono bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 px-2 py-0.5 rounded shrink-0">{task.number}</span>
-                        <span className="flex-1 text-xs text-red-700 dark:text-red-300 truncate">{task.values.filter(Boolean).join(" · ") || "(empty)"}</span>
-                        <button onClick={() => recoverTask(task.id)} className="flex items-center gap-1 px-2 py-1 rounded text-xs text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/40 hover:bg-emerald-200 dark:hover:bg-emerald-800 font-medium transition-colors shrink-0">
-                          <RotateCcw size={11} />Recover
-                        </button>
-                        <button onClick={() => deleteTaskForever(task.id)} className="flex items-center gap-1 px-2 py-1 rounded text-xs text-red-700 dark:text-red-300 bg-red-100 dark:bg-red-900/30 hover:bg-red-200 dark:hover:bg-red-900/60 font-medium transition-colors shrink-0">
-                          <X size={11} />Delete
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
+            className="w-full max-w-7xl max-h-[95vh] h-[92vh] rounded-2xl shadow-2xl overflow-hidden">
+            <MovieTrackerTask onClose={() => setTaskOpen(false)} />
           </div>
         </div>
       )}
