@@ -7,7 +7,7 @@ type Language = typeof LANGUAGES[number];
 
 const TITLE_SUFFIX: Record<Language, string> = {
   ENGLISH: "- Explained in English (Full Story)",
-  ARABIC: "- ملخص فيلم (القصة كاملة)",
+  ARABIC: "ملخص فيلم (القصة كاملة) -",
   GERMAN: "- Film Zusammenfassung (Ganze Story)",
   SPANISH: "- Resumen de la película (Historia completa)",
   FRENCH: "- Résumé du film (Histoire complète)",
