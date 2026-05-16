@@ -6,11 +6,11 @@ const LANGUAGES = ["ARABIC", "GERMAN", "ENGLISH", "SPANISH", "FRENCH"] as const;
 type Language = typeof LANGUAGES[number];
 
 const TITLE_SUFFIX: Record<Language, string> = {
-  ENGLISH: "Explained in English",
-  ARABIC: "ملخص فيلم - قصة الفيلم كاملة",
-  GERMAN: "Die komplette Geschichte erklärt",
-  SPANISH: "Resumen completo de la película",
-  FRENCH: "L'histoire complète du film",
+  ENGLISH: "- Explained in English (Full Story)",
+  ARABIC: "- ملخص فيلم (القصة كاملة)",
+  GERMAN: "- Film Zusammenfassung (Ganze Story)",
+  SPANISH: "- Resumen de la película (Historia completa)",
+  FRENCH: "- Résumé du film (Histoire complète)",
 };
 
 interface MovieEntry {
