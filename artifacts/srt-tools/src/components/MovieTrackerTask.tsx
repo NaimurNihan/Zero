@@ -137,6 +137,23 @@ export default function MovieTrackerTask({ onClose }: { onClose: () => void }) {
     }
   }, [toast]);
 
+  const copyAllNames = useCallback(async (entry: MovieEntry) => {
+    const lines = [
+      entry.number,
+      "",
+      ...LANGUAGES.map(lang => {
+        const val = entry.names[lang].trim();
+        return `${lang} : ( ${val || "—"} )`;
+      }),
+    ].join("\n");
+    try {
+      await navigator.clipboard.writeText(lines);
+      toast({ description: `Row ${entry.number} — all names copied!` });
+    } catch {
+      toast({ description: "Could not copy", variant: "destructive" });
+    }
+  }, [toast]);
+
   const pasteCell = useCallback(async (id: string, lang: Language) => {
     try {
       const text = await navigator.clipboard.readText();
@@ -351,9 +368,12 @@ export default function MovieTrackerTask({ onClose }: { onClose: () => void }) {
                         }`}
                       >
                         <td className="px-3 py-2 align-middle">
-                          <span className={`inline-flex items-center justify-center w-10 h-8 rounded-md text-xs font-bold tabular-nums ${
-                            entry.made ? "bg-green-100 text-green-700" : "bg-secondary/50 text-muted-foreground/70"
-                          }`}>
+                          <span
+                            onClick={() => copyAllNames(entry)}
+                            title="Click to copy all names"
+                            className={`inline-flex items-center justify-center w-10 h-8 rounded-md text-xs font-bold tabular-nums cursor-pointer select-none transition-opacity hover:opacity-70 active:scale-95 ${
+                              entry.made ? "bg-green-100 text-green-700" : "bg-secondary/50 text-muted-foreground/70"
+                            }`}>
                             {entry.number}
                           </span>
                         </td>
