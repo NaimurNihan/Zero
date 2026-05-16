@@ -242,7 +242,7 @@ export default function MovieTrackerTask({ onClose }: { onClose: () => void }) {
                 <Film className="w-4 h-4 text-primary-foreground" />
               </div>
               <h1 className="text-lg font-bold text-foreground">Movie Names</h1>
-              <span className="bg-accent/15 text-accent px-2.5 py-1 rounded-md text-xs font-semibold">{madeCount} Made</span>
+              <span className="bg-green-100 text-green-700 px-2.5 py-1 rounded-md text-xs font-semibold">{madeCount} Made</span>
               <span className="bg-muted text-muted-foreground px-2.5 py-1 rounded-md text-xs font-medium">{totalCount - madeCount} Pending</span>
             </div>
 
