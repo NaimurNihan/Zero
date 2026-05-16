@@ -548,10 +548,10 @@ function TitleCell({ value, made, onCopy, isRtl }: TitleCellProps) {
 
   return (
     <div
-      dir={isRtl ? "rtl" : undefined}
+      dir={isRtl ? "rtl" : "ltr"}
       onDoubleClick={handleDoubleClick}
       title={value ? "Double-click to copy" : undefined}
-      className={`w-full px-2.5 py-2 text-sm rounded-lg border leading-snug min-h-[36px] select-none transition-colors duration-300 ${isRtl ? "text-right" : ""} ${
+      className={`w-full px-2.5 py-2 text-sm rounded-lg border leading-snug min-h-[36px] select-none transition-colors duration-300 ${isRtl ? "text-right" : "text-left"} ${
         copied
           ? "border-green-400 bg-green-50 text-green-800"
           : made
