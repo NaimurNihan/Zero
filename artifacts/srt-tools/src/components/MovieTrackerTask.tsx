@@ -65,6 +65,7 @@ export default function MovieTrackerTask({ onClose }: { onClose: () => void }) {
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
   const [trashOpen, setTrashOpen] = useState(false);
   const [titleMode, setTitleMode] = useState(false);
+  const [lastActive, setLastActive] = useState<string | null>(null);
   const rowRefs = useRef<Record<string, HTMLTableRowElement | null>>({});
   const uploadRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -383,6 +384,8 @@ export default function MovieTrackerTask({ onClose }: { onClose: () => void }) {
                                   disabled={entry.made}
                                   made={entry.made}
                                   isRtl={isRtl}
+                                  isLastActive={lastActive === `${entry.id}-${lang}`}
+                                  onActivate={() => setLastActive(`${entry.id}-${lang}`)}
                                 />
                               )}
                             </td>
@@ -530,6 +533,8 @@ interface CellInputProps {
   disabled?: boolean;
   made?: boolean;
   isRtl?: boolean;
+  isLastActive?: boolean;
+  onActivate?: () => void;
 }
 
 interface TitleCellProps {
@@ -566,7 +571,7 @@ function TitleCell({ value, made, onCopy, isRtl }: TitleCellProps) {
   );
 }
 
-function CellInput({ value, onChange, onCopy, onPaste, onClear, disabled, made, isRtl }: CellInputProps) {
+function CellInput({ value, onChange, onCopy, onPaste, onClear, disabled, made, isRtl, isLastActive, onActivate }: CellInputProps) {
   const [focused, setFocused] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -621,7 +626,7 @@ function CellInput({ value, onChange, onCopy, onPaste, onClear, disabled, made, 
         rows={1}
         dir={isRtl ? "rtl" : undefined}
         onChange={e => !disabled && onChange(e.target.value)}
-        onFocus={() => setFocused(true)}
+        onFocus={() => { setFocused(true); onActivate?.(); }}
         onBlur={() => setFocused(false)}
         onDoubleClick={() => { if (value) onCopy(); }}
         disabled={disabled}
@@ -630,7 +635,9 @@ function CellInput({ value, onChange, onCopy, onPaste, onClear, disabled, made, 
             ? "border-green-400 bg-green-50 text-green-800 focus:ring-green-200 focus:border-green-400"
             : focused
               ? "border-ring bg-slate-50"
-              : "border-border bg-slate-50"
+              : isLastActive
+                ? "border-blue-400 bg-blue-50 focus:ring-blue-200"
+                : "border-border bg-slate-50"
         } ${disabled ? "cursor-not-allowed" : ""}`}
       />
     </div>
