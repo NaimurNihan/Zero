@@ -623,6 +623,7 @@ function CellInput({ value, onChange, onCopy, onPaste, onClear, disabled, made, 
         onChange={e => !disabled && onChange(e.target.value)}
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
+        onDoubleClick={() => { if (value) onCopy(); }}
         disabled={disabled}
         className={`w-full px-2.5 py-2 text-sm rounded-lg border transition-all focus:outline-none focus:ring-2 resize-none overflow-hidden leading-snug ${isRtl ? "text-right" : ""} ${
           made
