@@ -360,7 +360,9 @@ export default function MovieTrackerTask({ onClose }: { onClose: () => void }) {
                           const raw = entry.names[lang];
                           const isRtl = lang === "ARABIC";
                           const titled = raw.trim()
-                            ? `${raw.trim()} ${TITLE_SUFFIX[lang]}`
+                            ? isRtl
+                              ? `${TITLE_SUFFIX[lang]} ${raw.trim()}`
+                              : `${raw.trim()} ${TITLE_SUFFIX[lang]}`
                             : "";
                           return (
                             <td key={lang} className="px-2 py-2 align-middle">
