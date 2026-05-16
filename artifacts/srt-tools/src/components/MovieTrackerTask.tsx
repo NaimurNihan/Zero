@@ -369,7 +369,7 @@ export default function MovieTrackerTask({ onClose }: { onClose: () => void }) {
                                   value={titled}
                                   made={entry.made}
                                   onCopy={() => copyCell(titled)}
-                                  isRtl={false}
+                                  isRtl={isRtl}
                                 />
                               ) : (
                                 <CellInput
