@@ -66,6 +66,7 @@ export default function MovieTrackerTask({ onClose }: { onClose: () => void }) {
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
   const [trashOpen, setTrashOpen] = useState(false);
   const [titleMode, setTitleMode] = useState(false);
+  const [tagMode, setTagMode] = useState(false);
   const [lastActive, setLastActive] = useState<string | null>(null);
   const rowRefs = useRef<Record<string, HTMLTableRowElement | null>>({});
   const uploadRef = useRef<HTMLInputElement>(null);
@@ -282,7 +283,7 @@ export default function MovieTrackerTask({ onClose }: { onClose: () => void }) {
                 )}
               </div>
               <button
-                onClick={() => setTitleMode(m => !m)}
+                onClick={() => { setTagMode(false); setTitleMode(m => !m); }}
                 className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg transition-colors shrink-0 border ${
                   titleMode
                     ? "bg-amber-500 text-white border-amber-500 hover:bg-amber-600"
@@ -292,6 +293,18 @@ export default function MovieTrackerTask({ onClose }: { onClose: () => void }) {
               >
                 {titleMode ? <X className="w-4 h-4" /> : <Type className="w-4 h-4" />}
                 {titleMode ? "Exit Title Mode" : "Title Mode"}
+              </button>
+              <button
+                onClick={() => { setTitleMode(false); setTagMode(m => !m); }}
+                className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg transition-colors shrink-0 border ${
+                  tagMode
+                    ? "bg-violet-500 text-white border-violet-500 hover:bg-violet-600"
+                    : "bg-card text-foreground border-border hover:bg-secondary/60"
+                }`}
+                title={tagMode ? "Exit Tag Mode" : "Enable Tag Mode"}
+              >
+                {tagMode ? <X className="w-4 h-4" /> : <span className="text-sm font-bold">#</span>}
+                {tagMode ? "Exit Tag Mode" : "Tag Mode"}
               </button>
               <button
                 onClick={addRow}
@@ -387,6 +400,9 @@ export default function MovieTrackerTask({ onClose }: { onClose: () => void }) {
                               ? `${suffix} ${raw.trim()}`.trim()
                               : `${raw.trim()} ${suffix}`.trim()
                             : "";
+                          const tagged = raw.trim()
+                            ? "#" + raw.trim().split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join("")
+                            : "";
                           return (
                             <td key={lang} className="px-2 py-2 align-middle">
                               {titleMode ? (
@@ -395,6 +411,13 @@ export default function MovieTrackerTask({ onClose }: { onClose: () => void }) {
                                   made={entry.made}
                                   onCopy={() => copyCell(titled)}
                                   isRtl={isRtl}
+                                />
+                              ) : tagMode ? (
+                                <TitleCell
+                                  value={tagged}
+                                  made={entry.made}
+                                  onCopy={() => copyCell(tagged)}
+                                  isRtl={false}
                                 />
                               ) : (
                                 <CellInput
