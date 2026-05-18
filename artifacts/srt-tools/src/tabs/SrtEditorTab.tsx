@@ -1,6 +1,181 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { type Subtitle, parseSrt, downloadSrt } from "@/lib/srt";
 import { Search, X } from "lucide-react";
+import { toast } from "sonner";
+
+const NOTEPAD_KEY = "srt-editor:notepad";
+
+const DEFAULT_NOTEPAD: string[][] = [
+  ["And", "But", "Or"],
+  ["Because", "Then", "So"],
+  ["এবং", "কিন্তু", "অথবা"],
+  ["কারণ", "তারপর", "তাই"],
+];
+
+function NotepadPopup({
+  onClose,
+}: {
+  onClose: () => void;
+}) {
+  const [columns, setColumns] = useState<string[][]>(() => {
+    try {
+      const saved = localStorage.getItem(NOTEPAD_KEY);
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return DEFAULT_NOTEPAD;
+  });
+  const [editingCell, setEditingCell] = useState<{ col: number; row: number } | null>(null);
+  const [editValue, setEditValue] = useState("");
+  const [copiedCell, setCopiedCell] = useState<string | null>(null);
+  const popupRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    localStorage.setItem(NOTEPAD_KEY, JSON.stringify(columns));
+  }, [columns]);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (popupRef.current && !popupRef.current.contains(e.target as Node)) {
+        onClose();
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [onClose]);
+
+  function handleDoubleClick(text: string) {
+    if (!text.trim()) return;
+    navigator.clipboard.writeText(text).then(() => {
+      setCopiedCell(text);
+      toast.success(`Copied: "${text}"`);
+      setTimeout(() => setCopiedCell(null), 1200);
+    });
+  }
+
+  function addItem(colIdx: number) {
+    setColumns(prev => {
+      const next = prev.map(c => [...c]);
+      next[colIdx] = [...next[colIdx], ""];
+      return next;
+    });
+    setEditingCell({ col: colIdx, row: columns[colIdx].length });
+    setEditValue("");
+  }
+
+  function deleteItem(colIdx: number, rowIdx: number) {
+    setColumns(prev => {
+      const next = prev.map(c => [...c]);
+      next[colIdx] = next[colIdx].filter((_, i) => i !== rowIdx);
+      return next;
+    });
+  }
+
+  function startEdit(colIdx: number, rowIdx: number, val: string) {
+    setEditingCell({ col: colIdx, row: rowIdx });
+    setEditValue(val);
+  }
+
+  function commitEdit() {
+    if (!editingCell) return;
+    const { col, row } = editingCell;
+    setColumns(prev => {
+      const next = prev.map(c => [...c]);
+      if (editValue.trim() === "") {
+        next[col] = next[col].filter((_, i) => i !== row);
+      } else {
+        next[col][row] = editValue.trim();
+      }
+      return next;
+    });
+    setEditingCell(null);
+    setEditValue("");
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center" style={{ paddingTop: "120px" }}>
+      <div className="absolute inset-0 bg-black/20 backdrop-blur-[1px]" />
+      <div
+        ref={popupRef}
+        className="relative bg-white dark:bg-gray-900 border border-blue-200 dark:border-blue-800 rounded-2xl shadow-2xl p-5 min-w-[380px] max-w-[520px] w-full mx-4"
+        style={{ boxShadow: "0 8px 40px rgba(59,130,246,0.18), 0 2px 8px rgba(0,0,0,0.12)" }}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <span className="text-lg">📝</span>
+            <span className="font-semibold text-gray-800 dark:text-gray-100 text-sm">Quick Note Pad</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-400 dark:text-gray-500">double-click to copy</span>
+            <button
+              onClick={onClose}
+              className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${columns.length}, 1fr)` }}>
+          {columns.map((col, colIdx) => (
+            <div key={colIdx} className="flex flex-col gap-1.5">
+              {col.map((item, rowIdx) => (
+                <div key={rowIdx} className="group relative">
+                  {editingCell?.col === colIdx && editingCell?.row === rowIdx ? (
+                    <input
+                      autoFocus
+                      value={editValue}
+                      onChange={e => setEditValue(e.target.value)}
+                      onBlur={commitEdit}
+                      onKeyDown={e => {
+                        if (e.key === "Enter") commitEdit();
+                        if (e.key === "Escape") { setEditingCell(null); setEditValue(""); }
+                      }}
+                      className="w-full text-center text-sm font-medium px-2 py-1.5 rounded-lg border-2 border-blue-400 outline-none bg-blue-50 dark:bg-blue-950 dark:text-white"
+                    />
+                  ) : (
+                    <button
+                      className={`w-full text-center text-sm font-medium px-2 py-1.5 rounded-lg border transition-all select-none
+                        ${copiedCell === item
+                          ? "border-green-400 bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-300 scale-95"
+                          : "border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:border-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950 hover:text-blue-700 dark:hover:text-blue-300"
+                        }`}
+                      onDoubleClick={() => handleDoubleClick(item)}
+                      onClick={e => {
+                        if (e.detail === 1) {
+                          setTimeout(() => {
+                            if (e.detail === 1) startEdit(colIdx, rowIdx, item);
+                          }, 220);
+                        }
+                      }}
+                    >
+                      {item || <span className="text-gray-300">...</span>}
+                    </button>
+                  )}
+                  <button
+                    onClick={() => deleteItem(colIdx, rowIdx)}
+                    className="absolute -top-1 -right-1 w-4 h-4 bg-red-400 hover:bg-red-500 text-white rounded-full text-xs items-center justify-center hidden group-hover:flex transition-all z-10 leading-none"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+              <button
+                onClick={() => addItem(colIdx)}
+                className="w-full py-1 rounded-lg border border-dashed border-gray-300 dark:border-gray-600 text-gray-400 dark:text-gray-500 hover:border-blue-400 hover:text-blue-500 dark:hover:text-blue-400 text-lg font-light transition-colors mt-0.5"
+              >
+                +
+              </button>
+            </div>
+          ))}
+        </div>
+
+        <p className="text-center text-xs text-gray-400 dark:text-gray-600 mt-4">
+          Click once to edit · Double-click to copy · Hover + × to delete
+        </p>
+      </div>
+    </div>
+  );
+}
 
 const CHECK_MARK = "✅";
 
@@ -194,8 +369,10 @@ export default function SrtEditorTab({ subtitles, filename, setSubtitles, setFil
   const [cascadeMode, setCascadeMode] = useState(true);
   const [jumpTime, setJumpTime] = useState("00:00:00,000");
   const [highlightedJumpId, setHighlightedJumpId] = useState<number | null>(null);
+  const [notepadOpen, setNotepadOpen] = useState(false);
   const cardRefs = useRef(new Map<number, HTMLDivElement | null>());
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const closeNotepad = useCallback(() => setNotepadOpen(false), []);
 
   const autoResize = (el: HTMLTextAreaElement) => {
     el.style.height = "auto";
@@ -649,6 +826,17 @@ export default function SrtEditorTab({ subtitles, filename, setSubtitles, setFil
           </div>
 
           <div className="flex-1" />
+          <button
+            onClick={() => setNotepadOpen(o => !o)}
+            title="Quick Note Pad"
+            className={`flex items-center gap-1 px-2.5 py-1 rounded-lg border text-xs transition-colors ${
+              notepadOpen
+                ? "border-blue-400 bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-300"
+                : "border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:bg-blue-50 dark:hover:bg-blue-950 hover:border-blue-300 hover:text-blue-600 dark:hover:text-blue-400"
+            }`}
+          >
+            📝
+          </button>
           <button onClick={handleClear}
             className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-gray-200 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-red-500 transition-colors">
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -796,6 +984,8 @@ export default function SrtEditorTab({ subtitles, filename, setSubtitles, setFil
           </div>
         </div>
       )}
+
+      {notepadOpen && <NotepadPopup onClose={closeNotepad} />}
     </div>
   );
 }
