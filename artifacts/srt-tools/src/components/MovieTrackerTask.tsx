@@ -2,10 +2,11 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Search, Plus, Trash2, Copy, ClipboardPaste, CheckCircle2, Circle, Film, X, RotateCcw, Type, Download, Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
-const LANGUAGES = ["ARABIC", "GERMAN", "ENGLISH", "SPANISH", "FRENCH"] as const;
+const LANGUAGES = ["ORIGINAL", "ARABIC", "GERMAN", "ENGLISH", "SPANISH", "FRENCH"] as const;
 type Language = typeof LANGUAGES[number];
 
 const TITLE_SUFFIX: Record<Language, string> = {
+  ORIGINAL: "",
   ENGLISH: "- Explained in English (Full Story)",
   ARABIC: "ملخص فيلم (القصة كاملة) -",
   GERMAN: "- Film Zusammenfassung (Ganze Story)",
@@ -37,8 +38,8 @@ function loadData(): MovieEntry[] {
     if (raw) return JSON.parse(raw);
   } catch {}
   return [
-    { id: generateId(), number: "001", names: { ARABIC: "", GERMAN: "", ENGLISH: "", SPANISH: "", FRENCH: "" }, made: false },
-    { id: generateId(), number: "002", names: { ARABIC: "", GERMAN: "", ENGLISH: "", SPANISH: "", FRENCH: "" }, made: false },
+    { id: generateId(), number: "001", names: { ORIGINAL: "", ARABIC: "", GERMAN: "", ENGLISH: "", SPANISH: "", FRENCH: "" }, made: false },
+    { id: generateId(), number: "002", names: { ORIGINAL: "", ARABIC: "", GERMAN: "", ENGLISH: "", SPANISH: "", FRENCH: "" }, made: false },
   ];
 }
 
@@ -81,7 +82,7 @@ export default function MovieTrackerTask({ onClose }: { onClose: () => void }) {
       const newEntry: MovieEntry = {
         id: generateId(),
         number: formatNumber(prev.length + 1),
-        names: { ARABIC: "", GERMAN: "", ENGLISH: "", SPANISH: "", FRENCH: "" },
+        names: { ORIGINAL: "", ARABIC: "", GERMAN: "", ENGLISH: "", SPANISH: "", FRENCH: "" },
         made: false,
       };
       return renumber([newEntry, ...prev]);
@@ -336,8 +337,8 @@ export default function MovieTrackerTask({ onClose }: { onClose: () => void }) {
       <div className="flex-1 overflow-auto pb-20">
         <div className="px-4 py-4">
           <div className="bg-card border border-border rounded-xl overflow-hidden shadow-sm">
-            <div>
-              <table className="w-full table-fixed">
+            <div className="overflow-x-auto">
+              <table className="w-full table-auto min-w-[900px]">
                 <thead>
                   <tr className="bg-secondary/60 border-b border-border">
                     <th className="text-left px-3 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider w-14">NO</th>
@@ -380,10 +381,11 @@ export default function MovieTrackerTask({ onClose }: { onClose: () => void }) {
                         {LANGUAGES.map(lang => {
                           const raw = entry.names[lang];
                           const isRtl = lang === "ARABIC";
+                          const suffix = TITLE_SUFFIX[lang];
                           const titled = raw.trim()
                             ? isRtl
-                              ? `${TITLE_SUFFIX[lang]} ${raw.trim()}`
-                              : `${raw.trim()} ${TITLE_SUFFIX[lang]}`
+                              ? `${suffix} ${raw.trim()}`.trim()
+                              : `${raw.trim()} ${suffix}`.trim()
                             : "";
                           return (
                             <td key={lang} className="px-2 py-2 align-middle">
