@@ -143,7 +143,7 @@ export default function MovieTrackerTask({ onClose }: { onClose: () => void }) {
       entry.number,
       "",
       ...LANGUAGES.map(lang => {
-        const val = entry.names[lang].trim();
+        const val = (entry.names[lang] ?? "").trim();
         return `${lang} : ( ${val || "—"} )`;
       }),
     ].join("\n");
@@ -379,7 +379,7 @@ export default function MovieTrackerTask({ onClose }: { onClose: () => void }) {
                           </span>
                         </td>
                         {LANGUAGES.map(lang => {
-                          const raw = entry.names[lang];
+                          const raw = entry.names[lang] ?? "";
                           const isRtl = lang === "ARABIC";
                           const suffix = TITLE_SUFFIX[lang];
                           const titled = raw.trim()
