@@ -400,8 +400,10 @@ export default function MovieTrackerTask({ onClose }: { onClose: () => void }) {
                               ? `${suffix} ${raw.trim()}`.trim()
                               : `${raw.trim()} ${suffix}`.trim()
                             : "";
+                          const toTag = (name: string) =>
+                            "#" + name.trim().split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join("");
                           const tagged = raw.trim()
-                            ? "#" + raw.trim().split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join("")
+                            ? raw.split("/").map(part => part.trim()).filter(Boolean).map(toTag).join(" , ")
                             : "";
                           return (
                             <td key={lang} className="px-2 py-2 align-middle">
