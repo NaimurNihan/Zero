@@ -434,7 +434,7 @@ export default function MovieTrackerTask({ onClose }: { onClose: () => void }) {
                       {idx > 0 && Math.ceil(parseInt(entry.number, 10) / 5) !== Math.ceil(parseInt(filteredEntries[idx - 1].number, 10) / 5) && (
                         <tr aria-hidden="true">
                           <td colSpan={8} className="p-0">
-                            <div className="h-3 bg-slate-100 border-y border-slate-200" />
+                            <div className="h-0 border-t-2 border-slate-800" />
                           </td>
                         </tr>
                       )}
