@@ -14,10 +14,12 @@ const TITLE_SUFFIX: Record<Language, string> = {
   FRENCH: "- Résumé du film (Histoire complète)",
 };
 
+type TwoValues = [string, string];
+
 interface MovieEntry {
   id: string;
   number: string;
-  names: Record<Language, string>;
+  names: Record<Language, TwoValues>;
   made: boolean;
 }
 
@@ -32,21 +34,66 @@ function formatNumber(n: number): string {
 const STORAGE_KEY = "movie-names-data";
 const TRASH_KEY = "movie-names-trash";
 
+function migrateNames(raw: Record<string, unknown>): Record<Language, TwoValues> {
+  const result = {} as Record<Language, TwoValues>;
+  for (const lang of LANGUAGES) {
+    const val = raw[lang];
+    if (Array.isArray(val)) {
+      result[lang] = [String(val[0] ?? ""), String(val[1] ?? "")];
+    } else {
+      result[lang] = [String(val ?? ""), ""];
+    }
+  }
+  return result;
+}
+
+function emptyNames(): Record<Language, TwoValues> {
+  const r = {} as Record<Language, TwoValues>;
+  for (const lang of LANGUAGES) r[lang] = ["", ""];
+  return r;
+}
+
 function loadData(): MovieEntry[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const parsed = JSON.parse(raw) as unknown[];
+      if (Array.isArray(parsed)) {
+        return parsed.map((e: unknown) => {
+          const entry = e as Record<string, unknown>;
+          return {
+            id: String(entry.id ?? generateId()),
+            number: String(entry.number ?? "001"),
+            names: migrateNames((entry.names ?? {}) as Record<string, unknown>),
+            made: Boolean(entry.made),
+          };
+        });
+      }
+    }
   } catch {}
   return [
-    { id: generateId(), number: "001", names: { ORIGINAL: "", ARABIC: "", GERMAN: "", ENGLISH: "", SPANISH: "", FRENCH: "" }, made: false },
-    { id: generateId(), number: "002", names: { ORIGINAL: "", ARABIC: "", GERMAN: "", ENGLISH: "", SPANISH: "", FRENCH: "" }, made: false },
+    { id: generateId(), number: "001", names: emptyNames(), made: false },
+    { id: generateId(), number: "002", names: emptyNames(), made: false },
   ];
 }
 
 function loadTrash(): MovieEntry[] {
   try {
     const raw = localStorage.getItem(TRASH_KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const parsed = JSON.parse(raw) as unknown[];
+      if (Array.isArray(parsed)) {
+        return parsed.map((e: unknown) => {
+          const entry = e as Record<string, unknown>;
+          return {
+            id: String(entry.id ?? generateId()),
+            number: String(entry.number ?? "001"),
+            names: migrateNames((entry.names ?? {}) as Record<string, unknown>),
+            made: Boolean(entry.made),
+          };
+        });
+      }
+    }
   } catch {}
   return [];
 }
@@ -83,15 +130,20 @@ export default function MovieTrackerTask({ onClose }: { onClose: () => void }) {
       const newEntry: MovieEntry = {
         id: generateId(),
         number: formatNumber(prev.length + 1),
-        names: { ORIGINAL: "", ARABIC: "", GERMAN: "", ENGLISH: "", SPANISH: "", FRENCH: "" },
+        names: emptyNames(),
         made: false,
       };
       return renumber([newEntry, ...prev]);
     });
   }, []);
 
-  const updateName = useCallback((id: string, lang: Language, value: string) => {
-    setEntries(prev => prev.map(e => e.id === id ? { ...e, names: { ...e.names, [lang]: value } } : e));
+  const updateName = useCallback((id: string, lang: Language, boxIdx: 0 | 1, value: string) => {
+    setEntries(prev => prev.map(e => {
+      if (e.id !== id) return e;
+      const pair: TwoValues = [...e.names[lang]] as TwoValues;
+      pair[boxIdx] = value;
+      return { ...e, names: { ...e.names, [lang]: pair } };
+    }));
   }, []);
 
   const deleteEntry = useCallback((id: string) => {
@@ -144,8 +196,9 @@ export default function MovieTrackerTask({ onClose }: { onClose: () => void }) {
       entry.number,
       "",
       ...LANGUAGES.map(lang => {
-        const val = (entry.names[lang] ?? "").trim();
-        return `${lang} : ( ${val || "—"} )`;
+        const [v1, v2] = entry.names[lang];
+        const combined = [v1, v2].filter(v => v.trim()).join(" / ") || "—";
+        return `${lang} : ( ${combined} )`;
       }),
     ].join("\n");
     try {
@@ -156,18 +209,18 @@ export default function MovieTrackerTask({ onClose }: { onClose: () => void }) {
     }
   }, [toast]);
 
-  const pasteCell = useCallback(async (id: string, lang: Language) => {
+  const pasteCell = useCallback(async (id: string, lang: Language, boxIdx: 0 | 1) => {
     try {
       const text = await navigator.clipboard.readText();
-      updateName(id, lang, text);
+      updateName(id, lang, boxIdx, text);
       toast({ description: "Pasted from clipboard" });
     } catch {
       toast({ description: "Could not paste", variant: "destructive" });
     }
   }, [updateName, toast]);
 
-  const clearCell = useCallback((id: string, lang: Language) => {
-    updateName(id, lang, "");
+  const clearCell = useCallback((id: string, lang: Language, boxIdx: 0 | 1) => {
+    updateName(id, lang, boxIdx, "");
   }, [updateName]);
 
   const toggleMade = useCallback((id: string) => {
@@ -180,7 +233,7 @@ export default function MovieTrackerTask({ onClose }: { onClose: () => void }) {
     const q = query.trim().toLowerCase();
     const found = entries.find(e => {
       if (e.number.toLowerCase().includes(q)) return true;
-      return LANGUAGES.some(lang => e.names[lang].toLowerCase().includes(q));
+      return LANGUAGES.some(lang => e.names[lang].some(v => v.toLowerCase().includes(q)));
     });
     if (found) {
       setHighlightedId(found.id);
@@ -219,8 +272,20 @@ export default function MovieTrackerTask({ onClose }: { onClose: () => void }) {
       try {
         const parsed = JSON.parse(ev.target?.result as string);
         if (Array.isArray(parsed.entries)) {
-          setEntries(parsed.entries);
-          if (Array.isArray(parsed.trash)) setTrash(parsed.trash);
+          setEntries(parsed.entries.map((entry: Record<string, unknown>) => ({
+            id: String(entry.id ?? generateId()),
+            number: String(entry.number ?? "001"),
+            names: migrateNames((entry.names ?? {}) as Record<string, unknown>),
+            made: Boolean(entry.made),
+          })));
+          if (Array.isArray(parsed.trash)) {
+            setTrash(parsed.trash.map((entry: Record<string, unknown>) => ({
+              id: String(entry.id ?? generateId()),
+              number: String(entry.number ?? "001"),
+              names: migrateNames((entry.names ?? {}) as Record<string, unknown>),
+              made: Boolean(entry.made),
+            })));
+          }
           toast({ description: "Data restored successfully" });
         } else {
           toast({ description: "Invalid backup file", variant: "destructive" });
@@ -237,7 +302,7 @@ export default function MovieTrackerTask({ onClose }: { onClose: () => void }) {
     ? entries.filter(e => {
         const q = searchQuery.trim().toLowerCase();
         if (e.number.toLowerCase().includes(q)) return true;
-        return LANGUAGES.some(lang => e.names[lang].toLowerCase().includes(q));
+        return LANGUAGES.some(lang => e.names[lang].some(v => v.toLowerCase().includes(q)));
       })
     : entries;
 
@@ -245,7 +310,7 @@ export default function MovieTrackerTask({ onClose }: { onClose: () => void }) {
   const madeCount = entries.filter(e => e.made).length;
 
   function trashLabel(e: MovieEntry) {
-    const name = LANGUAGES.map(l => e.names[l]).find(v => v.trim()) || "(empty)";
+    const name = LANGUAGES.map(l => e.names[l][0] || e.names[l][1]).find(v => v.trim()) || "(empty)";
     return `${e.number} — ${name}`;
   }
 
@@ -368,7 +433,7 @@ export default function MovieTrackerTask({ onClose }: { onClose: () => void }) {
                     <React.Fragment key={entry.id}>
                       {idx > 0 && Math.ceil(parseInt(entry.number, 10) / 5) !== Math.ceil(parseInt(filteredEntries[idx - 1].number, 10) / 5) && (
                         <tr aria-hidden="true">
-                          <td colSpan={7} className="p-0">
+                          <td colSpan={8} className="p-0">
                             <div className="h-3 bg-slate-100 border-y border-slate-200" />
                           </td>
                         </tr>
@@ -392,49 +457,68 @@ export default function MovieTrackerTask({ onClose }: { onClose: () => void }) {
                           </span>
                         </td>
                         {LANGUAGES.map(lang => {
-                          const raw = entry.names[lang] ?? "";
+                          const pair = entry.names[lang];
+                          const raw0 = Array.isArray(pair) ? (pair[0] ?? "") : String(pair ?? "");
+                          const raw1 = Array.isArray(pair) ? (pair[1] ?? "") : "";
                           const isRtl = lang === "ARABIC";
                           const suffix = TITLE_SUFFIX[lang];
-                          const titled = raw.trim()
-                            ? isRtl
-                              ? `${suffix} ${raw.trim()}`.trim()
-                              : `${raw.trim()} ${suffix}`.trim()
-                            : "";
-                          const toTag = (name: string) =>
-                            "#" + name.trim().split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join("");
-                          const tagged = raw.trim()
-                            ? raw.split("/").map(part => part.trim()).filter(Boolean).map(toTag).join(" , ")
-                            : "";
+
+                          const makeTitled = (raw: string) =>
+                            raw.trim()
+                              ? isRtl
+                                ? `${suffix} ${raw.trim()}`.trim()
+                                : `${raw.trim()} ${suffix}`.trim()
+                              : "";
+
+                          const makeTagged = (raw: string) => {
+                            const toTag = (name: string) =>
+                              "#" + name.trim().split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join("");
+                            return raw.trim()
+                              ? raw.split("/").map(part => part.trim()).filter(Boolean).map(toTag).join(" , ")
+                              : "";
+                          };
+
                           return (
                             <td key={lang} className="px-2 py-2 align-middle">
-                              {titleMode ? (
-                                <TitleCell
-                                  value={titled}
-                                  made={entry.made}
-                                  onCopy={() => copyCell(titled)}
-                                  isRtl={isRtl}
-                                />
-                              ) : tagMode ? (
-                                <TitleCell
-                                  value={tagged}
-                                  made={entry.made}
-                                  onCopy={() => copyCell(tagged)}
-                                  isRtl={false}
-                                />
-                              ) : (
-                                <CellInput
-                                  value={raw}
-                                  onChange={val => updateName(entry.id, lang, val)}
-                                  onCopy={() => copyCell(raw)}
-                                  onPaste={() => pasteCell(entry.id, lang)}
-                                  onClear={() => clearCell(entry.id, lang)}
-                                  disabled={entry.made}
-                                  made={entry.made}
-                                  isRtl={isRtl}
-                                  isLastActive={lastActive === `${entry.id}-${lang}`}
-                                  onActivate={() => setLastActive(`${entry.id}-${lang}`)}
-                                />
-                              )}
+                              <div className="flex flex-col gap-1">
+                                {([0, 1] as const).map(boxIdx => {
+                                  const raw = boxIdx === 0 ? raw0 : raw1;
+                                  const titled = makeTitled(raw);
+                                  const tagged = makeTagged(raw);
+                                  return (
+                                    <div key={boxIdx}>
+                                      {titleMode ? (
+                                        <TitleCell
+                                          value={titled}
+                                          made={entry.made}
+                                          onCopy={() => copyCell(titled)}
+                                          isRtl={isRtl}
+                                        />
+                                      ) : tagMode ? (
+                                        <TitleCell
+                                          value={tagged}
+                                          made={entry.made}
+                                          onCopy={() => copyCell(tagged)}
+                                          isRtl={false}
+                                        />
+                                      ) : (
+                                        <CellInput
+                                          value={raw}
+                                          onChange={val => updateName(entry.id, lang, boxIdx, val)}
+                                          onCopy={() => copyCell(raw)}
+                                          onPaste={() => pasteCell(entry.id, lang, boxIdx)}
+                                          onClear={() => clearCell(entry.id, lang, boxIdx)}
+                                          disabled={entry.made}
+                                          made={entry.made}
+                                          isRtl={isRtl}
+                                          isLastActive={lastActive === `${entry.id}-${lang}-${boxIdx}`}
+                                          onActivate={() => setLastActive(`${entry.id}-${lang}-${boxIdx}`)}
+                                        />
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
                             </td>
                           );
                         })}
@@ -554,9 +638,11 @@ export default function MovieTrackerTask({ onClose }: { onClose: () => void }) {
                       {LANGUAGES.map(lang => (
                         <div key={lang} className="flex items-start gap-1.5">
                           <span className="text-[10px] font-semibold text-muted-foreground uppercase w-12 shrink-0 pt-0.5">{lang.slice(0,3)}</span>
-                          <span className="text-xs text-foreground break-words">
-                            {e.names[lang] || <span className="text-muted-foreground/50 italic">—</span>}
-                          </span>
+                          <div className="text-xs text-foreground break-words flex flex-col gap-0.5">
+                            {e.names[lang].map((v, i) => (
+                              <span key={i}>{v || <span className="text-muted-foreground/50 italic">—</span>}</span>
+                            ))}
+                          </div>
                         </div>
                       ))}
                     </div>
