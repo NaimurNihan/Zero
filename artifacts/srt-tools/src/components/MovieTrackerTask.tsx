@@ -434,13 +434,13 @@ export default function MovieTrackerTask({ onClose }: { onClose: () => void }) {
                       {idx > 0 && Math.ceil(parseInt(entry.number, 10) / 5) !== Math.ceil(parseInt(filteredEntries[idx - 1].number, 10) / 5) && (
                         <tr aria-hidden="true">
                           <td colSpan={8} className="p-0">
-                            <div className="h-0 border-t-2 border-slate-800" />
+                            <div className="h-3 bg-slate-100 border-y border-slate-200" />
                           </td>
                         </tr>
                       )}
                       <tr
                         ref={el => { rowRefs.current[entry.id] = el; }}
-                        className={`group transition-colors border-b border-slate-100 ${
+                        className={`group transition-colors border-b-2 border-slate-800 ${
                           highlightedId === entry.id
                             ? "bg-primary/8"
                             : "bg-white hover:bg-slate-50"
