@@ -885,7 +885,7 @@ export default function SrtNoteTab({ incomingText, incomingName, incomingKey, on
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
           onClick={() => setTaskOpen(false)}>
           <div onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-7xl max-h-[95vh] h-[92vh] rounded-2xl shadow-2xl overflow-hidden">
+            className="w-[98vw] max-h-[95vh] h-[92vh] rounded-2xl shadow-2xl overflow-hidden">
             <MovieTrackerTask onClose={() => setTaskOpen(false)} />
           </div>
         </div>
