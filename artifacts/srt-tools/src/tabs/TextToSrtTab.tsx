@@ -209,33 +209,31 @@ export default function TextToSrtTab() {
           </div>
 
           {entries.length > 0 ? (
-            <div className="flex-1 overflow-y-auto p-2 flex flex-col gap-1.5">
+            <div className="flex-1 overflow-y-auto p-3 space-y-2">
               {entries.map((entry, i) => (
                 <div
                   key={i}
-                  className="group rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 overflow-hidden"
+                  className="group border border-gray-100 dark:border-gray-800 rounded-lg p-3 hover:border-emerald-200 hover:bg-emerald-50/20 dark:hover:border-emerald-800 transition-colors"
                 >
-                  {/* Card header: index + timecode + copy button */}
-                  <div className="flex items-center justify-between px-2.5 py-1 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-700/60">
+                  <div className="flex items-center justify-between gap-2 mb-1.5">
                     <div className="flex items-center gap-2">
-                      <span className="text-[11px] font-bold text-gray-400 dark:text-gray-500 w-5 text-right">
+                      <span className="w-5 h-5 bg-emerald-500 text-white rounded text-xs flex items-center justify-center font-bold flex-shrink-0">
                         {i + 1}
                       </span>
-                      <span className="font-mono text-[11px] text-indigo-600 dark:text-indigo-400 tracking-tight">
+                      <span className="text-xs text-gray-500 dark:text-gray-400 font-mono tabular-nums">
                         {msToSrtTime(entry.startMs)} → {msToSrtTime(entry.endMs)}
                       </span>
                     </div>
                     <button
                       onClick={() => handleCopyCard(i)}
-                      className="opacity-0 group-hover:opacity-100 text-[10px] text-gray-400 hover:text-blue-500 transition-all px-1.5 py-0.5 rounded"
+                      className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-blue-500 transition-all"
                     >
-                      {copiedIdx === i ? "✓" : <Copy className="h-3 w-3" />}
+                      {copiedIdx === i ? <span className="text-[10px] text-emerald-500">✓</span> : <Copy className="h-3 w-3" />}
                     </button>
                   </div>
-                  {/* Card body: subtitle text */}
-                  <div className="px-2.5 py-1.5 text-[12px] text-gray-800 dark:text-gray-100 leading-snug whitespace-pre-wrap">
+                  <p className="text-sm text-gray-800 dark:text-gray-100 ml-7 leading-relaxed">
                     {entry.text}
-                  </div>
+                  </p>
                 </div>
               ))}
             </div>
