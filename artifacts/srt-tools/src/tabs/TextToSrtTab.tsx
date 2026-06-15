@@ -34,7 +34,6 @@ interface Entry {
 
 function parseInput(raw: string): Entry[] {
   const lines = raw.split("\n").map((l) => l.trim()).filter(Boolean);
-
   const parsed: { startMs: number; text: string; trailingMs: number | null }[] = [];
   let standaloneEnd: number | null = null;
 
@@ -88,32 +87,40 @@ function toSrt(entries: Entry[]): string {
     .join("\n\n");
 }
 
-const PLACEHOLDER = `উদাহরণ:
+const PLACEHOLDER = `Example:
 
 0:00 - Hello everyone, this is Mr. Junkie here!
 0:10 - A long time ago in a fishing village of China...
 0:18 - Seeing that the girl is upset... 0:25
 
-নিয়ম:
-• প্রতি line: সময় - text
-• সময় format: 0:00 বা 0.00 বা 00:00:00
-• প্রতিটার end time = পরেরটার start time
-• শেষটার end time দেওয়ার ৩ উপায়:
-  ১. text-এর শেষে লেখো: "0:18 - text 0:25"
-  ২. আলাদা line-এ: "0:25"
-  ৩. না দিলে +5 সেকেন্ড যোগ হবে`;
+Format: timestamp - text
+Time formats accepted: 0:00 / 0.00 / 00:00:00
+Each entry's end time = next entry's start time
+Last entry end time (3 ways):
+  1. At end of line: "0:18 - text 0:25"
+  2. Separate line: "0:25"
+  3. Omit: +5 seconds added automatically`;
 
 export default function TextToSrtTab() {
   const { toast } = useToast();
   const [input, setInput] = useState("");
+  const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
 
   const entries = useMemo(() => parseInput(input), [input]);
   const srtOutput = useMemo(() => (entries.length > 0 ? toSrt(entries) : ""), [entries]);
 
-  const handleCopy = () => {
+  const handleCopyAll = () => {
     if (!srtOutput) return;
     navigator.clipboard.writeText(srtOutput);
-    toast({ title: "Copied!", description: `${entries.length} subtitle copied` });
+    toast({ title: "Copied!", description: `${entries.length} subtitles copied` });
+  };
+
+  const handleCopyCard = (idx: number) => {
+    const e = entries[idx];
+    const text = `${idx + 1}\n${msToSrtTime(e.startMs)} --> ${msToSrtTime(e.endMs)}\n${e.text}`;
+    navigator.clipboard.writeText(text);
+    setCopiedIdx(idx);
+    setTimeout(() => setCopiedIdx(null), 1500);
   };
 
   const handleDownload = () => {
@@ -129,6 +136,7 @@ export default function TextToSrtTab() {
 
   return (
     <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900">
+      {/* Header */}
       <div className="shrink-0 px-4 py-2.5 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow">
@@ -136,7 +144,7 @@ export default function TextToSrtTab() {
           </div>
           <div>
             <h1 className="text-sm font-bold text-gray-800 dark:text-gray-100">Text → SRT</h1>
-            <p className="text-[11px] text-gray-400 dark:text-gray-500">Timestamped text থেকে SRT বানাও</p>
+            <p className="text-[11px] text-gray-400 dark:text-gray-500">Convert timestamped text to SRT format</p>
           </div>
         </div>
         {input && (
@@ -149,13 +157,16 @@ export default function TextToSrtTab() {
         )}
       </div>
 
+      {/* Body */}
       <div className="flex flex-1 overflow-hidden gap-3 p-3">
+
+        {/* Left: Input */}
         <div className="flex flex-1 flex-col rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-sm overflow-hidden">
           <div className="px-3 py-2 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between shrink-0">
             <span className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Input</span>
             {entries.length > 0 && (
               <span className="text-[11px] font-mono text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 px-2 py-0.5 rounded-full">
-                {entries.length} subtitle
+                {entries.length} {entries.length === 1 ? "subtitle" : "subtitles"}
               </span>
             )}
           </div>
@@ -168,22 +179,24 @@ export default function TextToSrtTab() {
           />
         </div>
 
+        {/* Arrow */}
         <div className="flex items-center justify-center shrink-0 self-center">
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-500 dark:text-blue-400">
             <ArrowRight className="h-4 w-4" />
           </div>
         </div>
 
+        {/* Right: Output cards */}
         <div className="flex flex-1 flex-col rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-sm overflow-hidden">
           <div className="px-3 py-2 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between shrink-0">
             <span className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">SRT Output</span>
             {srtOutput && (
               <div className="flex items-center gap-1.5">
                 <button
-                  onClick={handleCopy}
+                  onClick={handleCopyAll}
                   className="flex items-center gap-1 text-[11px] text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-300 border border-gray-200 dark:border-gray-700 rounded-md px-2 py-0.5 hover:border-blue-300 transition-colors"
                 >
-                  <Copy className="h-3 w-3" /> Copy
+                  <Copy className="h-3 w-3" /> Copy All
                 </button>
                 <button
                   onClick={handleDownload}
@@ -194,15 +207,43 @@ export default function TextToSrtTab() {
               </div>
             )}
           </div>
-          {srtOutput ? (
-            <pre className="flex-1 overflow-auto px-3 py-2.5 text-[12px] font-mono text-gray-800 dark:text-gray-100 leading-relaxed whitespace-pre-wrap">
-              {srtOutput}
-            </pre>
+
+          {entries.length > 0 ? (
+            <div className="flex-1 overflow-y-auto p-2 flex flex-col gap-1.5">
+              {entries.map((entry, i) => (
+                <div
+                  key={i}
+                  className="group rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 overflow-hidden"
+                >
+                  {/* Card header: index + timecode + copy button */}
+                  <div className="flex items-center justify-between px-2.5 py-1 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-700/60">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] font-bold text-gray-400 dark:text-gray-500 w-5 text-right">
+                        {i + 1}
+                      </span>
+                      <span className="font-mono text-[11px] text-indigo-600 dark:text-indigo-400 tracking-tight">
+                        {msToSrtTime(entry.startMs)} → {msToSrtTime(entry.endMs)}
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => handleCopyCard(i)}
+                      className="opacity-0 group-hover:opacity-100 text-[10px] text-gray-400 hover:text-blue-500 transition-all px-1.5 py-0.5 rounded"
+                    >
+                      {copiedIdx === i ? "✓" : <Copy className="h-3 w-3" />}
+                    </button>
+                  </div>
+                  {/* Card body: subtitle text */}
+                  <div className="px-2.5 py-1.5 text-[12px] text-gray-800 dark:text-gray-100 leading-snug whitespace-pre-wrap">
+                    {entry.text}
+                  </div>
+                </div>
+              ))}
+            </div>
           ) : (
             <div className="flex-1 flex items-center justify-center text-center px-6">
               <div className="text-gray-300 dark:text-gray-600">
                 <FileText className="mx-auto mb-2 h-8 w-8" />
-                <p className="text-xs">বামে text দিলে এখানে SRT দেখাবে</p>
+                <p className="text-xs">Type in the input box to see SRT cards here</p>
               </div>
             </div>
           )}
