@@ -448,7 +448,7 @@ export default function MovieTrackerTask({ onClose }: { onClose: () => void }) {
                       )}
                       <tr
                         ref={el => { rowRefs.current[entry.id] = el; }}
-                        className={`group transition-colors border-b-4 border-double border-slate-400 ${
+                        className={`group transition-colors border-b border-slate-100 ${
                           highlightedId === entry.id
                             ? "bg-primary/8"
                             : "bg-white hover:bg-slate-50"
