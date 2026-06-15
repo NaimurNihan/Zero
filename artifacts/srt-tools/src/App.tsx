@@ -10,18 +10,17 @@ import SrtMergerTab from "@/tabs/SrtMergerTab";
 import VoiceTrimmerTab from "@/tabs/VoiceTrimmerTab";
 import VideoSplitterTab from "@/tabs/VideoSplitterTab";
 import CuttingPlusTab from "@/tabs/CuttingPlusTab";
-import CuttingPlusPlusTab from "@/tabs/CuttingPlusPlusTab";
 import SpeedPlusMinusTab from "@/tabs/SpeedPlusMinusTab";
 import AiAudioTab from "@/tabs/AiAudioTab";
 import AudioToSrtTab from "@/tabs/AudioToSrtTab";
 
-type Tab = "editor" | "maker" | "note" | "splitter" | "merger" | "aiAudio" | "audio" | "video" | "cuttingPlus" | "cutting" | "speed" | "audioToSrt";
+type Tab = "editor" | "maker" | "note" | "splitter" | "merger" | "aiAudio" | "audio" | "video" | "cuttingPlus" | "speed" | "audioToSrt";
 type Group = "A" | "B" | "C";
 
 const GROUP_TABS: Record<Group, Tab[]> = {
   A: ["merger", "editor", "splitter", "note"],
   B: ["note", "aiAudio", "audio", "audioToSrt", "maker"],
-  C: ["video", "cuttingPlus", "cutting", "speed"],
+  C: ["video", "cuttingPlus", "speed"],
 };
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
@@ -116,15 +115,6 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
     ),
   },
   {
-    id: "cutting",
-    label: "Cutting ++",
-    icon: (
-      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.121 14.121L19 19m-7-7l7-7m-7 7l-2.879 2.879M12 12L9.121 9.121m0 5.758a3 3 0 10-4.243 4.243 3 3 0 004.243-4.243zm0-5.758a3 3 0 10-4.243-4.243 3 3 0 004.243 4.243z" />
-      </svg>
-    ),
-  },
-  {
     id: "speed",
     label: "Speed +-",
     icon: (
@@ -187,7 +177,6 @@ export default function App() {
   const [noteIncomingText, setNoteIncomingText] = useState("");
   const [noteIncomingName, setNoteIncomingName] = useState("");
   const [noteIncomingKey, setNoteIncomingKey] = useState(0);
-  const [cuttingIncomingAudio, setCuttingIncomingAudio] = useState<{ files: File[]; key: number }>({ files: [], key: 0 });
   const [spliterIncomingAudio, setSpliterIncomingAudio] = useState<{ files: File[]; key: number; autoSplit?: boolean; label?: string }>({ files: [], key: 0 });
   const autoRunRef = useRef(false);
   const currentRunLabelRef = useRef<string>("");
@@ -766,20 +755,11 @@ export default function App() {
       <div style={{ display: activeTab === "cuttingPlus" ? "flex" : "none" }} className="flex-col flex-1 overflow-y-auto">
         <CuttingPlusTab
           incomingVideoFiles={cuttingPlusIncomingVideos}
-          onSendToCuttingPlusPlus={(files) => {
-            setCuttingIncomingAudio({ files, key: Date.now() });
-            handleSelectTab("cutting");
-          }}
           onSendToSpeedPlusMinus={(files) => {
             setSpeedIncomingVideos({ files, key: Date.now() });
             handleSelectTab("speed");
           }}
         />
-      </div>
-
-      {/* Cutting ++ — full width, hidden when inactive */}
-      <div style={{ display: activeTab === "cutting" ? "flex" : "none" }} className="flex-col flex-1 overflow-y-auto">
-        <CuttingPlusPlusTab incomingAudioFiles={cuttingIncomingAudio} />
       </div>
 
       {/* Speed +- — full width, hidden when inactive */}
@@ -801,7 +781,7 @@ export default function App() {
 
       {/* Other tabs */}
       <main
-        style={{ display: activeTab === "maker" || activeTab === "note" || activeTab === "splitter" || activeTab === "merger" || activeTab === "aiAudio" || activeTab === "audio" || activeTab === "video" || activeTab === "cuttingPlus" || activeTab === "cutting" || activeTab === "speed" || activeTab === "audioToSrt" ? "none" : "block" }}
+        style={{ display: activeTab === "maker" || activeTab === "note" || activeTab === "splitter" || activeTab === "merger" || activeTab === "aiAudio" || activeTab === "audio" || activeTab === "video" || activeTab === "cuttingPlus" || activeTab === "speed" || activeTab === "audioToSrt" ? "none" : "block" }}
         className="max-w-5xl mx-auto px-4 py-5 flex-1 overflow-y-auto w-full min-h-0"
       >
         {activeTab === "editor" && (
