@@ -1,0 +1,213 @@
+import { useMemo, useState } from "react";
+import { ArrowRight, Copy, Download, FileText, X } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+
+function parseTimestampMs(s: string): number | null {
+  if (!s) return null;
+  const norm = s.trim().replace(/\./g, ":");
+  const parts = norm.split(":").map(Number);
+  if (parts.some(isNaN)) return null;
+  if (parts.length === 1) return parts[0] * 1000;
+  if (parts.length === 2) return (parts[0] * 60 + parts[1]) * 1000;
+  if (parts.length === 3) return (parts[0] * 3600 + parts[1] * 60 + parts[2]) * 1000;
+  return null;
+}
+
+function msToSrtTime(ms: number): string {
+  const h = Math.floor(ms / 3600000);
+  const m = Math.floor((ms % 3600000) / 60000);
+  const s = Math.floor((ms % 60000) / 1000);
+  const mil = ms % 1000;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")},${String(mil).padStart(3, "0")}`;
+}
+
+const TS_PATTERN = "\\d{1,2}[:.:]\\d{2}(?:[:.:]\\d{2,3})?";
+const LINE_RE = new RegExp(`^(${TS_PATTERN})\\s*[-–]\\s*(.+)$`);
+const STANDALONE_RE = new RegExp(`^(${TS_PATTERN})$`);
+const TRAILING_RE = new RegExp(`[\\s,]+(${TS_PATTERN})\\s*$`);
+
+interface Entry {
+  startMs: number;
+  endMs: number;
+  text: string;
+}
+
+function parseInput(raw: string): Entry[] {
+  const lines = raw.split("\n").map((l) => l.trim()).filter(Boolean);
+
+  const parsed: { startMs: number; text: string; trailingMs: number | null }[] = [];
+  let standaloneEnd: number | null = null;
+
+  for (const line of lines) {
+    const lineMatch = line.match(LINE_RE);
+    if (lineMatch) {
+      const startMs = parseTimestampMs(lineMatch[1]);
+      if (startMs === null) continue;
+      let text = lineMatch[2].trim();
+      let trailingMs: number | null = null;
+      const trailMatch = text.match(TRAILING_RE);
+      if (trailMatch) {
+        const ms = parseTimestampMs(trailMatch[1]);
+        if (ms !== null) {
+          trailingMs = ms;
+          text = text.slice(0, text.length - trailMatch[0].length).trim();
+        }
+      }
+      parsed.push({ startMs, text, trailingMs });
+      continue;
+    }
+    const soloMatch = line.match(STANDALONE_RE);
+    if (soloMatch) {
+      const ms = parseTimestampMs(soloMatch[1]);
+      if (ms !== null) standaloneEnd = ms;
+    }
+  }
+
+  if (parsed.length === 0) return [];
+
+  return parsed.map((p, i) => {
+    let endMs: number;
+    if (i < parsed.length - 1) {
+      endMs = parsed[i + 1].startMs;
+    } else {
+      if (p.trailingMs !== null && p.trailingMs > p.startMs) {
+        endMs = p.trailingMs;
+      } else if (standaloneEnd !== null && standaloneEnd > p.startMs) {
+        endMs = standaloneEnd;
+      } else {
+        endMs = p.startMs + 5000;
+      }
+    }
+    return { startMs: p.startMs, endMs, text: p.text };
+  });
+}
+
+function toSrt(entries: Entry[]): string {
+  return entries
+    .map((e, i) => `${i + 1}\n${msToSrtTime(e.startMs)} --> ${msToSrtTime(e.endMs)}\n${e.text}`)
+    .join("\n\n");
+}
+
+const PLACEHOLDER = `উদাহরণ:
+
+0:00 - Hello everyone, this is Mr. Junkie here!
+0:10 - A long time ago in a fishing village of China...
+0:18 - Seeing that the girl is upset... 0:25
+
+নিয়ম:
+• প্রতি line: সময় - text
+• সময় format: 0:00 বা 0.00 বা 00:00:00
+• প্রতিটার end time = পরেরটার start time
+• শেষটার end time দেওয়ার ৩ উপায়:
+  ১. text-এর শেষে লেখো: "0:18 - text 0:25"
+  ২. আলাদা line-এ: "0:25"
+  ৩. না দিলে +5 সেকেন্ড যোগ হবে`;
+
+export default function TextToSrtTab() {
+  const { toast } = useToast();
+  const [input, setInput] = useState("");
+
+  const entries = useMemo(() => parseInput(input), [input]);
+  const srtOutput = useMemo(() => (entries.length > 0 ? toSrt(entries) : ""), [entries]);
+
+  const handleCopy = () => {
+    if (!srtOutput) return;
+    navigator.clipboard.writeText(srtOutput);
+    toast({ title: "Copied!", description: `${entries.length} subtitle copied` });
+  };
+
+  const handleDownload = () => {
+    if (!srtOutput) return;
+    const blob = new Blob([srtOutput], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "output.srt";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900">
+      <div className="shrink-0 px-4 py-2.5 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow">
+            <FileText className="h-3.5 w-3.5" />
+          </div>
+          <div>
+            <h1 className="text-sm font-bold text-gray-800 dark:text-gray-100">Text → SRT</h1>
+            <p className="text-[11px] text-gray-400 dark:text-gray-500">Timestamped text থেকে SRT বানাও</p>
+          </div>
+        </div>
+        {input && (
+          <button
+            onClick={() => setInput("")}
+            className="flex items-center gap-1 text-xs text-gray-400 hover:text-red-500 border border-gray-200 dark:border-gray-700 rounded-lg px-2.5 py-1 hover:border-red-300 transition-colors"
+          >
+            <X className="h-3 w-3" /> Clear
+          </button>
+        )}
+      </div>
+
+      <div className="flex flex-1 overflow-hidden gap-3 p-3">
+        <div className="flex flex-1 flex-col rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-sm overflow-hidden">
+          <div className="px-3 py-2 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between shrink-0">
+            <span className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Input</span>
+            {entries.length > 0 && (
+              <span className="text-[11px] font-mono text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 px-2 py-0.5 rounded-full">
+                {entries.length} subtitle
+              </span>
+            )}
+          </div>
+          <textarea
+            className="flex-1 w-full resize-none px-3 py-2.5 text-sm font-mono text-gray-800 dark:text-gray-100 bg-transparent placeholder:text-gray-300 dark:placeholder:text-gray-600 outline-none"
+            placeholder={PLACEHOLDER}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            spellCheck={false}
+          />
+        </div>
+
+        <div className="flex items-center justify-center shrink-0 self-center">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-500 dark:text-blue-400">
+            <ArrowRight className="h-4 w-4" />
+          </div>
+        </div>
+
+        <div className="flex flex-1 flex-col rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-sm overflow-hidden">
+          <div className="px-3 py-2 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between shrink-0">
+            <span className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">SRT Output</span>
+            {srtOutput && (
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={handleCopy}
+                  className="flex items-center gap-1 text-[11px] text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-300 border border-gray-200 dark:border-gray-700 rounded-md px-2 py-0.5 hover:border-blue-300 transition-colors"
+                >
+                  <Copy className="h-3 w-3" /> Copy
+                </button>
+                <button
+                  onClick={handleDownload}
+                  className="flex items-center gap-1 text-[11px] text-white bg-blue-500 hover:bg-blue-600 rounded-md px-2 py-0.5 transition-colors"
+                >
+                  <Download className="h-3 w-3" /> Download
+                </button>
+              </div>
+            )}
+          </div>
+          {srtOutput ? (
+            <pre className="flex-1 overflow-auto px-3 py-2.5 text-[12px] font-mono text-gray-800 dark:text-gray-100 leading-relaxed whitespace-pre-wrap">
+              {srtOutput}
+            </pre>
+          ) : (
+            <div className="flex-1 flex items-center justify-center text-center px-6">
+              <div className="text-gray-300 dark:text-gray-600">
+                <FileText className="mx-auto mb-2 h-8 w-8" />
+                <p className="text-xs">বামে text দিলে এখানে SRT দেখাবে</p>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

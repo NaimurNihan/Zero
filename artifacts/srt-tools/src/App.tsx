@@ -13,12 +13,13 @@ import CuttingPlusTab from "@/tabs/CuttingPlusTab";
 import SpeedPlusMinusTab from "@/tabs/SpeedPlusMinusTab";
 import AiAudioTab from "@/tabs/AiAudioTab";
 import AudioToSrtTab from "@/tabs/AudioToSrtTab";
+import TextToSrtTab from "@/tabs/TextToSrtTab";
 
-type Tab = "editor" | "maker" | "note" | "splitter" | "merger" | "aiAudio" | "audio" | "video" | "cuttingPlus" | "speed" | "audioToSrt";
+type Tab = "editor" | "maker" | "note" | "splitter" | "merger" | "aiAudio" | "audio" | "video" | "cuttingPlus" | "speed" | "audioToSrt" | "textToSrt";
 type Group = "A" | "B" | "C";
 
 const GROUP_TABS: Record<Group, Tab[]> = {
-  A: ["merger", "editor", "splitter", "note"],
+  A: ["merger", "editor", "splitter", "note", "textToSrt"],
   B: ["note", "aiAudio", "audio", "audioToSrt", "maker"],
   C: ["video", "cuttingPlus", "speed"],
 };
@@ -84,6 +85,15 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
     icon: (
       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-14 0m7 7v4m-4 0h8m-8-12V5a4 4 0 118 0v5a4 4 0 11-8 0z" />
+      </svg>
+    ),
+  },
+  {
+    id: "textToSrt",
+    label: "Text To SRT",
+    icon: (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
       </svg>
     ),
   },
@@ -779,9 +789,14 @@ export default function App() {
         <AudioToSrtTab />
       </div>
 
+      {/* Text To SRT — full width, hidden when inactive */}
+      <div style={{ display: activeTab === "textToSrt" ? "flex" : "none" }} className="flex-col flex-1 overflow-hidden">
+        <TextToSrtTab />
+      </div>
+
       {/* Other tabs */}
       <main
-        style={{ display: activeTab === "maker" || activeTab === "note" || activeTab === "splitter" || activeTab === "merger" || activeTab === "aiAudio" || activeTab === "audio" || activeTab === "video" || activeTab === "cuttingPlus" || activeTab === "speed" || activeTab === "audioToSrt" ? "none" : "block" }}
+        style={{ display: activeTab === "maker" || activeTab === "note" || activeTab === "splitter" || activeTab === "merger" || activeTab === "aiAudio" || activeTab === "audio" || activeTab === "video" || activeTab === "cuttingPlus" || activeTab === "speed" || activeTab === "audioToSrt" || activeTab === "textToSrt" ? "none" : "block" }}
         className="max-w-5xl mx-auto px-4 py-5 flex-1 overflow-y-auto w-full min-h-0"
       >
         {activeTab === "editor" && (
