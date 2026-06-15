@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { Search, Plus, Trash2, Copy, ClipboardPaste, CheckCircle2, Circle, Film, X, RotateCcw, Type, Download, Upload } from "lucide-react";
+import { Search, Plus, Trash2, Copy, ClipboardPaste, CheckCircle2, Circle, Film, X, RotateCcw, Type, Download, Upload, Star } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const LANGUAGES = ["ORIGINAL", "ARABIC", "GERMAN", "ENGLISH", "SPANISH", "FRENCH"] as const;
@@ -21,6 +21,7 @@ interface MovieEntry {
   number: string;
   names: Record<Language, TwoValues>;
   made: boolean;
+  flagged: boolean;
 }
 
 function generateId() {
@@ -66,14 +67,15 @@ function loadData(): MovieEntry[] {
             number: String(entry.number ?? "001"),
             names: migrateNames((entry.names ?? {}) as Record<string, unknown>),
             made: Boolean(entry.made),
+            flagged: Boolean(entry.flagged),
           };
         });
       }
     }
   } catch {}
   return [
-    { id: generateId(), number: "001", names: emptyNames(), made: false },
-    { id: generateId(), number: "002", names: emptyNames(), made: false },
+    { id: generateId(), number: "001", names: emptyNames(), made: false, flagged: false },
+    { id: generateId(), number: "002", names: emptyNames(), made: false, flagged: false },
   ];
 }
 
@@ -90,6 +92,7 @@ function loadTrash(): MovieEntry[] {
             number: String(entry.number ?? "001"),
             names: migrateNames((entry.names ?? {}) as Record<string, unknown>),
             made: Boolean(entry.made),
+            flagged: Boolean(entry.flagged),
           };
         });
       }
@@ -132,6 +135,7 @@ export default function MovieTrackerTask({ onClose }: { onClose: () => void }) {
         number: formatNumber(prev.length + 1),
         names: emptyNames(),
         made: false,
+        flagged: false,
       };
       return renumber([newEntry, ...prev]);
     });
@@ -225,6 +229,10 @@ export default function MovieTrackerTask({ onClose }: { onClose: () => void }) {
 
   const toggleMade = useCallback((id: string) => {
     setEntries(prev => prev.map(e => e.id === id ? { ...e, made: !e.made } : e));
+  }, []);
+
+  const toggleFlagged = useCallback((id: string) => {
+    setEntries(prev => prev.map(e => e.id === id ? { ...e, flagged: !e.flagged } : e));
   }, []);
 
   const handleSearch = useCallback((query: string) => {
@@ -524,6 +532,17 @@ export default function MovieTrackerTask({ onClose }: { onClose: () => void }) {
                         })}
                         <td className="px-1 py-2 align-middle">
                           <div className="flex flex-col items-center gap-0.5">
+                            <button
+                              onClick={() => toggleFlagged(entry.id)}
+                              className={`inline-flex items-center justify-center w-6 h-6 rounded transition-all ${
+                                entry.flagged
+                                  ? "text-yellow-500 hover:bg-yellow-100"
+                                  : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                              }`}
+                              title={entry.flagged ? "Remove flag" : "Flag this row"}
+                            >
+                              <Star className={`w-4 h-4 ${entry.flagged ? "fill-yellow-400" : ""}`} />
+                            </button>
                             <button
                               onClick={() => toggleMade(entry.id)}
                               className={`inline-flex items-center justify-center w-6 h-6 rounded transition-all ${
