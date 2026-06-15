@@ -459,7 +459,7 @@ export default function MovieTrackerTask({ onClose }: { onClose: () => void }) {
                             onClick={() => copyAllNames(entry)}
                             title="Click to copy all names"
                             className={`inline-flex items-center justify-center w-10 h-8 rounded-md text-xs font-bold tabular-nums cursor-pointer select-none transition-opacity hover:opacity-70 active:scale-95 ${
-                              entry.made ? "bg-green-100 text-green-700" : "bg-secondary/50 text-muted-foreground/70"
+                              entry.made ? "bg-green-100 text-green-700" : entry.flagged ? "bg-yellow-100 text-yellow-700" : "bg-secondary/50 text-muted-foreground/70"
                             }`}>
                             {entry.number}
                           </span>
@@ -499,6 +499,7 @@ export default function MovieTrackerTask({ onClose }: { onClose: () => void }) {
                                         <TitleCell
                                           value={titled}
                                           made={entry.made}
+                                          flagged={entry.flagged}
                                           onCopy={() => copyCell(titled)}
                                           isRtl={isRtl}
                                         />
@@ -506,6 +507,7 @@ export default function MovieTrackerTask({ onClose }: { onClose: () => void }) {
                                         <TitleCell
                                           value={tagged}
                                           made={entry.made}
+                                          flagged={entry.flagged}
                                           onCopy={() => copyCell(tagged)}
                                           isRtl={false}
                                         />
@@ -518,6 +520,7 @@ export default function MovieTrackerTask({ onClose }: { onClose: () => void }) {
                                           onClear={() => clearCell(entry.id, lang, boxIdx)}
                                           disabled={entry.made}
                                           made={entry.made}
+                                          flagged={entry.flagged}
                                           isRtl={isRtl}
                                           isLastActive={lastActive === `${entry.id}-${lang}-${boxIdx}`}
                                           onActivate={() => setLastActive(`${entry.id}-${lang}-${boxIdx}`)}
@@ -684,6 +687,7 @@ interface CellInputProps {
   onClear: () => void;
   disabled?: boolean;
   made?: boolean;
+  flagged?: boolean;
   isRtl?: boolean;
   isLastActive?: boolean;
   onActivate?: () => void;
@@ -692,11 +696,12 @@ interface CellInputProps {
 interface TitleCellProps {
   value: string;
   made?: boolean;
+  flagged?: boolean;
   onCopy: () => void;
   isRtl?: boolean;
 }
 
-function TitleCell({ value, made, onCopy, isRtl }: TitleCellProps) {
+function TitleCell({ value, made, flagged, onCopy, isRtl }: TitleCellProps) {
   const [copied, setCopied] = useState(false);
 
   const handleDoubleClick = () => {
@@ -715,7 +720,9 @@ function TitleCell({ value, made, onCopy, isRtl }: TitleCellProps) {
           ? "border-green-400 bg-green-50 text-green-800"
           : made
             ? "border-green-400 bg-green-50 text-green-800"
-            : "border-border bg-background text-foreground"
+            : flagged
+              ? "border-yellow-400 bg-yellow-50 text-yellow-800"
+              : "border-border bg-background text-foreground"
       } ${value ? "cursor-pointer" : "text-muted-foreground/40 italic"}`}
     >
       {value || "—"}
@@ -723,7 +730,7 @@ function TitleCell({ value, made, onCopy, isRtl }: TitleCellProps) {
   );
 }
 
-function CellInput({ value, onChange, onCopy, onPaste, onClear, disabled, made, isRtl, isLastActive, onActivate }: CellInputProps) {
+function CellInput({ value, onChange, onCopy, onPaste, onClear, disabled, made, flagged, isRtl, isLastActive, onActivate }: CellInputProps) {
   const [focused, setFocused] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -785,11 +792,13 @@ function CellInput({ value, onChange, onCopy, onPaste, onClear, disabled, made, 
         className={`w-full px-2.5 py-2 text-sm rounded-lg border transition-all focus:outline-none focus:ring-2 resize-none overflow-hidden leading-snug ${isRtl ? "text-right" : ""} ${
           made
             ? "border-green-400 bg-green-50 text-green-800 focus:ring-green-200 focus:border-green-400"
-            : focused
-              ? "border-ring bg-slate-50"
-              : isLastActive
-                ? "border-blue-400 bg-blue-50 focus:ring-blue-200"
-                : "border-border bg-slate-50"
+            : flagged
+              ? "border-yellow-400 bg-yellow-50 text-yellow-800 focus:ring-yellow-200 focus:border-yellow-400"
+              : focused
+                ? "border-ring bg-slate-50"
+                : isLastActive
+                  ? "border-blue-400 bg-blue-50 focus:ring-blue-200"
+                  : "border-border bg-slate-50"
         } ${disabled ? "cursor-not-allowed" : ""}`}
       />
     </div>
