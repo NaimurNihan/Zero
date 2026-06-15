@@ -2021,6 +2021,7 @@ function LangPoolSection({
         borderColor: isActive ? ACTIVE_BORDER : sent ? SENT_BORDER : config.border,
         background:  isActive ? ACTIVE_BG    : sent ? SENT_BG    : config.bg,
         boxShadow: isActive ? "0 0 0 2px #fbbf2466" : undefined,
+        opacity: sent ? 0.3 : 1,
       }}
     >
       {/* Row: label + file count + clear */}
