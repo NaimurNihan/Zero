@@ -21,18 +21,22 @@ interface SRTEntry {
 }
 
 function parseSRT(content: string): SRTEntry[] {
-  const blocks = content.trim().split(/\n\s*\n/);
+  const normalized = content.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  const blocks = normalized.trim().split(/\n[ \t]*\n/);
   const entries: SRTEntry[] = [];
+  const timeRe = /(\d{1,2}:\d{2}:\d{2}[,\.]\d{3})\s*-->\s*(\d{1,2}:\d{2}:\d{2}[,\.]\d{3})/;
   for (const block of blocks) {
     const lines = block.trim().split("\n");
-    if (lines.length < 2) continue;
-    const indexLine = lines[0].trim();
-    const timeLine = lines[1].trim();
-    const textLines = lines.slice(2).join("\n").trim();
-    const timeMatch = timeLine.match(
-      /(\d{2}:\d{2}:\d{2}[,\.]\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2}[,\.]\d{3})/
-    );
+    if (lines.length < 1) continue;
+    let timeMatch: RegExpMatchArray | null = null;
+    let textStartIdx = 0;
+    for (let i = 0; i < Math.min(lines.length, 3); i++) {
+      const m = lines[i].trim().match(timeRe);
+      if (m) { timeMatch = m; textStartIdx = i + 1; break; }
+    }
     if (!timeMatch) continue;
+    const indexLine = textStartIdx > 1 ? lines[0].trim() : "";
+    const textLines = lines.slice(textStartIdx).join("\n").trim();
     entries.push({
       index: parseInt(indexLine, 10) || entries.length + 1,
       startTime: timeMatch[1].replace(".", ","),
