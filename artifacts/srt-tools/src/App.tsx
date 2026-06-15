@@ -19,12 +19,21 @@ type Tab = "editor" | "maker" | "note" | "splitter" | "merger" | "aiAudio" | "au
 type Group = "A" | "B" | "C";
 
 const GROUP_TABS: Record<Group, Tab[]> = {
-  A: ["merger", "editor", "splitter", "note", "textToSrt"],
+  A: ["textToSrt", "merger", "editor", "splitter", "note"],
   B: ["note", "aiAudio", "audio", "audioToSrt", "maker"],
   C: ["video", "cuttingPlus", "speed"],
 };
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
+  {
+    id: "textToSrt",
+    label: "Text SRT",
+    icon: (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+      </svg>
+    ),
+  },
   {
     id: "merger",
     label: "SRT Marger",
@@ -85,15 +94,6 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
     icon: (
       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-14 0m7 7v4m-4 0h8m-8-12V5a4 4 0 118 0v5a4 4 0 11-8 0z" />
-      </svg>
-    ),
-  },
-  {
-    id: "textToSrt",
-    label: "Text To SRT",
-    icon: (
-      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
       </svg>
     ),
   },
