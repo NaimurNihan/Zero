@@ -413,7 +413,7 @@ export default function MovieTrackerTask({ onClose }: { onClose: () => void }) {
 
       {/* Table */}
       <div className="flex-1 overflow-auto pb-20">
-        <div className="px-4 py-4">
+        <div className="px-1 py-2">
           <div className="bg-card border border-border rounded-xl overflow-hidden shadow-sm">
             <div className="overflow-x-auto">
               <table className="w-full table-auto min-w-[900px]">
