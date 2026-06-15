@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ArrowRight, Copy, Download, FileText, X } from "lucide-react";
+import { ArrowRight, Copy, Download, FileText, Sparkles, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 function parseTimestampMs(s: string): number | null {
@@ -105,18 +105,35 @@ export default function TextToSrtTab() {
   const { toast } = useToast();
   const [input, setInput] = useState("");
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
+  const [generatedEntries, setGeneratedEntries] = useState<Entry[]>([]);
+  const [isGenerated, setIsGenerated] = useState(false);
 
-  const entries = useMemo(() => parseInput(input), [input]);
-  const srtOutput = useMemo(() => (entries.length > 0 ? toSrt(entries) : ""), [entries]);
+  const parsedEntries = useMemo(() => parseInput(input), [input]);
+  const entries = isGenerated ? generatedEntries : [];
+  const srtOutput = useMemo(
+    () => (generatedEntries.length > 0 ? toSrt(generatedEntries) : ""),
+    [generatedEntries]
+  );
+
+  const handleGenerate = () => {
+    const result = parseInput(input);
+    if (result.length === 0) {
+      toast({ title: "Nothing to generate", description: "Add some timestamped lines first" });
+      return;
+    }
+    setGeneratedEntries(result);
+    setIsGenerated(true);
+    toast({ title: "Generated!", description: `${result.length} subtitle${result.length !== 1 ? "s" : ""}` });
+  };
 
   const handleCopyAll = () => {
     if (!srtOutput) return;
     navigator.clipboard.writeText(srtOutput);
-    toast({ title: "Copied!", description: `${entries.length} subtitles copied` });
+    toast({ title: "Copied!", description: `${generatedEntries.length} subtitles copied` });
   };
 
   const handleCopyCard = (idx: number) => {
-    const e = entries[idx];
+    const e = generatedEntries[idx];
     const text = `${idx + 1}\n${msToSrtTime(e.startMs)} --> ${msToSrtTime(e.endMs)}\n${e.text}`;
     navigator.clipboard.writeText(text);
     setCopiedIdx(idx);
@@ -147,14 +164,24 @@ export default function TextToSrtTab() {
             <p className="text-[11px] text-gray-400 dark:text-gray-500">Convert timestamped text to SRT format</p>
           </div>
         </div>
-        {input && (
-          <button
-            onClick={() => setInput("")}
-            className="flex items-center gap-1 text-xs text-gray-400 hover:text-red-500 border border-gray-200 dark:border-gray-700 rounded-lg px-2.5 py-1 hover:border-red-300 transition-colors"
-          >
-            <X className="h-3 w-3" /> Clear
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {parsedEntries.length > 0 && (
+            <button
+              onClick={handleGenerate}
+              className="flex items-center gap-1.5 text-xs font-semibold text-white bg-emerald-500 hover:bg-emerald-600 rounded-lg px-3 py-1.5 shadow-sm transition-colors"
+            >
+              <Sparkles className="h-3.5 w-3.5" /> Generate
+            </button>
+          )}
+          {input && (
+            <button
+              onClick={() => { setInput(""); setGeneratedEntries([]); setIsGenerated(false); }}
+              className="flex items-center gap-1 text-xs text-gray-400 hover:text-red-500 border border-gray-200 dark:border-gray-700 rounded-lg px-2.5 py-1 hover:border-red-300 transition-colors"
+            >
+              <X className="h-3 w-3" /> Clear
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Body */}
@@ -164,9 +191,9 @@ export default function TextToSrtTab() {
         <div className="flex flex-1 flex-col rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-sm overflow-hidden">
           <div className="px-3 py-2 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between shrink-0">
             <span className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Input</span>
-            {entries.length > 0 && (
+            {parsedEntries.length > 0 && (
               <span className="text-[11px] font-mono text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 px-2 py-0.5 rounded-full">
-                {entries.length} {entries.length === 1 ? "subtitle" : "subtitles"}
+                {parsedEntries.length} {parsedEntries.length === 1 ? "subtitle" : "subtitles"}
               </span>
             )}
           </div>
