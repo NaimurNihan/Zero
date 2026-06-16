@@ -376,6 +376,7 @@ function msToTime(ms: number): string {
 export default function SrtEditorTab({ subtitles, filename, setSubtitles, setFilename, onNext }: Props) {
   const [convertStats, setConvertStats] = useState<{ marks: number; ellipsis: number } | null>(null);
   const [converted, setConverted] = useState(false);
+  const [loadAnotherClicked, setLoadAnotherClicked] = useState(false);
   const [pasteOpen, setPasteOpen] = useState(false);
   const [pasteText, setPasteText] = useState("");
   const [isDragging, setIsDragging] = useState(false);
@@ -410,7 +411,7 @@ export default function SrtEditorTab({ subtitles, filename, setSubtitles, setFil
 
   function handleFileInput(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
-    if (file) loadFile(file);
+    if (file) { loadFile(file); setLoadAnotherClicked(false); }
     e.target.value = "";
   }
 
@@ -862,8 +863,10 @@ export default function SrtEditorTab({ subtitles, filename, setSubtitles, setFil
             </svg>
             Clear
           </button>
-          <button onClick={() => fileInputRef.current?.click()}
-            className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-gray-200 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+          <button
+            onClick={() => { setLoadAnotherClicked(true); fileInputRef.current?.click(); }}
+            className={`flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 shadow-sm transition-all ${loadAnotherClicked ? "opacity-20 cursor-not-allowed" : ""}`}
+          >
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
             </svg>
