@@ -792,6 +792,12 @@ export default function App() {
       {/* Text To SRT — full width, hidden when inactive */}
       <div style={{ display: activeTab === "textToSrt" ? "flex" : "none" }} className="flex-col flex-1 overflow-hidden">
         <TextToSrtTab
+          onLoadToEditor={(srt, filename) => {
+            const parsed = parseSrt(srt);
+            setSubtitles(parsed);
+            setFilename(filename);
+            handleSelectTab("editor");
+          }}
           onLoadToMerger={(srt, filename) => {
             handleLoadSplitterToMerger(srt, filename);
           }}
