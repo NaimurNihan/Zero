@@ -793,7 +793,7 @@ function CellInput({ value, onChange, onCopy, onPaste, onClear, disabled, made, 
                 : isLastActive
                   ? "border-blue-400 bg-blue-50 focus:ring-blue-200"
                   : "border-border bg-slate-50"
-        } ${disabled ? "cursor-not-allowed" : ""} ${dbClicked && !made && !flagged ? "blur-sm" : ""}`}
+        } ${disabled ? "cursor-not-allowed" : ""} ${dbClicked && !made && !flagged ? "border-blue-400 bg-blue-50 text-blue-800" : ""}`}
       />
     </div>
   );
