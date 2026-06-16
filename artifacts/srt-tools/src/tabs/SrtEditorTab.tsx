@@ -179,6 +179,20 @@ function NotepadPopup({
 
 const CHECK_MARK = "✅";
 
+const ABBR_MAP: Record<string, string> = {
+  "Mr.": "Mister", "Mrs.": "Mistress", "Ms.": "Ms", "Dr.": "Doctor",
+  "Prof.": "Professor", "Ltd.": "Limited", "Co.": "Company",
+  "Govt.": "Government", "Univ.": "University",
+  "Jan.": "January", "Feb.": "February", "Sept.": "September",
+  "Oct.": "October", "Nov.": "November", "Dec.": "December",
+  "Mon.": "Monday", "Tue.": "Tuesday", "Wed.": "Wednesday",
+  "Thu.": "Thursday", "Fri.": "Friday", "Sat.": "Saturday", "Sun.": "Sunday",
+};
+const ABBR_REGEX = new RegExp(
+  Object.keys(ABBR_MAP).map((k) => `\\b${k.replace(".", "\\.")}(?=\\s|$)`).join("|"),
+  "g"
+);
+
 const SAMPLE_SRT = `1
 00:00:01,000 --> 00:00:04,000
 Hello. How are you?
@@ -587,9 +601,13 @@ export default function SrtEditorTab({ subtitles, filename, setSubtitles, setFil
     let removed = 0;
     const result = subtitles.map((s) => {
       let text = s.text;
+      // Step 1: expand known abbreviations (removes their dots first)
+      text = text.replace(ABBR_REGEX, (match) => ABBR_MAP[match] ?? match);
+      // Step 2: remove consecutive punctuation (e.g. "..." "!!")
       const multiMatches = (text.match(/[.?!।]{2,}/g) || []);
       removed += multiMatches.length;
       text = text.replace(/[.?!।]{2,}/g, "");
+      // Step 3: replace remaining single punctuation with ✅
       const singleMatches = (text.match(/[.?!।]/g) || []);
       marks += singleMatches.length;
       text = text.replace(/[.?!।]/g, CHECK_MARK);
