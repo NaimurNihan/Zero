@@ -176,7 +176,7 @@ export default function TextToSrtTab({ onLoadToMerger }: Props) {
               }}
               className="flex items-center gap-1.5 text-xs font-semibold text-white bg-indigo-500 hover:bg-indigo-600 rounded-lg px-3 py-1.5 shadow-sm transition-colors"
             >
-              L Marger
+              ➤ L Marger
             </button>
           )}
           {parsedEntries.length > 0 && (
