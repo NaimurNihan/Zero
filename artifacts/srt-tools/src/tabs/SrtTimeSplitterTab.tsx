@@ -66,6 +66,7 @@ export default function SrtTimeSplitterTab({ incomingSrt, incomingFilename, inco
   const [jumpText, setJumpText] = useState("");
   const [highlightedJumpId, setHighlightedJumpId] = useState<number | null>(null);
   const [editedMap, setEditedMap] = useState<Record<number, string>>({});
+  const [loadNoteClicked, setLoadNoteClicked] = useState(false);
   const cardRefs = useRef(new Map<number, HTMLDivElement | null>());
   const finalSentRef = useRef(false);
 
@@ -688,8 +689,9 @@ export default function SrtTimeSplitterTab({ incomingSrt, incomingFilename, inco
                     const baseName = (fileName || "output.srt").replace(/\.(srt|txt)$/i, "");
                     onSendToNote(text, baseName || "Note");
                     toast({ title: "Sent to SRT Note", description: "Opened a new project with text in ORIGINAL." });
+                    setLoadNoteClicked(true);
                   }
-                }} className="h-8 rounded-lg border border-slate-200 bg-white dark:bg-gray-900 px-3 text-xs font-semibold text-slate-500 shadow-sm hover:bg-slate-50 hover:text-slate-800">
+                }} className={`h-8 rounded-lg bg-blue-600 px-3 text-xs font-semibold text-white shadow-sm hover:bg-blue-700 transition-all ${loadNoteClicked ? "opacity-20 cursor-not-allowed" : ""}`}>
                   <Upload className="h-3.5 w-3.5" /> Load Note
                 </Button>
                 <input ref={fileInputRef} type="file" accept=".srt,.txt" onChange={handleFileUpload} className="hidden" />
