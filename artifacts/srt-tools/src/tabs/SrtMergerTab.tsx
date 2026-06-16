@@ -1004,7 +1004,7 @@ export default function SrtMergerTab({ onSendToName, onTransform, clearKey, inco
                   <button
                     onClick={() => setNotepadSplit((v) => !v)}
                     className={`p-1 rounded transition-colors ${notepadSplit ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300" : "hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400"}`}
-                    title={notepadSplit ? "Exit split view" : "Split into 40-line chunks"}
+                    title={notepadSplit ? "Exit split view" : "Split into 100-line chunks"}
                   >
                     <Scissors className="w-4 h-4" />
                   </button>
@@ -1031,7 +1031,7 @@ export default function SrtMergerTab({ onSendToName, onTransform, clearKey, inco
                 <div className="flex flex-col gap-3">
                   {(() => {
                     const lines = notepadText.split("\n");
-                    const CHUNK = 40;
+                    const CHUNK = 100;
                     const chunks: { start: number; end: number; text: string }[] = [];
                     for (let i = 0; i < lines.length; i += CHUNK) {
                       const slice = lines.slice(i, i + CHUNK);
