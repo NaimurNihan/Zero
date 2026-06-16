@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ArrowRight, Copy, Download, FileText, Sparkles, X } from "lucide-react";
+import { ArrowRight, Copy, Download, FileText, Send, Sparkles, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 function parseTimestampMs(s: string): number | null {
@@ -101,7 +101,11 @@ Last entry end time (3 ways):
   2. Separate line: "0:25"
   3. Omit: +5 seconds added automatically`;
 
-export default function TextToSrtTab() {
+interface Props {
+  onLoadToMerger?: (srt: string, filename: string) => void;
+}
+
+export default function TextToSrtTab({ onLoadToMerger }: Props) {
   const { toast } = useToast();
   const [input, setInput] = useState("");
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
@@ -165,6 +169,16 @@ export default function TextToSrtTab() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {isGenerated && srtOutput && onLoadToMerger && (
+            <button
+              onClick={() => {
+                onLoadToMerger(srtOutput, "text-to-srt.srt");
+              }}
+              className="flex items-center gap-1.5 text-xs font-semibold text-white bg-indigo-500 hover:bg-indigo-600 rounded-lg px-3 py-1.5 shadow-sm transition-colors"
+            >
+              <Send className="h-3.5 w-3.5" /> Load SRT
+            </button>
+          )}
           {parsedEntries.length > 0 && (
             <button
               onClick={handleGenerate}
