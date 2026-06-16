@@ -788,12 +788,14 @@ function CellInput({ value, onChange, onCopy, onPaste, onClear, disabled, made, 
             ? "border-green-400 bg-green-50 text-green-800 focus:ring-green-200 focus:border-green-400"
             : flagged
               ? "border-yellow-400 bg-yellow-50 text-yellow-800 focus:ring-yellow-200 focus:border-yellow-400"
-              : focused
-                ? "border-ring bg-slate-50"
-                : isLastActive
-                  ? "border-blue-400 bg-blue-50 focus:ring-blue-200"
-                  : "border-border bg-slate-50"
-        } ${disabled ? "cursor-not-allowed" : ""} ${dbClicked && !made && !flagged ? "border-blue-400 bg-blue-50 text-blue-800" : ""}`}
+              : dbClicked
+                ? "border-blue-400 bg-blue-50 text-blue-800 focus:ring-blue-200 focus:border-blue-400"
+                : focused
+                  ? "border-ring bg-slate-50"
+                  : isLastActive
+                    ? "border-blue-400 bg-blue-50 focus:ring-blue-200"
+                    : "border-border bg-slate-50"
+        } ${disabled ? "cursor-not-allowed" : ""}`}
       />
     </div>
   );
