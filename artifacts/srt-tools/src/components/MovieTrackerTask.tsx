@@ -732,6 +732,7 @@ function TitleCell({ value, made, flagged, onCopy, isRtl }: TitleCellProps) {
 
 function CellInput({ value, onChange, onCopy, onPaste, onClear, disabled, made, flagged, isRtl, isLastActive, onActivate }: CellInputProps) {
   const [focused, setFocused] = useState(false);
+  const [dbClicked, setDbClicked] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -740,6 +741,9 @@ function CellInput({ value, onChange, onCopy, onPaste, onClear, disabled, made, 
     el.style.height = "auto";
     el.style.height = el.scrollHeight + "px";
   }, [value]);
+
+  // Reset blur when green or yellow button is clicked (made/flagged changes)
+  useEffect(() => { setDbClicked(false); }, [made, flagged]);
 
   return (
     <div className="relative">
@@ -765,16 +769,6 @@ function CellInput({ value, onChange, onCopy, onPaste, onClear, disabled, made, 
             <ClipboardPaste className="w-3 h-3" />
             <span>Paste</span>
           </button>
-          <div className="w-px h-4 bg-border" />
-          <button
-            type="button"
-            onMouseDown={e => { e.preventDefault(); onClear(); }}
-            className="flex-1 flex items-center justify-center gap-1 py-1 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-            tabIndex={-1}
-          >
-            <X className="w-3 h-3" />
-            <span>Cancel</span>
-          </button>
         </div>
       )}
 
@@ -787,7 +781,7 @@ function CellInput({ value, onChange, onCopy, onPaste, onClear, disabled, made, 
         onChange={e => !disabled && onChange(e.target.value)}
         onFocus={() => { setFocused(true); onActivate?.(); }}
         onBlur={() => setFocused(false)}
-        onDoubleClick={() => { if (value) onCopy(); }}
+        onDoubleClick={() => { if (value) { onCopy(); setDbClicked(true); } }}
         disabled={disabled}
         className={`w-full px-2.5 py-2 text-sm rounded-lg border transition-all focus:outline-none focus:ring-2 resize-none overflow-hidden leading-snug ${isRtl ? "text-right" : ""} ${
           made
@@ -799,7 +793,7 @@ function CellInput({ value, onChange, onCopy, onPaste, onClear, disabled, made, 
                 : isLastActive
                   ? "border-blue-400 bg-blue-50 focus:ring-blue-200"
                   : "border-border bg-slate-50"
-        } ${disabled ? "cursor-not-allowed" : ""}`}
+        } ${disabled ? "cursor-not-allowed" : ""} ${dbClicked && !made && !flagged ? "blur-sm" : ""}`}
       />
     </div>
   );
