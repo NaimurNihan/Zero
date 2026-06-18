@@ -656,7 +656,7 @@ export default function SrtNoteTab({ incomingText, incomingName, incomingKey, on
         {(() => {
           const langs = activeProject?.langs ?? [];
           const allSplit = langs.length > 0 && langs.every((_, i) => splitView[`${activeId}:${i}`]);
-          const chunkSizeFor = (langIdx: number) => (langs[langIdx]?.label === "Original" ? 40 : 20);
+          const chunkSizeFor = (langIdx: number) => (langs[langIdx]?.label === "Original" ? 80 : 20);
           const renderChunkCard = (chunk: string[], chunkIdx: number, langIdx: number) => {
             const startLine = chunkIdx * chunkSizeFor(langIdx) + 1;
             const endLine = chunk.length > 0 ? startLine + chunk.length - 1 : startLine;
