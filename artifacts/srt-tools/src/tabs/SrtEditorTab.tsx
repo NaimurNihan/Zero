@@ -820,6 +820,17 @@ export default function SrtEditorTab({ subtitles, filename, setSubtitles, setFil
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
           </svg>
           <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">{filename}</span>
+          {(() => {
+            const shortCount = subtitles.filter(s => (timeToMs(s.endTime) - timeToMs(s.startTime)) < 1000).length;
+            return shortCount > 0 ? (
+              <span className="flex items-center gap-1 text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-semibold border border-red-200">
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                {shortCount} card{shortCount > 1 ? "s" : ""} &lt;1s
+              </span>
+            ) : null;
+          })()}
           {converted && (
             <span className="flex items-center gap-1 text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">
               {CHECK_MARK} Converted
@@ -879,6 +890,11 @@ export default function SrtEditorTab({ subtitles, filename, setSubtitles, setFil
         <div className="flex flex-col gap-2.5">
           {subtitles.map((sub, idx) => {
             const hasOverlap = overlapSet.has(idx);
+            const durationMs = timeToMs(sub.endTime) - timeToMs(sub.startTime);
+            const isShort = durationMs < 1000;
+            const durationLabel = durationMs < 1000
+              ? `${durationMs}ms`
+              : `${(durationMs / 1000).toFixed(1)}s`;
             return (
               <div key={sub.id}
                 ref={(el) => {
@@ -890,6 +906,8 @@ export default function SrtEditorTab({ subtitles, filename, setSubtitles, setFil
                     ? "ring-2 ring-sky-400 ring-offset-2"
                     : hasOverlap
                     ? "border-orange-400 shadow-orange-100"
+                    : isShort
+                    ? "border-red-400 shadow-red-100 bg-red-50/40 dark:bg-red-950/20"
                     : sub.edited ? "border-emerald-300 shadow-emerald-100" : "border-gray-200"
                 }`}>
                 <div className="flex items-center gap-2.5 px-4 pt-3 pb-2 border-b border-gray-100 dark:border-gray-800">
@@ -923,6 +941,13 @@ export default function SrtEditorTab({ subtitles, filename, setSubtitles, setFil
                     <span className="text-xs bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded-full font-medium">edited</span>
                   )}
                   <div className="flex-1" />
+                  <span className={`text-xs font-mono px-2 py-0.5 rounded-full font-semibold ${
+                    isShort
+                      ? "bg-red-100 text-red-600"
+                      : "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400"
+                  }`}>
+                    {durationLabel}
+                  </span>
                   <div className="flex items-center gap-0.5">
                     <button onClick={() => moveUp(idx)} disabled={idx === 0} title="Move up"
                       className="p-1.5 rounded-lg text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-20 disabled:cursor-not-allowed transition-colors">
