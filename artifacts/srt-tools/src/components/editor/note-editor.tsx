@@ -12,7 +12,7 @@ const VOICE_STORAGE_KEY = "tts-selected-voice";
 const VOICE_BY_LABEL_STORAGE_KEY = "tts-voice-by-label";
 const LOCKED_LABELS_STORAGE_KEY = "tts-locked-labels";
 const VOICE_SLOTS_STORAGE_KEY = "tts-voice-slot-labels";
-const SLOT_COUNT = 5;
+const SLOT_COUNT = 6;
 
 function findVoiceForLabel(label: string, map: Record<string, string>): string | null {
   if (!label) return null;
