@@ -14,13 +14,14 @@ import SpeedPlusMinusTab from "@/tabs/SpeedPlusMinusTab";
 import AiAudioTab from "@/tabs/AiAudioTab";
 import AudioToSrtTab from "@/tabs/AudioToSrtTab";
 import TextToSrtTab from "@/tabs/TextToSrtTab";
+import AudioSrtSplitterTab from "@/tabs/AudioSrtSplitterTab";
 
-type Tab = "editor" | "maker" | "note" | "splitter" | "merger" | "aiAudio" | "audio" | "video" | "cuttingPlus" | "speed" | "audioToSrt" | "textToSrt";
+type Tab = "editor" | "maker" | "note" | "splitter" | "merger" | "aiAudio" | "audio" | "video" | "cuttingPlus" | "speed" | "audioToSrt" | "textToSrt" | "audioSrtSplitter";
 type Group = "A" | "B" | "C";
 
 const GROUP_TABS: Record<Group, Tab[]> = {
   A: ["textToSrt", "merger", "editor", "splitter", "note"],
-  B: ["note", "aiAudio", "audio", "audioToSrt", "maker"],
+  B: ["note", "aiAudio", "audio", "audioSrtSplitter", "audioToSrt", "maker"],
   C: ["video", "cuttingPlus", "speed"],
 };
 
@@ -85,6 +86,16 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
     icon: (
       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2z" />
+      </svg>
+    ),
+  },
+  {
+    id: "audioSrtSplitter",
+    label: "Audio Spliter SRT",
+    icon: (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7l4 4-4 4" />
       </svg>
     ),
   },
@@ -784,6 +795,11 @@ export default function App() {
         />
       </div>
 
+      {/* Audio SRT Splitter — full width, hidden when inactive */}
+      <div style={{ display: activeTab === "audioSrtSplitter" ? "flex" : "none" }} className="flex-col flex-1 overflow-y-auto">
+        <AudioSrtSplitterTab />
+      </div>
+
       {/* Audio To SRT — full width, hidden when inactive */}
       <div style={{ display: activeTab === "audioToSrt" ? "flex" : "none" }} className="flex-col flex-1 overflow-y-auto">
         <AudioToSrtTab />
@@ -806,7 +822,7 @@ export default function App() {
 
       {/* Other tabs */}
       <main
-        style={{ display: activeTab === "maker" || activeTab === "note" || activeTab === "splitter" || activeTab === "merger" || activeTab === "aiAudio" || activeTab === "audio" || activeTab === "video" || activeTab === "cuttingPlus" || activeTab === "speed" || activeTab === "audioToSrt" || activeTab === "textToSrt" ? "none" : "block" }}
+        style={{ display: activeTab === "maker" || activeTab === "note" || activeTab === "splitter" || activeTab === "merger" || activeTab === "aiAudio" || activeTab === "audio" || activeTab === "video" || activeTab === "cuttingPlus" || activeTab === "speed" || activeTab === "audioToSrt" || activeTab === "textToSrt" || activeTab === "audioSrtSplitter" ? "none" : "block" }}
         className="max-w-5xl mx-auto px-4 py-5 flex-1 overflow-y-auto w-full min-h-0"
       >
         {activeTab === "editor" && (
