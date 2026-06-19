@@ -39,7 +39,6 @@ const MIN_SPEED = 0.25;
 const MAX_SPEED = 4.0;
 const SPEED_EPSILON = 0.005;
 const INITIAL_CARDS = 6;
-const BATCH_SIZE = 25;
 const RECYCLE_EVERY = 35;
 
 function ffmpegBaseUrl(mt: boolean): string {
@@ -1098,7 +1097,7 @@ export default function AudioPlusMinusTab() {
   const vocalPoolCount = pool.filter((p) => p.kind === "vocal").length;
   const instrPoolCount = pool.filter((p) => p.kind === "instrument").length;
   const activeCount = cardStates.filter((c) => c.isWorking).length;
-  const completeCount = cardStates.filter((c) => c.isDone && !c.isArchived).length;
+  const completeCount = cardStates.filter((c) => c.isDone && c.mergedBlob).length;
   const speedUpCount = cardStates.filter((c) => c.mode === "speedup").length;
   const slowDownCount = cardStates.filter((c) => c.mode === "slowdown").length;
   const matchCount = cardStates.filter((c) => c.mode === "match").length;
@@ -1110,52 +1109,21 @@ export default function AudioPlusMinusTab() {
   const [downloadCount, setDownloadCount] = useState(0);
   const incrementDownload = useCallback(() => setDownloadCount((n) => n + 1), []);
 
-  // ── Archive / ZIP ───────────────────────────────────────────────────────────
-  const archiveZipRef = useRef<unknown>(null);
-  const archivedNamesRef = useRef<Set<string>>(new Set());
-  const archivedIndicesRef = useRef<Set<number>>(new Set());
-  const [archivedCount, setArchivedCount] = useState(0);
-  const [archiving, setArchiving] = useState(false);
+  // ── ZIP download ─────────────────────────────────────────────────────────────
   const [zipping, setZipping] = useState(false);
 
-  const archiveBatch = useCallback(async (items: Array<{ idx: number; blob: Blob; name: string }>) => {
-    if (!items.length) return;
-    setArchiving(true);
-    try {
-      const { default: JSZip } = await import("jszip");
-      type ZL = { file: (n: string, b: Blob) => void };
-      if (!archiveZipRef.current) archiveZipRef.current = new JSZip();
-      const zip = archiveZipRef.current as ZL;
-      for (const { idx, blob, name } of items) {
-        let fn = name;
-        if (archivedNamesRef.current.has(fn)) {
-          const dot = fn.lastIndexOf(".");
-          const base = dot > 0 ? fn.slice(0, dot) : fn;
-          const ext = dot > 0 ? fn.slice(dot) : "";
-          fn = `${base}-${idx + 1}${ext}`;
-        }
-        archivedNamesRef.current.add(fn);
-        archivedIndicesRef.current.add(idx);
-        zip.file(fn, blob);
-        cardRefs.current[idx]?.markArchived();
-      }
-      setArchivedCount((c) => c + items.length);
-    } finally { setArchiving(false); }
-  }, []);
-
   const handleDownloadZip = async () => {
-    const liveReady = cardStates
+    const ready = cardStates
       .map((c, i) => ({ c, i }))
-      .filter(({ c, i }) => c.isDone && !c.isArchived && c.mergedBlob && c.mergedName && !archivedIndicesRef.current.has(i));
-    if (!archiveZipRef.current && !liveReady.length) return;
+      .filter(({ c }) => c.isDone && c.mergedBlob && c.mergedName);
+    if (!ready.length) return;
     setZipping(true);
     try {
       const { default: JSZip } = await import("jszip");
       type ZL = { file: (n: string, b: Blob) => void; generateAsync: (o: { type: "blob" }) => Promise<Blob> };
-      if (!archiveZipRef.current) archiveZipRef.current = new JSZip();
-      const zip = archiveZipRef.current as ZL;
-      const used = new Set<string>(archivedNamesRef.current);
-      for (const { c, i } of liveReady) {
+      const zip = new JSZip() as unknown as ZL;
+      const used = new Set<string>();
+      for (const { c, i } of ready) {
         let name = c.mergedName || `audio_adj_${i + 1}.mp3`;
         if (used.has(name)) {
           const dot = name.lastIndexOf(".");
@@ -1163,7 +1131,8 @@ export default function AudioPlusMinusTab() {
           const ext = dot > 0 ? name.slice(dot) : "";
           name = `${base}-${i + 1}${ext}`;
         }
-        used.add(name); zip.file(name, c.mergedBlob!);
+        used.add(name);
+        zip.file(name, c.mergedBlob!);
       }
       const out = await zip.generateAsync({ type: "blob" });
       const url = URL.createObjectURL(out);
@@ -1172,9 +1141,11 @@ export default function AudioPlusMinusTab() {
       a.download = `instrument_adjusted_${new Date().toISOString().replace(/[:.]/g, "-")}.zip`;
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 5000);
-      setDownloadCount((n) => n + archivedCount + liveReady.length);
-    } catch (e) { console.error("zip failed", e); }
-    finally { setZipping(false); }
+      setDownloadCount((n) => n + ready.length);
+    } catch (e) {
+      console.error("zip failed", e);
+      sonnerToast.error("ZIP failed — check console for details.");
+    } finally { setZipping(false); }
   };
 
   // ── Run all ─────────────────────────────────────────────────────────────────
@@ -1194,33 +1165,20 @@ export default function AudioPlusMinusTab() {
         if (c.mode === "match") equalQueue.push(i);
         else if (c.canProcess) queue.push(i);
       });
-      const pendingArchive: Array<{ idx: number; blob: Blob; name: string }> = [];
       for (const cardIdx of equalQueue) {
-        const result = await cardRefs.current[cardIdx]!.passThrough();
-        if (result) {
-          pendingArchive.push({ idx: cardIdx, blob: result.blob, name: result.name });
-          if (pendingArchive.length >= BATCH_SIZE) await archiveBatch(pendingArchive.splice(0));
-        }
+        await cardRefs.current[cardIdx]!.passThrough();
       }
       let cursor = 0;
-      const archiveLock = { busy: false };
-      const tryFlushArchive = async () => {
-        if (pendingArchive.length < BATCH_SIZE || archiveLock.busy) return;
-        archiveLock.busy = true;
-        try { await archiveBatch(pendingArchive.splice(0)); } finally { archiveLock.busy = false; }
-      };
       const worker = async () => {
         while (true) {
           const myIdx = cursor++;
           if (myIdx >= queue.length) return;
           const cardIdx = queue[myIdx];
-          const result = await cardRefs.current[cardIdx]!.runProcess();
-          if (result) { pendingArchive.push({ idx: cardIdx, blob: result.blob, name: result.name }); await tryFlushArchive(); }
+          await cardRefs.current[cardIdx]!.runProcess();
         }
       };
       const workerCount = Math.max(1, Math.min(ENGINE_POOL_SIZE, queue.length));
       if (workerCount > 0) await Promise.all(Array.from({ length: workerCount }, () => worker()));
-      if (pendingArchive.length > 0) await archiveBatch(pendingArchive.splice(0));
     } finally { setRunning(false); }
   };
 
@@ -1228,19 +1186,13 @@ export default function AudioPlusMinusTab() {
     cardRefs.current = [];
     cardStatesRef.current = [];
     pendingUpdatesRef.current.clear();
-    archiveZipRef.current = null;
-    archivedNamesRef.current = new Set();
-    archivedIndicesRef.current = new Set();
-    setArchivedCount(0); setNumCards(0); setCardStates([]);
+    setNumCards(0); setCardStates([]);
   };
 
   const handleVocalPoolClearAll = () => {
     setPool((p) => p.filter((x) => x.kind !== "vocal"));
     for (let i = 0; i < cardRefs.current.length; i++) cardRefs.current[i]?.resetCard();
-    archiveZipRef.current = null;
-    archivedNamesRef.current = new Set();
-    archivedIndicesRef.current = new Set();
-    setArchivedCount(0); setDownloadCount(0);
+    setDownloadCount(0);
   };
 
   const [showErrorCards, setShowErrorCards] = useState(false);
@@ -1379,13 +1331,6 @@ export default function AudioPlusMinusTab() {
               <Chip color="blue2" icon={<Rewind className="h-3 w-3" />} label="Speed -" count={slowDownCount} unit="cards" dim={slowDownCount === 0} />
               <Chip color="teal" icon={<Equal className="h-3 w-3" />} label="Match" count={matchCount} unit="cards" dim={matchCount === 0} />
               {/* Row 3 */}
-              <div className={`flex items-center gap-2 rounded-lg border border-emerald-300 bg-emerald-50/60 px-2.5 py-1 transition-opacity ${archivedCount === 0 ? "opacity-20" : ""}`}>
-                <span className="flex h-6 w-6 items-center justify-center rounded-md bg-emerald-600 text-white">
-                  {archiving ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle2 className="h-3 w-3" />}
-                </span>
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-700">Archived</span>
-                <span className="ml-auto text-sm font-bold text-slate-800">{archivedCount} <span className="text-[10px] font-medium text-slate-500">files</span></span>
-              </div>
               <Chip color="green2" icon={<CheckCheck className="h-3 w-3" />} label="Complete" count={completeCount} unit="cards" dim={completeCount === 0} />
               <Chip color="indigo" icon={<Download className="h-3 w-3" />} label="Download" count={downloadCount} unit="files" dim={downloadCount === 0} />
             </div>
