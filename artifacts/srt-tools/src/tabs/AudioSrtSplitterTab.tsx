@@ -485,6 +485,7 @@ function AudioSrtSplitterHome() {
       const m = audioFile.name.match(/\.[A-Za-z0-9]+$/);
       return m ? m[0].toLowerCase() : ".mp3";
     })();
+    const outExt = ".aac";
     const baseName = audioFile.name.replace(/\.[^.]+$/, "") || "audio";
     const padWidth = String(cues.length).length;
 
@@ -493,7 +494,7 @@ function AudioSrtSplitterHome() {
       text: c.text,
       startSec: c.startSec,
       endSec: c.endSec,
-      filename: `${String(c.index).padStart(padWidth, "0")}_${baseName}_${sanitizeForFilename(c.text)}${ext}`,
+      filename: `${String(c.index).padStart(padWidth, "0")}_${baseName}_${sanitizeForFilename(c.text)}${outExt}`,
     }));
 
     setClips(clipMetas);
@@ -563,7 +564,7 @@ function AudioSrtSplitterHome() {
 
         updateStatus(clip.index, { status: "running" });
 
-        const outName = `out_${clip.index}${ext}`;
+        const outName = `out_${clip.index}${outExt}`;
         let attempt = 0;
         let success = false;
 
@@ -573,18 +574,17 @@ function AudioSrtSplitterHome() {
             await eng.exec([
               "-hide_banner",
               "-loglevel", "error",
-              "-ss", String(clip.startSec),
-              "-to", String(clip.endSec),
               "-i", inputName,
-              "-c", "copy",
-              "-avoid_negative_ts", "make_zero",
+              "-af", `atrim=start=${clip.startSec}:end=${clip.endSec},asetpts=PTS-STARTPTS`,
+              "-c:a", "aac",
+              "-vn",
               outName,
             ]);
 
             const outData = await eng.readFile(outName) as Uint8Array;
             await eng.deleteFile(outName);
 
-            const blob = new Blob([outData], { type: `audio/${ext.replace(".", "")}` });
+            const blob = new Blob([outData], { type: "audio/aac" });
             const url = URL.createObjectURL(blob);
             clipBlobsRef.current.set(clip.index, blob);
             clipUrlsRef.current.set(clip.index, url);
