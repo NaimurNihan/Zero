@@ -761,8 +761,11 @@ function MediaPool({
   const title = isVocal ? "VOCAL POOL" : "INSTRUMENT POOL";
   const headerGradient = isVocal ? "from-emerald-500 to-teal-500" : "from-violet-500 to-purple-500";
 
+  const AUDIO_EXTS = /\.(mp3|wav|aac|m4a|ogg|flac|opus|weba|webm|caf|aiff|aif|wma|amr|3gp|3g2|mp4|m4b|m4p|mp2|mpa|mka)$/i;
   const handleAdd = (files: FileList | File[]) => {
-    const arr = Array.from(files).filter((f) => f.type.startsWith("audio/"));
+    const arr = Array.from(files).filter(
+      (f) => f.type.startsWith("audio/") || f.type.startsWith("video/") || (!f.type && AUDIO_EXTS.test(f.name)),
+    );
     if (arr.length) onAdd(arr);
   };
 
@@ -799,7 +802,7 @@ function MediaPool({
               <Trash2 className="h-3 w-3" />Clear All
             </button>
           )}
-          <input ref={inputRef} type="file" multiple accept="audio/*" className="hidden"
+          <input ref={inputRef} type="file" multiple accept="audio/*,.aac,.m4a,.aiff,.aif,.wma,.opus,.flac,.ogg,.wav,.mp3,.mp4,.webm" className="hidden"
             onChange={(e) => { if (e.target.files) handleAdd(e.target.files); e.target.value = ""; }} />
         </div>
       </div>
