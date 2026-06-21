@@ -9,7 +9,6 @@ import SrtTimeSplitterTab from "@/tabs/SrtTimeSplitterTab";
 import SrtMergerTab from "@/tabs/SrtMergerTab";
 import VoiceTrimmerTab from "@/tabs/VoiceTrimmerTab";
 import VideoSplitterTab from "@/tabs/VideoSplitterTab";
-import CuttingPlusTab from "@/tabs/CuttingPlusTab";
 import SpeedPlusMinusTab from "@/tabs/SpeedPlusMinusTab";
 import AiAudioTab from "@/tabs/AiAudioTab";
 import AudioToSrtTab from "@/tabs/AudioToSrtTab";
@@ -17,13 +16,13 @@ import TextToSrtTab from "@/tabs/TextToSrtTab";
 import AudioSrtSplitterTab from "@/tabs/AudioSrtSplitterTab";
 import AudioPlusMinusTab from "@/tabs/AudioPlusMinusTab";
 
-type Tab = "editor" | "maker" | "note" | "splitter" | "merger" | "aiAudio" | "audio" | "video" | "cuttingPlus" | "speed" | "audioToSrt" | "textToSrt" | "audioSrtSplitter" | "audioPlusMinus";
+type Tab = "editor" | "maker" | "note" | "splitter" | "merger" | "aiAudio" | "audio" | "video" | "speed" | "audioToSrt" | "textToSrt" | "audioSrtSplitter" | "audioPlusMinus";
 type Group = "A" | "B" | "C";
 
 const GROUP_TABS: Record<Group, Tab[]> = {
   A: ["textToSrt", "merger", "editor", "splitter", "note"],
   B: ["note", "aiAudio", "audio", "audioSrtSplitter", "audioPlusMinus", "audioToSrt", "maker"],
-  C: ["video", "cuttingPlus", "speed"],
+  C: ["video", "speed"],
 };
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
@@ -138,15 +137,6 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
     ),
   },
   {
-    id: "cuttingPlus",
-    label: "Cutting +",
-    icon: (
-      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.121 14.121L19 19m-7-7l7-7m-7 7l-2.879 2.879M12 12L9.121 9.121m0 5.758a3 3 0 10-4.243 4.243 3 3 0 004.243-4.243zm0-5.758a3 3 0 10-4.243-4.243 3 3 0 004.243 4.243z" />
-      </svg>
-    ),
-  },
-  {
     id: "speed",
     label: "Speed +-",
     icon: (
@@ -223,7 +213,6 @@ export default function App() {
   const [isAutoRun2Paused, setIsAutoRun2Paused] = useState(false);
   const [makerIncomingSentences, setMakerIncomingSentences] = useState<{ text: string; label: string; key: number }>({ text: "", label: "", key: 0 });
   const [makerIncomingAudio, setMakerIncomingAudio] = useState<{ files: File[]; key: number }>({ files: [], key: 0 });
-  const [cuttingPlusIncomingVideos, setCuttingPlusIncomingVideos] = useState<{ files: File[]; key: number; autoLoad?: boolean; extras?: number[] }>({ files: [], key: 0 });
   const [speedIncomingVideos, setSpeedIncomingVideos] = useState<{ files: File[]; key: number }>({ files: [], key: 0 });
   const [speedIncomingAudio, setSpeedIncomingAudio] = useState<{ files: File[]; key: number; label?: string }>({ files: [], key: 0 });
   const [theme, setTheme] = useState<"light" | "dark">(() => {
@@ -302,16 +291,6 @@ export default function App() {
     }
   }, [visibleTabs, activeTab]);
 
-  const handleVideoSplitterOutputs = useCallback((files: File[]) => {
-    setCuttingPlusIncomingVideos((prev) => {
-      const sameLength = prev.files.length === files.length;
-      const sameNames =
-        sameLength &&
-        prev.files.every((f, i) => f.name === files[i]?.name && f.size === files[i]?.size);
-      if (sameNames) return prev;
-      return { files, key: Date.now() };
-    });
-  }, []);
 
   const hasFile = subtitles.length > 0;
 
@@ -775,22 +754,11 @@ export default function App() {
           incomingSrt={videoIncomingSrt}
           incomingSrtFilename={videoIncomingSrtFilename}
           incomingSrtKey={videoIncomingSrtKey}
-          onSendToCutting={(files, extras) => {
-            setCuttingPlusIncomingVideos({ files, key: Date.now(), autoLoad: true, extras });
-            handleSelectTab("cuttingPlus");
-          }}
-          onOutputsChange={handleVideoSplitterOutputs}
-        />
-      </div>
-
-      {/* Cutting + — full width, hidden when inactive */}
-      <div style={{ display: activeTab === "cuttingPlus" ? "flex" : "none" }} className="flex-col flex-1 overflow-y-auto">
-        <CuttingPlusTab
-          incomingVideoFiles={cuttingPlusIncomingVideos}
-          onSendToSpeedPlusMinus={(files) => {
+          onSendToCutting={(files) => {
             setSpeedIncomingVideos({ files, key: Date.now() });
             handleSelectTab("speed");
           }}
+          onOutputsChange={() => {}}
         />
       </div>
 
@@ -838,7 +806,7 @@ export default function App() {
 
       {/* Other tabs */}
       <main
-        style={{ display: activeTab === "maker" || activeTab === "note" || activeTab === "splitter" || activeTab === "merger" || activeTab === "aiAudio" || activeTab === "audio" || activeTab === "video" || activeTab === "cuttingPlus" || activeTab === "speed" || activeTab === "audioToSrt" || activeTab === "textToSrt" || activeTab === "audioSrtSplitter" || activeTab === "audioPlusMinus" ? "none" : "block" }}
+        style={{ display: activeTab === "maker" || activeTab === "note" || activeTab === "splitter" || activeTab === "merger" || activeTab === "aiAudio" || activeTab === "audio" || activeTab === "video" || activeTab === "speed" || activeTab === "audioToSrt" || activeTab === "textToSrt" || activeTab === "audioSrtSplitter" || activeTab === "audioPlusMinus" ? "none" : "block" }}
         className="max-w-5xl mx-auto px-4 py-5 flex-1 overflow-y-auto w-full min-h-0"
       >
         {activeTab === "editor" && (
