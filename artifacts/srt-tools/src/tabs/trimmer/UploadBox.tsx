@@ -42,7 +42,7 @@ export default function UploadBox({ onFiles }: UploadBoxProps) {
       <input
         ref={inputRef}
         type="file"
-        accept="audio/*"
+        accept="audio/*,.aac,.m4a,.aiff,.aif,.wma,.opus,.flac,.ogg,.wav,.mp3,.webm"
         multiple
         className="hidden"
         onChange={(e) => handleFiles(e.target.files)}
