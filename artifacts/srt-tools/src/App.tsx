@@ -89,22 +89,22 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
     ),
   },
   {
-    id: "audioPlusMinus",
-    label: "Audio +-",
-    icon: (
-      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2z" />
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h2m0 0h2M7 8V6m0 2v2" />
-      </svg>
-    ),
-  },
-  {
     id: "audioSrtSplitter",
     label: "Audio Spliter",
     icon: (
       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7l4 4-4 4" />
+      </svg>
+    ),
+  },
+  {
+    id: "audioPlusMinus",
+    label: "Audio +-",
+    icon: (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2z" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h2m0 0h2M7 8V6m0 2v2" />
       </svg>
     ),
   },
