@@ -485,7 +485,7 @@ function AudioSrtSplitterHome() {
       const m = audioFile.name.match(/\.[A-Za-z0-9]+$/);
       return m ? m[0].toLowerCase() : ".mp3";
     })();
-    const outExt = ".aac";
+    const outExt = ".m4a";
     const baseName = audioFile.name.replace(/\.[^.]+$/, "") || "audio";
     const padWidth = String(cues.length).length;
 
@@ -577,6 +577,7 @@ function AudioSrtSplitterHome() {
               "-i", inputName,
               "-af", `atrim=start=${clip.startSec}:end=${clip.endSec},asetpts=PTS-STARTPTS`,
               "-c:a", "aac",
+              "-movflags", "+faststart",
               "-vn",
               outName,
             ]);
@@ -584,7 +585,7 @@ function AudioSrtSplitterHome() {
             const outData = await eng.readFile(outName) as Uint8Array;
             await eng.deleteFile(outName);
 
-            const blob = new Blob([outData], { type: "audio/aac" });
+            const blob = new Blob([outData], { type: "audio/mp4" });
             const url = URL.createObjectURL(blob);
             clipBlobsRef.current.set(clip.index, blob);
             clipUrlsRef.current.set(clip.index, url);
