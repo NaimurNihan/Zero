@@ -157,7 +157,7 @@ function UploadTile({
   onClear,
   accept,
 }: {
-  tone: "violet" | "rose";
+  tone: "emerald" | "rose";
   icon: React.ReactNode;
   title: string;
   hint: string;
@@ -168,13 +168,13 @@ function UploadTile({
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const palette =
-    tone === "violet"
+    tone === "emerald"
       ? {
-          bg: "bg-violet-50/80 dark:bg-violet-950/30",
-          border: "border-violet-200/80 dark:border-violet-900/60",
-          hover: "hover:border-violet-400 hover:bg-violet-50 dark:hover:bg-violet-950/40",
-          chip: "bg-violet-100 text-violet-700 dark:bg-violet-900/60 dark:text-violet-300",
-          icon: "text-violet-600 dark:text-violet-400",
+          bg: "bg-emerald-50/80 dark:bg-emerald-950/30",
+          border: "border-emerald-200/80 dark:border-emerald-900/60",
+          hover: "hover:border-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40",
+          chip: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-300",
+          icon: "text-emerald-600 dark:text-emerald-400",
         }
       : {
           bg: "bg-rose-50/80 dark:bg-rose-950/30",
@@ -662,157 +662,176 @@ function AudioSrtSplitterHome() {
   const isRunning = jobStatus !== null && !jobStatus.finished;
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-6 w-full">
-      <div className="mb-6">
-        <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-1">Audio SRT Splitter</h2>
-        <p className="text-sm text-slate-500 dark:text-slate-400">
-          Upload an audio file and an SRT file — each subtitle cue becomes its own audio clip.
-        </p>
-      </div>
+    <div className="min-h-full w-full bg-[radial-gradient(ellipse_at_top,_rgba(99,102,241,0.10),transparent_60%),radial-gradient(ellipse_at_bottom_right,_rgba(244,114,182,0.10),transparent_55%)] bg-slate-50 dark:bg-slate-950">
+      <div className="max-w-6xl mx-auto px-6 py-8">
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
-        <UploadTile
-          tone="violet"
-          icon={<Music className="w-5 h-5" />}
-          title="Audio File"
-          hint="MP3, WAV, AAC, M4A, OGG, FLAC…"
-          file={audioFile}
-          accept="audio/*,.mp3,.wav,.aac,.m4a,.ogg,.flac,.opus"
-          onPick={(f) => setAudioFile(f)}
-          onClear={() => setAudioFile(null)}
-        />
-        <UploadTile
-          tone="rose"
-          icon={<FileText className="w-5 h-5" />}
-          title="SRT File"
-          hint="Subtitle file with timestamps"
-          file={srtFile}
-          accept=".srt,.txt"
-          onPick={(f) => void handleSrtChange(f)}
-          onClear={() => { setSrtFile(null); setSrtPreview(null); }}
-        />
-      </div>
-
-      {previewing && (
-        <div className="flex items-center gap-2 text-sm text-slate-500 mb-4">
-          <Loader2 className="w-4 h-4 animate-spin" />
-          Reading SRT…
-        </div>
-      )}
-
-      {srtPreview && !previewing && (
-        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 px-4 py-3 mb-5">
-          <div className="flex flex-wrap gap-4 text-sm mb-2">
-            <span className="text-slate-700 dark:text-slate-300">
-              <span className="font-semibold">{srtPreview.count}</span> cues
-            </span>
-            <span className="text-slate-700 dark:text-slate-300">
-              Total audio: <span className="font-semibold">{formatDuration(srtPreview.totalSeconds)}</span>
-            </span>
+        {/* Top bar */}
+        <div className="rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white/70 dark:bg-slate-900/60 backdrop-blur-md shadow-sm px-5 py-3 flex items-center gap-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 via-violet-500 to-fuchsia-500 text-white flex items-center justify-center shadow-md">
+              <Scissors className="w-4 h-4" />
+            </div>
+            <div className="min-w-0">
+              <h1 className="text-base font-semibold text-slate-900 dark:text-slate-50 leading-tight">
+                Audio Splitter
+              </h1>
+              <p className="text-[11px] text-slate-500 leading-tight">
+                {jobStatus ? (
+                  <>
+                    <span className="font-semibold text-slate-700 dark:text-slate-200">{doneCount}</span>
+                    {" "}of {jobStatus.total} clips ready
+                    {jobStatus.errors > 0 && <span className="text-red-500"> · {jobStatus.errors} failed</span>}
+                    {jobStatus.finished && doneCount === jobStatus.total && (
+                      <span className="text-emerald-600 dark:text-emerald-400"> · all done</span>
+                    )}
+                  </>
+                ) : (
+                  <>One clip per subtitle cue</>
+                )}
+              </p>
+            </div>
           </div>
-          <div className="space-y-1">
-            {srtPreview.sample.map((s) => (
-              <div key={s.index} className="flex items-start gap-2 text-[11px] text-slate-500">
-                <span className="font-mono shrink-0 text-slate-400">#{s.index}</span>
-                <span className="font-mono shrink-0">{formatSec(s.startSec)}→{formatSec(s.endSec)}</span>
-                <span className="truncate">{s.text}</span>
+
+          <div className="ml-auto flex items-center gap-3">
+            {srtPreview && !jobStatus && (
+              <div className="hidden sm:flex items-center gap-3 text-xs text-slate-600 dark:text-slate-300">
+                <span>
+                  <span className="font-semibold text-slate-900 dark:text-slate-50">{srtPreview.count}</span> cues
+                </span>
+                <span className="text-slate-300 dark:text-slate-700">·</span>
+                <span>{formatDuration(srtPreview.totalSeconds)}</span>
               </div>
-            ))}
-            {srtPreview.count > 5 && (
-              <p className="text-[11px] text-slate-400">…and {srtPreview.count - 5} more cues</p>
+            )}
+
+            {doneCount > 0 && jobStatus?.finished && (
+              <button
+                type="button"
+                onClick={() => void downloadAll()}
+                className="inline-flex items-center gap-1.5 px-3 h-7 rounded-md bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-600 hover:from-indigo-700 hover:via-violet-700 hover:to-fuchsia-700 text-white text-xs font-bold tracking-wider uppercase shadow-md transition-all"
+              >
+                <Download className="w-3.5 h-3.5" />
+                ZIP ({doneCount})
+              </button>
+            )}
+
+            {jobStatus ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={reset}
+                className={
+                  !jobStatus.finished
+                    ? "h-7 rounded-md text-xs px-3 border-red-500 text-red-600 hover:bg-red-50 hover:text-red-700 dark:border-red-500/60 dark:text-red-400 dark:hover:bg-red-500/10"
+                    : "h-7 rounded-md text-xs px-3"
+                }
+              >
+                <X className="w-3.5 h-3.5 mr-1" />
+                {!jobStatus.finished ? "Cancel" : "New job"}
+              </Button>
+            ) : (
+              <Button
+                onClick={() => void startSplit()}
+                disabled={!canStart || isRunning}
+                className="h-9 rounded-lg px-4 text-xs font-bold tracking-wider uppercase bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-600 hover:from-indigo-700 hover:via-violet-700 hover:to-fuchsia-700 text-white shadow-md disabled:opacity-50"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" />
+                    Loading {loadPct}%
+                  </>
+                ) : (
+                  <>
+                    <Scissors className="w-3.5 h-3.5 mr-2" />
+                    Audio Split
+                  </>
+                )}
+              </Button>
             )}
           </div>
         </div>
-      )}
 
-      {loading && (
-        <div className="rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-950/40 px-4 py-3 mb-5 flex items-center gap-3">
-          <Loader2 className="w-4 h-4 animate-spin text-indigo-500 shrink-0" />
-          <div className="flex-1">
-            <p className="text-sm font-medium text-indigo-700 dark:text-indigo-300">Loading audio into engine…</p>
-            <div className="w-full bg-indigo-200/50 dark:bg-indigo-900/50 rounded-full h-1.5 mt-1.5">
+        {/* Upload tiles */}
+        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+          <UploadTile
+            tone="emerald"
+            icon={<Music className="w-5 h-5" />}
+            title="Upload Audio"
+            hint="MP3, WAV, AAC, M4A, OGG, FLAC…"
+            file={audioFile}
+            accept="audio/*,.mp3,.wav,.aac,.m4a,.ogg,.flac,.opus"
+            onPick={(f) => setAudioFile(f)}
+            onClear={() => setAudioFile(null)}
+          />
+          <UploadTile
+            tone="rose"
+            icon={<FileText className="w-5 h-5" />}
+            title="Upload SRT"
+            hint={previewing ? "Parsing…" : "Subtitle file with timestamps"}
+            file={srtFile}
+            accept=".srt,.txt"
+            onPick={(f) => void handleSrtChange(f)}
+            onClear={() => { setSrtFile(null); setSrtPreview(null); }}
+          />
+        </div>
+
+        {/* Hint text when nothing uploaded */}
+        {!audioFile && !srtFile && (
+          <p className="mt-4 text-center text-xs text-slate-400 dark:text-slate-600">
+            Drop an audio and its <span className="font-mono">.srt</span> above, then hit <span className="font-semibold uppercase tracking-wider">Audio Split</span>.
+          </p>
+        )}
+
+        {/* Loading progress */}
+        {loading && (
+          <div className="mt-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white/70 dark:bg-slate-900/60 backdrop-blur p-4">
+            <div className="flex items-center justify-between text-xs text-slate-600 dark:text-slate-300 mb-2">
+              <span>Loading audio into engine…</span>
+              <span className="font-mono">{loadPct}%</span>
+            </div>
+            <div className="w-full bg-slate-200 dark:bg-slate-800 rounded-full h-1.5">
+              <div className="bg-indigo-500 h-1.5 rounded-full transition-all" style={{ width: `${loadPct}%` }} />
+            </div>
+          </div>
+        )}
+
+        {/* Job progress bar */}
+        {jobStatus && !jobStatus.finished && (
+          <div className="mt-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white/70 dark:bg-slate-900/60 backdrop-blur-md p-4 shadow-sm">
+            <div className="flex items-center justify-between mb-2 text-xs text-slate-500">
+              <span>{jobStatus.done + jobStatus.errors} / {jobStatus.total} clips</span>
+              <span className="font-mono">{Math.round(((jobStatus.done + jobStatus.errors) / jobStatus.total) * 100)}%</span>
+            </div>
+            <div className="w-full bg-slate-200 dark:bg-slate-800 rounded-full h-2">
               <div
-                className="bg-indigo-500 h-1.5 rounded-full transition-all"
-                style={{ width: `${loadPct}%` }}
+                className="bg-gradient-to-r from-indigo-500 via-violet-500 to-fuchsia-500 h-2 rounded-full transition-all"
+                style={{ width: `${Math.round(((jobStatus.done + jobStatus.errors) / jobStatus.total) * 100)}%` }}
               />
             </div>
           </div>
-          <span className="text-xs font-mono text-indigo-500 shrink-0">{loadPct}%</span>
-        </div>
-      )}
-
-      <div className="flex items-center gap-3 mb-6">
-        <Button
-          onClick={() => void startSplit()}
-          disabled={!canStart || isRunning}
-          className="bg-violet-600 hover:bg-violet-700 text-white gap-2"
-        >
-          <Scissors className="w-4 h-4" />
-          {isRunning ? "Splitting…" : "Split Audio"}
-        </Button>
-
-        {isRunning && (
-          <Button variant="outline" onClick={reset} className="text-red-600 border-red-300 hover:bg-red-50 dark:hover:bg-red-950">
-            <X className="w-4 h-4 mr-1" />
-            Cancel
-          </Button>
         )}
 
-        {doneCount > 0 && jobStatus?.finished && (
-          <Button variant="outline" onClick={() => void downloadAll()} className="gap-2">
-            <Download className="w-4 h-4" />
-            Download All ZIP ({doneCount})
-          </Button>
+        {/* Clips list */}
+        {clips.length > 0 && (
+          <div className="mt-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white/60 dark:bg-slate-900/50 backdrop-blur-md p-4 shadow-sm">
+            <div className="space-y-2 max-h-[62vh] overflow-y-auto pr-1">
+              {clips.map((clip) => {
+                const st = statuses.get(clip.index) ?? { index: clip.index, status: "pending" };
+                const url = clipUrlsRef.current.get(clip.index) ?? null;
+                return (
+                  <ClipCard
+                    key={clip.index}
+                    clip={clip}
+                    status={st}
+                    url={url}
+                    onDownload={() => downloadClip(clip)}
+                  />
+                );
+              })}
+            </div>
+          </div>
         )}
+
       </div>
-
-      {jobStatus && (
-        <div className="mb-4">
-          <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
-            <span>
-              {jobStatus.done + jobStatus.errors} / {jobStatus.total} clips
-              {jobStatus.errors > 0 && (
-                <span className="text-red-500 ml-2">{jobStatus.errors} failed</span>
-              )}
-            </span>
-            {jobStatus.finished ? (
-              <span className="text-violet-600 dark:text-violet-400 font-medium flex items-center gap-1">
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                Complete
-              </span>
-            ) : (
-              <span className="text-indigo-500 flex items-center gap-1">
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                Processing
-              </span>
-            )}
-          </div>
-          <div className="w-full bg-slate-200 dark:bg-slate-800 rounded-full h-2">
-            <div
-              className="bg-violet-500 h-2 rounded-full transition-all"
-              style={{ width: `${Math.round(((jobStatus.done + jobStatus.errors) / jobStatus.total) * 100)}%` }}
-            />
-          </div>
-        </div>
-      )}
-
-      {clips.length > 0 && (
-        <div className="space-y-2">
-          {clips.map((clip) => {
-            const st = statuses.get(clip.index) ?? { index: clip.index, status: "pending" };
-            const url = clipUrlsRef.current.get(clip.index) ?? null;
-            return (
-              <ClipCard
-                key={clip.index}
-                clip={clip}
-                status={st}
-                url={url}
-                onDownload={() => downloadClip(clip)}
-              />
-            );
-          })}
-        </div>
-      )}
     </div>
   );
 }
