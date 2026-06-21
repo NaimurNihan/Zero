@@ -807,10 +807,11 @@ function MediaPool({
         </div>
       </div>
       <div
+        onClick={() => { if (items.length === 0) inputRef.current?.click(); }}
         onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
         onDragLeave={() => setDragOver(false)}
         onDrop={(e) => { e.preventDefault(); setDragOver(false); if (e.dataTransfer.files?.length) handleAdd(e.dataTransfer.files); }}
-        className={`max-h-[220px] overflow-y-auto rounded-xl border-2 border-dashed p-3 transition ${dragOver ? "border-indigo-400 bg-indigo-50/60" : "border-slate-200 bg-slate-50/40"}`}
+        className={`max-h-[220px] overflow-y-auto rounded-xl border-2 border-dashed p-3 transition ${dragOver ? "border-indigo-400 bg-indigo-50/60" : items.length === 0 ? "border-slate-200 bg-slate-50/40 cursor-pointer hover:border-indigo-300 hover:bg-indigo-50/30" : "border-slate-200 bg-slate-50/40"}`}
       >
         {items.length === 0 ? (
           <div className="py-6 text-center text-[12px] text-slate-400">
