@@ -1170,7 +1170,9 @@ export default function AudioPlusMinusTab() {
         else if (c.canProcess) queue.push(i);
       });
       for (const cardIdx of equalQueue) {
-        await cardRefs.current[cardIdx]!.passThrough();
+        const h = cardRefs.current[cardIdx];
+        if (!h) continue;
+        await h.passThrough();
       }
       let cursor = 0;
       const worker = async () => {
@@ -1178,7 +1180,9 @@ export default function AudioPlusMinusTab() {
           const myIdx = cursor++;
           if (myIdx >= queue.length) return;
           const cardIdx = queue[myIdx];
-          await cardRefs.current[cardIdx]!.runProcess();
+          const h = cardRefs.current[cardIdx];
+          if (!h) continue;
+          await h.runProcess();
         }
       };
       const workerCount = Math.max(1, Math.min(ENGINE_POOL_SIZE, queue.length));
