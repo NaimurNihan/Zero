@@ -530,16 +530,17 @@ const AudioCard = forwardRef<
     await ffmpeg.exec([
       "-i", inputName,
       "-filter:a", atempoFilter,
-      "-c:a", "libmp3lame", "-q:a", "2",
-      `out_${index}.mp3`,
+      "-c:a", "aac", "-b:a", "128k",
+      "-movflags", "+faststart",
+      `out_${index}.m4a`,
     ]);
-    const data = await ffmpeg.readFile(`out_${index}.mp3`);
+    const data = await ffmpeg.readFile(`out_${index}.m4a`);
     const arr = data instanceof Uint8Array ? data : new TextEncoder().encode(String(data));
-    const blob = new Blob([arr as unknown as BlobPart], { type: "audio/mpeg" });
+    const blob = new Blob([arr as unknown as BlobPart], { type: "audio/mp4" });
     const baseName = instrFile!.name.replace(/\.[^.]+$/, "");
-    const finalName = `${baseName}_adj${String(index).padStart(3, "0")}.mp3`;
+    const finalName = `${baseName}_adj${String(index).padStart(3, "0")}.m4a`;
     await ffmpeg.deleteFile(inputName).catch(() => {});
-    await ffmpeg.deleteFile(`out_${index}.mp3`).catch(() => {});
+    await ffmpeg.deleteFile(`out_${index}.m4a`).catch(() => {});
     return { blob, name: finalName };
   };
 
@@ -1128,7 +1129,7 @@ export default function AudioPlusMinusTab() {
       const zip = new JSZip() as unknown as ZL;
       const used = new Set<string>();
       for (const { c, i } of ready) {
-        let name = c.mergedName || `audio_adj_${i + 1}.mp3`;
+        let name = c.mergedName || `audio_adj_${i + 1}.m4a`;
         if (used.has(name)) {
           const dot = name.lastIndexOf(".");
           const base = dot > 0 ? name.slice(0, dot) : name;
