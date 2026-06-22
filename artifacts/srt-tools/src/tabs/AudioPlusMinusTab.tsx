@@ -56,7 +56,7 @@ function canUseMtCore(): boolean {
 function pickPoolSize(): number {
   if (typeof navigator === "undefined") return 2;
   const cores = navigator.hardwareConcurrency || 4;
-  return cores <= 2 ? 1 : cores <= 4 ? 3 : 4;
+  return cores <= 2 ? 1 : 2;
 }
 const ENGINE_POOL_SIZE = pickPoolSize();
 
@@ -950,7 +950,6 @@ export default function AudioPlusMinusTab() {
         setFfmpegLoading(false);
         if (slots[0]) preWarmSlotRef.current(slots[0]);
         if (slots[1]) setTimeout(() => { if (!cancelled) preWarmSlotRef.current(slots[1]); }, 25000);
-        if (slots[2]) setTimeout(() => { if (!cancelled) preWarmSlotRef.current(slots[2]); }, 50000);
       }
     });
     return () => {
