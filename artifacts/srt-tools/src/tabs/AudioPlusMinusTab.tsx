@@ -40,6 +40,7 @@ const MAX_SPEED = 4.0;
 const SPEED_EPSILON = 0.005;
 const INITIAL_CARDS = 6;
 const RECYCLE_EVERY = 35;
+const PREWARM_AT = 1;
 
 function ffmpegBaseUrl(mt: boolean): string {
   const base = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
@@ -55,7 +56,7 @@ function canUseMtCore(): boolean {
 function pickPoolSize(): number {
   if (typeof navigator === "undefined") return 2;
   const cores = navigator.hardwareConcurrency || 4;
-  return cores <= 2 ? 1 : 2;
+  return cores <= 2 ? 1 : cores <= 4 ? 3 : 4;
 }
 const ENGINE_POOL_SIZE = pickPoolSize();
 
@@ -875,10 +876,14 @@ export default function AudioPlusMinusTab() {
   const [ffmpegReady, setFfmpegReady] = useState(false);
   const [ffmpegLoading, setFfmpegLoading] = useState(true);
   const [ffmpegError, setFfmpegError] = useState<string>("");
+  const [standbyCount, setStandbyCount] = useState(0);
+  const [prewarmingSlots, setPrewarmingSlots] = useState(0);
 
   const useMtRef = useRef<boolean>(canUseMtCore());
   const slotsRef = useRef<EngineSlot[]>([]);
   const slotWaitersRef = useRef<Array<() => void>>([]);
+
+  const preWarmSlotRef = useRef<(slot: EngineSlot) => void>(() => {});
 
   const loadFreshFFmpeg = async (slot: EngineSlot): Promise<FFmpeg> => {
     const ffmpeg = new FFmpeg();
@@ -901,6 +906,28 @@ export default function AudioPlusMinusTab() {
     return ffmpeg;
   };
 
+  const preWarmSlot = (slot: EngineSlot): void => {
+    if (slot.preWarmLoading || slot.nextFfmpeg) return;
+    setPrewarmingSlots((n) => n + 1);
+    slot.preWarmLoading = (async () => {
+      try {
+        const fresh = await loadFreshFFmpeg(slot);
+        if (!slot.nextFfmpeg) {
+          slot.nextFfmpeg = fresh;
+          setStandbyCount((n) => n + 1);
+        } else {
+          try { fresh.terminate(); } catch { /* ignore */ }
+        }
+      } catch (err) {
+        console.warn(`[Audio+-] slot ${slot.id}: pre-warm failed:`, err);
+      } finally {
+        slot.preWarmLoading = null;
+        setPrewarmingSlots((n) => Math.max(0, n - 1));
+      }
+    })();
+  };
+  preWarmSlotRef.current = preWarmSlot;
+
   useEffect(() => {
     let cancelled = false;
     const slots: EngineSlot[] = Array.from({ length: ENGINE_POOL_SIZE }, (_, i) => ({
@@ -918,9 +945,21 @@ export default function AudioPlusMinusTab() {
         }
       }),
     ).then(() => {
-      if (!cancelled) { setFfmpegReady(true); setFfmpegLoading(false); }
+      if (!cancelled) {
+        setFfmpegReady(true);
+        setFfmpegLoading(false);
+        if (slots[0]) preWarmSlotRef.current(slots[0]);
+        if (slots[1]) setTimeout(() => { if (!cancelled) preWarmSlotRef.current(slots[1]); }, 25000);
+        if (slots[2]) setTimeout(() => { if (!cancelled) preWarmSlotRef.current(slots[2]); }, 50000);
+      }
     });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      for (const s of slots) {
+        try { s.ffmpeg?.terminate(); } catch { /* ignore */ }
+        try { s.nextFfmpeg?.terminate(); } catch { /* ignore */ }
+      }
+    };
   }, []);
 
   const acquireSlot = useCallback((): Promise<EngineSlot> => {
@@ -936,15 +975,37 @@ export default function AudioPlusMinusTab() {
 
   const releaseSlot = useCallback((slot: EngineSlot) => {
     slot.busy = false;
+    if (slot.jobsSinceRecycle >= PREWARM_AT && !slot.preWarmLoading && !slot.nextFfmpeg) {
+      preWarmSlotRef.current(slot);
+    }
     slotWaitersRef.current.shift()?.();
   }, []);
 
   const recycleSlot = useCallback((slot: EngineSlot) => {
-    slot.busy = false; slot.ffmpeg = null; slot.jobsSinceRecycle = 0;
-    loadFreshFFmpeg(slot).then((ff) => {
-      slot.ffmpeg = ff;
-      slotWaitersRef.current.shift()?.();
-    }).catch(console.error);
+    slot.busy = false;
+    slot.jobsSinceRecycle = 0;
+    const doRecycle = async () => {
+      if (slot.preWarmLoading) await slot.preWarmLoading;
+      if (slot.nextFfmpeg) {
+        const old = slot.ffmpeg;
+        slot.ffmpeg = slot.nextFfmpeg;
+        slot.nextFfmpeg = null;
+        setStandbyCount((n) => Math.max(0, n - 1));
+        if (old) { try { old.terminate(); } catch { /* ignore */ } }
+        slotWaitersRef.current.shift()?.();
+        preWarmSlotRef.current(slot);
+      } else {
+        const old = slot.ffmpeg;
+        slot.ffmpeg = null;
+        if (old) { try { old.terminate(); } catch { /* ignore */ } }
+        loadFreshFFmpeg(slot).then((ff) => {
+          slot.ffmpeg = ff;
+          slotWaitersRef.current.shift()?.();
+          preWarmSlotRef.current(slot);
+        }).catch(console.error);
+      }
+    };
+    void doRecycle();
   }, []);
 
   // ── Pools ───────────────────────────────────────────────────────────────────
@@ -1239,6 +1300,17 @@ export default function AudioPlusMinusTab() {
                 <span className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
                   <CheckCircle2 className="h-3.5 w-3.5" />Ready
                 </span>
+              )}
+              {ffmpegReady && ENGINE_POOL_SIZE > 1 && (
+                standbyCount >= ENGINE_POOL_SIZE ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-lg border border-green-300 bg-green-50 px-2.5 py-0.5 text-xs font-semibold text-green-700" title="All standby engines pre-warmed — engine swaps will be instant with zero pause">
+                    <CheckCircle2 className="h-3 w-3" />Standby {standbyCount}/{ENGINE_POOL_SIZE} ✓
+                  </span>
+                ) : standbyCount > 0 || prewarmingSlots > 0 ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700" title="Standby engines loading in background">
+                    <Loader2 className="h-3 w-3 animate-spin" />Standby {standbyCount}/{ENGINE_POOL_SIZE}…
+                  </span>
+                ) : null
               )}
               {ffmpegError && <span className="text-xs text-rose-600">{ffmpegError}</span>}
             </div>
