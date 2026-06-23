@@ -1163,10 +1163,10 @@ export default function AudioPlusMinusTab() {
   const instrPoolCount = pool.filter((p) => p.kind === "instrument").length;
   const activeCount = cardStates.filter((c) => c.isWorking).length;
   const completeCount = cardStates.filter((c) => c.isDone && c.mergedBlob).length;
-  const speedUpCount = cardStates.filter((c) => c.mode === "speedup").length;
-  const slowDownCount = cardStates.filter((c) => c.mode === "slowdown").length;
-  const matchCount = cardStates.filter((c) => c.mode === "match").length;
-  const extremeCount = cardStates.filter((c) => c.mode === "extreme").length;
+  const speedUpCount = cardStates.filter((c) => c.mode === "speedup" && !c.isDone).length;
+  const slowDownCount = cardStates.filter((c) => c.mode === "slowdown" && !c.isDone).length;
+  const matchCount = cardStates.filter((c) => c.mode === "match" && !c.isDone).length;
+  const extremeCount = cardStates.filter((c) => c.mode === "extreme" && !c.isDone).length;
   const errorCount = cardStates.filter(
     (c) => !c.isDone && !c.isWorking && !c.isReadingDuration &&
             (c.hasVocal || c.hasInstrument) && !c.canProcess && c.mode !== "extreme",
