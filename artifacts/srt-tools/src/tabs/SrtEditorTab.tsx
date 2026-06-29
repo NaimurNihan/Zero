@@ -781,14 +781,11 @@ export default function SrtEditorTab({ subtitles, filename, setSubtitles, setFil
       </div>
 
       {dividedParts && (
-        <div className="bg-teal-50 dark:bg-teal-950/30 border border-teal-200 dark:border-teal-800 rounded-xl px-4 py-3 flex flex-wrap items-center gap-3">
-          <svg className="w-4 h-4 text-teal-600 dark:text-teal-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-          </svg>
-          <span className="text-sm font-semibold text-teal-700 dark:text-teal-300">
-            {subtitles.length} subtitles → {dividedParts.length} parts
+        <div className="bg-teal-50 dark:bg-teal-950/30 border border-teal-200 dark:border-teal-800 rounded-lg px-3 py-1.5 flex items-center gap-2">
+          <span className="text-xs font-semibold text-teal-700 dark:text-teal-300 shrink-0">
+            {subtitles.length} → {dividedParts.length} parts:
           </span>
-          <div className="flex flex-wrap gap-2 ml-1">
+          <div className="flex gap-1.5">
             {dividedParts.map((part, i) => {
               const baseName = filename.replace(/\.[^.]+$/, "");
               const partName = `${baseName}_part${i + 1}.srt`;
@@ -796,22 +793,22 @@ export default function SrtEditorTab({ subtitles, filename, setSubtitles, setFil
                 <button
                   key={i}
                   onClick={() => downloadSrt(part, partName)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-600 text-white text-sm font-semibold hover:bg-teal-700 shadow-sm transition-colors"
+                  className="flex items-center gap-1 px-2 py-0.5 rounded bg-teal-600 text-white text-xs font-semibold hover:bg-teal-700 transition-colors"
                 >
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                   </svg>
-                  Part {i + 1} ({part.length} cards)
+                  Part {i + 1} ({part.length})
                 </button>
               );
             })}
           </div>
           <button
             onClick={() => setDividedParts(null)}
-            className="ml-auto text-teal-500 hover:text-teal-700 dark:hover:text-teal-300 transition-colors"
+            className="ml-auto text-teal-400 hover:text-teal-600 dark:hover:text-teal-300 transition-colors"
             title="Close"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
