@@ -172,7 +172,11 @@ function parseSrt(content: string): SrtCue[] {
     const lines = block.split("\n");
     let cursor = 0;
 
-    if (lines[cursor] && /^\d+$/.test(lines[cursor]!.trim())) cursor++;
+    let srtIndex = cues.length + 1;
+    if (lines[cursor] && /^\d+$/.test(lines[cursor]!.trim())) {
+      srtIndex = parseInt(lines[cursor]!.trim(), 10);
+      cursor++;
+    }
 
     const timeLine = lines[cursor];
     if (!timeLine) continue;
@@ -187,7 +191,7 @@ function parseSrt(content: string): SrtCue[] {
     const endSec = timestampToSeconds(tm[2]!);
     if (endSec <= startSec) continue;
 
-    cues.push({ index: cues.length + 1, startSec, endSec, text });
+    cues.push({ index: srtIndex, startSec, endSec, text });
   }
 
   return cues;
@@ -707,7 +711,8 @@ function Home({
       return m ? m[0] : ".mp4";
     })();
     const baseName = videoFile.name.replace(/\.[^.]+$/, "") || "video";
-    const padWidth = String(cues.length).length;
+    const maxIndex = cues.reduce((m, c) => Math.max(m, c.index), 0);
+    const padWidth = String(maxIndex).length;
 
     const clipMetas: ClipMeta[] = cues.map((c) => ({
       index: c.index,
