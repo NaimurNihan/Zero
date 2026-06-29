@@ -386,6 +386,8 @@ export default function SrtEditorTab({ subtitles, filename, setSubtitles, setFil
   const [jumpTime, setJumpTime] = useState("00:00:00,000");
   const [highlightedJumpId, setHighlightedJumpId] = useState<number | null>(null);
   const [notepadOpen, setNotepadOpen] = useState(false);
+  const [editingIndexId, setEditingIndexId] = useState<number | null>(null);
+  const [editingIndexVal, setEditingIndexVal] = useState("");
   const cardRefs = useRef(new Map<number, HTMLDivElement | null>());
   const fileInputRef = useRef<HTMLInputElement>(null);
   const closeNotepad = useCallback(() => setNotepadOpen(false), []);
@@ -500,6 +502,19 @@ export default function SrtEditorTab({ subtitles, filename, setSubtitles, setFil
         s.id === id ? { ...s, text: newText, edited: newText !== s.originalText } : s
       )
     );
+  }
+
+  function handleIndexCommit(id: number, raw: string) {
+    setEditingIndexId(null);
+    const n = parseInt(raw, 10);
+    if (!Number.isFinite(n) || n < 1) return;
+    const idx = subtitles.findIndex((s) => s.id === id);
+    if (idx < 0) return;
+    if (cascadeMode) {
+      setSubtitles(subtitles.map((s, i) => i < idx ? s : { ...s, index: n + (i - idx) }));
+    } else {
+      setSubtitles(subtitles.map((s) => s.id === id ? { ...s, index: n } : s));
+    }
   }
 
   function moveUp(idx: number) {
@@ -986,9 +1001,29 @@ export default function SrtEditorTab({ subtitles, filename, setSubtitles, setFil
                     : sub.edited ? "border-emerald-300 shadow-emerald-100" : "border-gray-200"
                 }`}>
                 <div className="flex items-center gap-2.5 px-4 pt-3 pb-2 border-b border-gray-100 dark:border-gray-800">
-                  <span className="flex items-center justify-center w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-800 text-xs font-bold text-gray-500 dark:text-gray-400 shrink-0">
-                    {sub.index}
-                  </span>
+                  {editingIndexId === sub.id ? (
+                    <input
+                      autoFocus
+                      type="number"
+                      min={1}
+                      value={editingIndexVal}
+                      onChange={(e) => setEditingIndexVal(e.target.value)}
+                      onBlur={() => handleIndexCommit(sub.id, editingIndexVal)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleIndexCommit(sub.id, editingIndexVal);
+                        if (e.key === "Escape") setEditingIndexId(null);
+                      }}
+                      className="w-8 h-6 rounded-full bg-blue-100 dark:bg-blue-900 text-xs font-bold text-blue-700 dark:text-blue-300 text-center border border-blue-400 outline-none shrink-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    />
+                  ) : (
+                    <span
+                      title="Click to edit number"
+                      onClick={() => { setEditingIndexId(sub.id); setEditingIndexVal(String(sub.index)); }}
+                      className="flex items-center justify-center w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-800 text-xs font-bold text-gray-500 dark:text-gray-400 shrink-0 cursor-pointer hover:bg-blue-100 hover:text-blue-600 dark:hover:bg-blue-900 dark:hover:text-blue-300 transition-colors"
+                    >
+                      {sub.index}
+                    </span>
+                  )}
                   <div className={`flex items-center gap-1 text-xs font-mono ${hasOverlap ? "text-orange-500 font-semibold" : "text-gray-500 dark:text-gray-400"}`}>
                     <TimeInput
                       value={sub.startTime}
