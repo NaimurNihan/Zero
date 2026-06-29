@@ -781,7 +781,7 @@ export default function SrtEditorTab({ subtitles, filename, setSubtitles, setFil
       </div>
 
       {dividedParts && (
-        <div className="bg-teal-50 dark:bg-teal-950/30 border border-teal-200 dark:border-teal-800 rounded-lg px-3 py-1.5 flex items-center gap-2">
+        <div className="bg-teal-50 dark:bg-teal-950/30 border border-teal-200 dark:border-teal-800 rounded-lg px-3 py-1.5 flex items-center gap-2 mb-3">
           <span className="text-xs font-semibold text-teal-700 dark:text-teal-300 shrink-0">
             {subtitles.length} → {dividedParts.length} parts:
           </span>
