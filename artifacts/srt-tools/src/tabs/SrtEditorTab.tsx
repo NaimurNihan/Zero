@@ -680,6 +680,18 @@ export default function SrtEditorTab({ subtitles, filename, setSubtitles, setFil
     (acc, s) => acc + (s.text.match(/[.?!।]/g) || []).length, 0
   );
 
+  const partBoundaries = dividedParts
+    ? dividedParts.reduce<number[]>((acc, part) => {
+        acc.push((acc[acc.length - 1] ?? 0) + part.length);
+        return acc;
+      }, [])
+    : [];
+  const PART_BORDER = [
+    "border-green-400 shadow-green-100",
+    "border-orange-400 shadow-orange-100",
+    "border-blue-400 shadow-blue-100",
+  ];
+
   return (
     <div className="flex flex-col gap-0">
       <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 flex flex-wrap items-center gap-2 mb-3">
@@ -954,6 +966,8 @@ export default function SrtEditorTab({ subtitles, filename, setSubtitles, setFil
             const durationLabel = durationMs < 1000
               ? `${durationMs}ms`
               : `${(durationMs / 1000).toFixed(1)}s`;
+            const partIdx = dividedParts ? partBoundaries.findIndex((b) => idx < b) : -1;
+            const partBorder = partIdx >= 0 ? PART_BORDER[partIdx] : "";
             return (
               <div key={sub.id}
                 ref={(el) => {
@@ -967,6 +981,8 @@ export default function SrtEditorTab({ subtitles, filename, setSubtitles, setFil
                     ? "border-orange-400 shadow-orange-100"
                     : isShort
                     ? "border-red-400 shadow-red-100 bg-red-50/40 dark:bg-red-950/20"
+                    : partBorder
+                    ? partBorder
                     : sub.edited ? "border-emerald-300 shadow-emerald-100" : "border-gray-200"
                 }`}>
                 <div className="flex items-center gap-2.5 px-4 pt-3 pb-2 border-b border-gray-100 dark:border-gray-800">
