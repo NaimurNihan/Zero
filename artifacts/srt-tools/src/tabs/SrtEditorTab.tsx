@@ -587,7 +587,7 @@ export default function SrtEditorTab({ subtitles, filename, setSubtitles, setFil
           }
           return { ...s, [field]: value, edited: true };
         }
-        if (i > idx && i < subtitles.length - 1) {
+        if (i > idx) {
           const newStart = timeToMs(s.startTime) + delta;
           const newEnd = timeToMs(s.endTime) + delta;
           return {
