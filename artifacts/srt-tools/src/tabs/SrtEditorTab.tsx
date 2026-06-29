@@ -584,14 +584,6 @@ export default function SrtEditorTab({ subtitles, filename, setSubtitles, setFil
     } else {
       setSubtitles(subtitles.map((s) => {
         if (s.id !== id) return s;
-        if (field === "startTime") {
-          return {
-            ...s,
-            startTime: value,
-            endTime: msToTime(timeToMs(s.endTime) + delta),
-            edited: true,
-          };
-        }
         return { ...s, [field]: value, edited: true };
       }));
     }
