@@ -47,8 +47,8 @@ export function parseSrt(content: string): Subtitle[] {
 
 export function formatSrt(subtitles: Subtitle[]): string {
   return subtitles
-    .map((s, i) => {
-      return `${i + 1}\n${s.startTime} --> ${s.endTime}\n${s.text}`;
+    .map((s) => {
+      return `${s.index}\n${s.startTime} --> ${s.endTime}\n${s.text}`;
     })
     .join("\n\n");
 }
