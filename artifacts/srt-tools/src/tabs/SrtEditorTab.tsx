@@ -789,6 +789,8 @@ export default function SrtEditorTab({ subtitles, filename, setSubtitles, setFil
             {dividedParts.map((part, i) => {
               const baseName = filename.replace(/\.[^.]+$/, "");
               const partName = `${baseName}_part${i + 1}.srt`;
+              const startCard = dividedParts.slice(0, i).reduce((sum, p) => sum + p.length, 0) + 1;
+              const endCard = startCard + part.length - 1;
               return (
                 <button
                   key={i}
@@ -798,7 +800,7 @@ export default function SrtEditorTab({ subtitles, filename, setSubtitles, setFil
                   <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                   </svg>
-                  Part {i + 1} ({part.length})
+                  Part {i + 1} ({startCard}–{endCard})
                 </button>
               );
             })}
