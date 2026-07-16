@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ArrowRight, Copy, Download, FileText, Send, Sparkles, X } from "lucide-react";
+import { ArrowRight, Copy, Download, FileText, Send, Sparkles, Wand2, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 function parseTimestampMs(s: string): number | null {
@@ -25,6 +25,43 @@ const TS_PATTERN = "\\d{1,2}[:.:]\\d{2}(?:[:.:]\\d{2,3})?";
 const LINE_RE = new RegExp(`^(${TS_PATTERN})\\s*[-–]\\s*(.+)$`);
 const STANDALONE_RE = new RegExp(`^(${TS_PATTERN})$`);
 const TRAILING_RE = new RegExp(`[\\s,]+(${TS_PATTERN})\\s*$`);
+
+// Cleans messy raw transcripts (YouTube auto-caption style) into "0:00 - text" format.
+// Handles: duplicate time descriptions ("13 seconds", "1 minute, 7 seconds"),
+// fused timestamps ("0:1313 seconds"), and missing " - " separator.
+function cleanRawTranscript(raw: string): string {
+  const lines = raw.split("\n");
+  const out: string[] = [];
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) { out.push(""); continue; }
+
+    // Match clean 2-digit-second timestamp at start, then any extra digits fused after
+    // e.g. "0:1313 seconds…" → ts="0:13", extra="13", rest=" seconds…"
+    const m = trimmed.match(/^(\d+:\d{2})(\d*)([\s\S]*)$/);
+    if (!m) { out.push(trimmed); continue; }
+
+    const ts = m[1];
+    let rest = m[2] + m[3]; // extra fused digits + rest of line
+
+    // Remove duplicate time description at the very start of rest:
+    //   e.g. "13 seconds", "7 seconds", "1 minute, 7 seconds", "2 minutes, 34 seconds"
+    // Allow optional whitespace before the number (handles "7 seconds" and "13seconds")
+    rest = rest.replace(/^\s*\d+\s+minutes?,\s*\d+\s+seconds?/i, "");
+    rest = rest.replace(/^\s*\d+\s+seconds?/i, "");
+    rest = rest.replace(/^\s*\d+\s+minutes?(?:,\s*\d+\s+seconds?)?/i, "");
+
+    // Strip leading " - " or just a dash
+    rest = rest.replace(/^\s*[-–]\s*/, "").trim();
+
+    if (rest) out.push(`${ts} - ${rest}`);
+  }
+
+  // Remove trailing blank lines
+  while (out.length && out[out.length - 1] === "") out.pop();
+  return out.join("\n");
+}
 
 interface Entry {
   startMs: number;
@@ -212,11 +249,28 @@ export default function TextToSrtTab({ onLoadToMerger, onLoadToEditor }: Props) 
         <div className="flex flex-1 flex-col rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-sm overflow-hidden">
           <div className="px-3 py-2 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between shrink-0">
             <span className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Input</span>
-            {parsedEntries.length > 0 && (
-              <span className="text-[11px] font-mono text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 px-2 py-0.5 rounded-full">
-                {parsedEntries.length} {parsedEntries.length === 1 ? "subtitle" : "subtitles"}
-              </span>
-            )}
+            <div className="flex items-center gap-1.5">
+              {input.trim() && (
+                <button
+                  onClick={() => {
+                    const cleaned = cleanRawTranscript(input);
+                    setInput(cleaned);
+                    setGeneratedEntries([]);
+                    setIsGenerated(false);
+                    toast({ title: "Transcript cleaned", description: "Duplicate timestamps and format issues removed." });
+                  }}
+                  className="flex items-center gap-1 text-[11px] text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-900/50 rounded-md px-2 py-0.5 transition-colors"
+                  title="Remove duplicate time descriptions and fix format (e.g. 0:1313 seconds → 0:13 - text)"
+                >
+                  <Wand2 className="h-3 w-3" /> Clean
+                </button>
+              )}
+              {parsedEntries.length > 0 && (
+                <span className="text-[11px] font-mono text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 px-2 py-0.5 rounded-full">
+                  {parsedEntries.length} {parsedEntries.length === 1 ? "subtitle" : "subtitles"}
+                </span>
+              )}
+            </div>
           </div>
           <textarea
             className="flex-1 w-full resize-none px-3 py-2.5 text-sm font-mono text-gray-800 dark:text-gray-100 bg-transparent placeholder:text-gray-300 dark:placeholder:text-gray-600 outline-none"

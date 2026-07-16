@@ -1,0 +1,66 @@
+Text SRT Cleaner Skill
+Clean messy raw transcripts by removing duplicate time descriptions and outputting a clean, readable timestamp + text format.
+
+What Problem This Solves
+Raw transcripts (like YouTube auto-captions) often look like this:
+0:10 10 seconds Some text here
+1:07 1 minute, 7 seconds More text here
+2:34 2 minutes, 34 seconds Even more text
+The timestamp appears twice — once as 0:10 and again as 10 seconds or 1 minute, 7 seconds. This skill removes the duplicate and keeps only the clean short form.
+
+Input Format
+User will paste raw transcript lines like:
+0:00 Hello everyone, this is a video about...
+0:10 10 seconds A long time ago in a village...
+1:07 1 minute, 7 seconds The man's name is Tang...
+2:34 2 minutes, 34 seconds He grabs the infant...
+15:25 15 minutes, 25 seconds So what do you think...
+
+The 3 Rules — Follow ALL strictly
+✅ Rule 1 – Remove Duplicate Time Description
+
+After the short timestamp (e.g. 0:10), if a spoken time description follows (e.g. 10 seconds, 1 minute, 7 seconds, 2 minutes, 34 seconds), remove it completely
+Keep ONLY the short timestamp at the start
+
+Patterns to remove:
+Remove ThisKeep This10 seconds—1 minute, 7 seconds—2 minutes, 34 seconds—15 minutes, 25 seconds—Any variation of "X seconds", "X minute(s), X seconds"—
+
+✅ Rule 2 – Output Format
+Every line must follow this exact format:
+0:10 - Text starts here
+1:07 - Text starts here
+
+Short timestamp first
+Then - (space dash space)
+Then the clean text
+
+
+✅ Rule 3 – Keep Text Exactly As-Is
+
+Do NOT translate the text
+Do NOT change any words
+Do NOT merge lines
+Do NOT split lines
+Only remove the duplicate time description — nothing else
+
+
+Output Format
+0:00 - Hello everyone, this is a video about...
+0:10 - A long time ago in a village...
+1:07 - The man's name is Tang...
+2:34 - He grabs the infant...
+15:25 - So what do you think...
+
+Full Worked Example
+Input:
+0:00 Hello everyone, this is Mr. Junkie here!
+0:10 10 seconds A long time ago in a fishing village
+1:07 1 minute, 7 seconds The man's name is Tang
+2:34 2 minutes, 34 seconds He grabs the infant
+15:25 15 minutes, 25 seconds So what do you guys think
+Output:
+0:00 - Hello everyone, this is Mr. Junkie here!
+0:10 - A long time ago in a fishing village
+1:07 - The man's name is Tang
+2:34 - He grabs the infant
+15:25 - So what do you guys think
