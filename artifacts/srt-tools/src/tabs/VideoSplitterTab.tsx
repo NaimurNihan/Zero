@@ -28,7 +28,7 @@ import {
 
 const queryClient = new QueryClient();
 
-const FFMPEG_BASE_URL = "https://unpkg.com/@ffmpeg/core@0.12.10/dist/esm";
+const FFMPEG_BASE_URL = "https://unpkg.com/@ffmpeg/core-mt@0.12.10/dist/esm";
 
 const BATCH_SIZE = 25;
 const RECYCLE_EVERY = 10;
@@ -484,7 +484,11 @@ function Home({
       `${FFMPEG_BASE_URL}/ffmpeg-core.wasm`,
       "application/wasm",
     );
-    await ffmpeg.load({ coreURL, wasmURL });
+    const workerURL = await toBlobURL(
+      `${FFMPEG_BASE_URL}/ffmpeg-core.worker.js`,
+      "text/javascript",
+    );
+    await ffmpeg.load({ coreURL, wasmURL, workerURL });
     ffmpegRef.current = ffmpeg;
     return ffmpeg;
   }
@@ -753,14 +757,6 @@ function Home({
     //   Result: clip from EXACTLY startSec to endSec, fast decode of only
     //   the K→startSec window (≤ keyframe interval ≈ 2–6 s for most videos).
     //
-    // Audio: stream-copy for MP4/MOV/M4V (AAC compat, no re-encode overhead).
-    // Fall back to AAC re-encode for containers that may carry Vorbis/Opus.
-    const audioArgs: string[] = [".mp4", ".m4v", ".mov"].includes(
-      ext.toLowerCase(),
-    )
-      ? ["-c:a", "copy"]
-      : ["-c:a", "aac", "-b:a", "128k"];
-
     const cutOnce = async (eng: FFmpeg, clip: ClipMeta, outName: string) => {
       const duration = clip.endSec - clip.startSec;
       const args: string[] = [
@@ -784,7 +780,9 @@ function Home({
         "ultrafast",
         "-crf",
         "22",
-        ...audioArgs,
+        "-threads",
+        "0",
+        "-an",
         "-movflags",
         "+faststart",
         outName,
