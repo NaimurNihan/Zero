@@ -737,27 +737,45 @@ function Home({
     };
 
     // Run a single clip cut. Returns null on success, or an error message.
-    // Uses output-seek (-ss AFTER -i) + libx264 re-encode so the clip
-    // starts and ends at EXACTLY the SRT timestamps (no keyframe snap-back).
-    // Two-stage seek: input-seek close to startSec first (so ffmpeg only
-    // needs to decode SEEK_MARGIN seconds, not the whole file), then
-    // output-seek the remaining distance for frame-accurate start.
-    const SEEK_MARGIN = 8; // seconds of pre-roll for input-seek
+    //
+    // Strategy: two-stage seek + libx264 re-encode for frame-accurate cuts.
+    //
+    //   Stage 1 — input-seek (-ss BEFORE -i):
+    //     Fast keyframe seek to startSec. ffmpeg lands at the nearest I-frame
+    //     K ≤ startSec (typically 0–6 s back depending on keyframe interval).
+    //     Only K→startSec worth of video needs to be decoded.
+    //
+    //   Stage 2 — output-seek (-ss AFTER -i, SAME ABSOLUTE TIMESTAMP):
+    //     Tells the encoder "discard decoded frames until timestamp = startSec."
+    //     With re-encode the decoder has every frame available, so this is
+    //     frame-accurate even for non-keyframe positions.
+    //
+    //   Result: clip from EXACTLY startSec to endSec, fast decode of only
+    //   the K→startSec window (≤ keyframe interval ≈ 2–6 s for most videos).
+    //
+    // Audio: stream-copy for MP4/MOV/M4V (AAC compat, no re-encode overhead).
+    // Fall back to AAC re-encode for containers that may carry Vorbis/Opus.
+    const audioArgs: string[] = [".mp4", ".m4v", ".mov"].includes(
+      ext.toLowerCase(),
+    )
+      ? ["-c:a", "copy"]
+      : ["-c:a", "aac", "-b:a", "128k"];
+
     const cutOnce = async (eng: FFmpeg, clip: ClipMeta, outName: string) => {
       const duration = clip.endSec - clip.startSec;
-      const inputSeek = Math.max(0, clip.startSec - SEEK_MARGIN);
-      const outputSeek = clip.startSec - inputSeek;
       const args: string[] = [
         "-y",
         "-hide_banner",
         "-loglevel",
         "error",
+        // Stage 1: fast keyframe-level input seek
         "-ss",
-        inputSeek.toFixed(3),
+        clip.startSec.toFixed(3),
         "-i",
         inputName,
+        // Stage 2: frame-accurate output seek (absolute timestamp)
         "-ss",
-        outputSeek.toFixed(3),
+        clip.startSec.toFixed(3),
         "-t",
         duration.toFixed(3),
         "-c:v",
@@ -766,10 +784,7 @@ function Home({
         "ultrafast",
         "-crf",
         "22",
-        "-c:a",
-        "aac",
-        "-b:a",
-        "128k",
+        ...audioArgs,
         "-movflags",
         "+faststart",
         outName,
