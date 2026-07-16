@@ -744,7 +744,7 @@ export default function App() {
           incomingSrt={videoIncomingSrt}
           incomingSrtFilename={videoIncomingSrtFilename}
           incomingSrtKey={videoIncomingSrtKey}
-          onSendToCutting={(files) => {
+          onSendToSpeed={(files) => {
             setSpeedIncomingVideos({ files, key: Date.now() });
             handleSelectTab("speed");
           }}

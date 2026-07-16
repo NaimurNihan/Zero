@@ -476,16 +476,13 @@ function Home({
   incomingSrt,
   incomingSrtFilename,
   incomingSrtKey,
-  onSendToCutting,
+  onSendToSpeed,
   onOutputsChange,
 }: {
   incomingSrt?: string;
   incomingSrtFilename?: string;
   incomingSrtKey?: number;
-  // extras[i] = head-extra seconds for files[i] (the leading "extra"
-  // amount that the keyframe-snapped cut produced — Cutting+ trims it
-  // accurately so the SRT cue start lines up to the millisecond).
-  onSendToCutting?: (files: File[], extras?: number[]) => void;
+  onSendToSpeed?: (files: File[]) => void;
   onOutputsChange?: (files: File[]) => void;
 }) {
   const { toast } = useToast();
@@ -1037,8 +1034,8 @@ function Home({
     });
   }
 
-  async function handleLoadToCutting() {
-    if (!job || !onSendToCutting) return;
+  async function handleLoadToSpeed() {
+    if (!job || !onSendToSpeed) return;
     const doneClips = job.clips.filter(
       (c) => statusByIndex.get(c.index)?.status === "done",
     );
@@ -1058,18 +1055,15 @@ function Home({
     setLoadPct(0);
     try {
       const files: File[] = [];
-      const extras: number[] = [];
       for (let i = 0; i < targetClips.length; i++) {
         const clip = targetClips[i]!;
         const blob = clipBlobsRef.current.get(clip.index);
         if (!blob) throw new Error(`Clip #${clip.index}: not available`);
         const type = blob.type || "video/mp4";
         files.push(new File([blob], clip.filename, { type }));
-        // Aligned with files[]: per-clip head extra in seconds (0 if unknown).
-        extras.push(clipExtrasRef.current.get(clip.index) ?? 0);
         setLoadPct(Math.round(((i + 1) / targetClips.length) * 100));
       }
-      onSendToCutting(files, extras);
+      onSendToSpeed(files);
 
       // ── Hand-off cleanup (Option A) ──────────────────────────────
       // Release the ~300-500MB WASM engine and drop blob/URL refs so
@@ -1085,7 +1079,7 @@ function Home({
       disposeFFmpeg();
 
       toast({
-        title: `Loaded ${files.length} clip${files.length === 1 ? "" : "s"} to Cutting++`,
+        title: `Loaded ${files.length} clip${files.length === 1 ? "" : "s"} to Speed +-`,
         description: "Memory freed for next tab.",
       });
     } catch (err) {
@@ -1259,15 +1253,15 @@ function Home({
                 <span>{formatDuration(srtPreview.totalSeconds)}</span>
               </div>
             )}
-            {job && doneCount > 0 && onSendToCutting && (
+            {job && doneCount > 0 && onSendToSpeed && (
               <button
                 type="button"
-                onClick={handleLoadToCutting}
+                onClick={handleLoadToSpeed}
                 disabled={loading}
                 title={
                   selected.size > 0
-                    ? `Load ${selected.size} selected clip${selected.size === 1 ? "" : "s"} to Cutting++`
-                    : "Load all done clips to Cutting++"
+                    ? `Load ${selected.size} selected clip${selected.size === 1 ? "" : "s"} to Speed +-`
+                    : "Load all done clips to Speed +-"
                 }
                 className="inline-flex items-center gap-1.5 px-3 h-7 rounded-md bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-bold tracking-wider uppercase shadow-md transition-all disabled:opacity-60"
               >
@@ -1279,7 +1273,7 @@ function Home({
                 ) : (
                   <>
                     <FolderInput className="w-3.5 h-3.5" />
-                    Load To Cutting +
+                    Load To Speed +-
                   </>
                 )}
               </button>
@@ -1406,7 +1400,7 @@ function Home({
         {/* Clip grid */}
         {job && (
           <div className="mt-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white/60 dark:bg-slate-900/50 backdrop-blur-md p-4 shadow-sm">
-            {onSendToCutting && doneCount > 0 && (
+            {onSendToSpeed && doneCount > 0 && (
               <div className="mb-3 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
                 <span>
                   {selected.size > 0 ? (
@@ -1500,7 +1494,7 @@ function Home({
                       isSelected ? "ring-2 ring-emerald-500 dark:ring-emerald-400" : ""
                     } hover:ring-2 hover:ring-indigo-300 dark:hover:ring-indigo-700 transition-all`}
                   >
-                    {isDone && onSendToCutting && (
+                    {isDone && onSendToSpeed && (
                       <button
                         type="button"
                         onClick={(e) => {
@@ -1618,13 +1612,13 @@ function App({
   incomingSrt,
   incomingSrtFilename,
   incomingSrtKey,
-  onSendToCutting,
+  onSendToSpeed,
   onOutputsChange,
 }: {
   incomingSrt?: string;
   incomingSrtFilename?: string;
   incomingSrtKey?: number;
-  onSendToCutting?: (files: File[], extras?: number[]) => void;
+  onSendToSpeed?: (files: File[]) => void;
   onOutputsChange?: (files: File[]) => void;
 } = {}) {
   return (
@@ -1634,7 +1628,7 @@ function App({
           incomingSrt={incomingSrt}
           incomingSrtFilename={incomingSrtFilename}
           incomingSrtKey={incomingSrtKey}
-          onSendToCutting={onSendToCutting}
+          onSendToSpeed={onSendToSpeed}
           onOutputsChange={onOutputsChange}
         />
         <Toaster />
