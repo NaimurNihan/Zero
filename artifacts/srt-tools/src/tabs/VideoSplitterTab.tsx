@@ -31,7 +31,7 @@ const queryClient = new QueryClient();
 const FFMPEG_BASE_URL = "https://unpkg.com/@ffmpeg/core@0.12.10/dist/esm";
 
 const BATCH_SIZE = 25;
-const RECYCLE_EVERY = 10;
+const RECYCLE_EVERY = 50;
 const MEMORY_ERROR_PATTERNS = [
   "memory access out of bounds",
   "out of memory",
@@ -760,22 +760,15 @@ function Home({
         "-hide_banner",
         "-loglevel",
         "error",
-        // Stage 1: fast keyframe-level input seek
+        // Fast keyframe-level input seek — no re-encode
         "-ss",
         clip.startSec.toFixed(3),
         "-i",
         inputName,
-        // Stage 2: frame-accurate output seek (absolute timestamp)
-        "-ss",
-        clip.startSec.toFixed(3),
         "-t",
         duration.toFixed(3),
         "-c:v",
-        "libx264",
-        "-preset",
-        "ultrafast",
-        "-crf",
-        "22",
+        "copy",
         "-an",
         "-movflags",
         "+faststart",
