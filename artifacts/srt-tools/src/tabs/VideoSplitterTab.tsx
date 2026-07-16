@@ -744,20 +744,24 @@ function Home({
     };
 
     // Run a single clip cut. Returns null on success, or an error message.
-    // Uses output-seek (-ss after -i) so the output is exactly the SRT
-    // cue duration — no keyframe snap-back inflation.
+    // Uses input-seek (-ss before -i) so FFmpeg always starts at a real
+    // keyframe — stream copy never produces blank/empty output. Duration is
+    // set with -t (endSec - startSec) so the clip length matches the SRT cue
+    // exactly, even though the playback may begin a frame or two before the
+    // exact cue due to keyframe snapping.
     const cutOnce = async (eng: FFmpeg, clip: ClipMeta, outName: string) => {
+      const duration = clip.endSec - clip.startSec;
       const args: string[] = [
         "-y",
         "-hide_banner",
         "-loglevel",
         "error",
-        "-i",
-        inputName,
         "-ss",
         clip.startSec.toFixed(3),
-        "-to",
-        clip.endSec.toFixed(3),
+        "-i",
+        inputName,
+        "-t",
+        duration.toFixed(3),
         "-c",
         "copy",
         "-avoid_negative_ts",
