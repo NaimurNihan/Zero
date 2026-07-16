@@ -76,72 +76,6 @@ interface ClipStatus {
   error?: string;
 }
 
-// Extract every keyframe (I-frame) timestamp from the master video.
-// Uses `-skip_frame nokey` so the decoder skips P/B-frames entirely —
-// fast even for long videos. `showinfo` filter logs `pts_time:X.XXX`
-// for each frame that survives.
-async function extractKeyframeTimes(
-  eng: FFmpeg,
-  inputName: string,
-): Promise<number[]> {
-  const times: number[] = [];
-  const handler = ({ message }: { message: string }) => {
-    const m = /pts_time:([\d.]+)/.exec(message);
-    if (m) {
-      const t = parseFloat(m[1]);
-      if (Number.isFinite(t)) times.push(t);
-    }
-  };
-  eng.on("log", handler);
-  try {
-    await eng.exec([
-      "-hide_banner",
-      "-skip_frame",
-      "nokey",
-      "-i",
-      inputName,
-      "-an",
-      "-sn",
-      "-vf",
-      "showinfo",
-      "-f",
-      "null",
-      "-",
-    ]);
-  } finally {
-    eng.off("log", handler);
-  }
-  times.sort((a, b) => a - b);
-  const dedup: number[] = [];
-  for (const t of times) {
-    if (dedup.length === 0 || t - dedup[dedup.length - 1] > 1e-3) {
-      dedup.push(t);
-    }
-  }
-  // Always anchor 0.0 — first frame of any video is a keyframe.
-  if (dedup.length === 0 || dedup[0] > 1e-3) dedup.unshift(0);
-  return dedup;
-}
-
-// Largest keyframe time ≤ target (binary search). This is exactly
-// where ffmpeg's input-seek `-ss` will snap to with `-c copy`.
-function priorKeyframe(times: number[], target: number): number {
-  if (times.length === 0) return 0;
-  let lo = 0;
-  let hi = times.length - 1;
-  let best = times[0]!;
-  while (lo <= hi) {
-    const mid = (lo + hi) >> 1;
-    if (times[mid]! <= target) {
-      best = times[mid]!;
-      lo = mid + 1;
-    } else {
-      hi = mid - 1;
-    }
-  }
-  return best;
-}
-
 interface JobStatus {
   total: number;
   done: number;
@@ -513,12 +447,6 @@ function Home({
   // the SRT cue because of keyframe snap-back). Cutting+ trims this
   // accurately to align the cue start exactly. 0 = perfect alignment.
   const clipExtrasRef = useRef<Map<number, number>>(new Map());
-  // Re-render trigger so the per-clip extras badges update in the UI
-  // (refs alone don't trigger re-render).
-  const [extrasVersion, setExtrasVersion] = useState(0);
-  // "scanning keyframes" is a brief stage right after upload finishes
-  // and before per-clip cuts begin. Lets the UI show a status badge.
-  const [scanningKeyframes, setScanningKeyframes] = useState(false);
   // Cancel signal for the in-flight cutting loop. Set to true by reset()
   // while a job is running so the loop can break out cleanly between
   // clips. Reset back to false when a new job starts.
@@ -542,7 +470,6 @@ function Home({
     clipUrlsRef.current.clear();
     clipBlobsRef.current.clear();
     clipExtrasRef.current.clear();
-    setExtrasVersion((v) => v + 1);
   }
 
   useEffect(() => {
@@ -749,31 +676,7 @@ function Home({
 
     setUploading(false);
 
-    // ── Extract keyframes once, compute per-clip head-extras ─────────
-    // `-ss <startSec> -i input -c copy` snaps backward to the prior
-    // keyframe, so the clip starts up to ~GOP-size seconds *before*
-    // the SRT cue. Capture this leading offset per-clip so the
-    // downstream Cutting+ tab can trim it accurately (re-encode head)
-    // and align the cue start to the millisecond.
-    setScanningKeyframes(true);
-    let keyframes: number[] = [];
-    try {
-      keyframes = await extractKeyframeTimes(ffmpeg, inputName);
-    } catch (err) {
-      // Non-fatal: cuts can still proceed; we just won't have extras.
-      console.warn("[VideoSplitter] keyframe scan failed:", err);
-      keyframes = [];
-    }
-    setScanningKeyframes(false);
     clipExtrasRef.current.clear();
-    if (keyframes.length > 0) {
-      for (const c of clipMetas) {
-        const kf = priorKeyframe(keyframes, c.startSec);
-        const extra = Math.max(0, c.startSec - kf);
-        clipExtrasRef.current.set(c.index, extra);
-      }
-      setExtrasVersion((v) => v + 1);
-    }
 
     // Initialize job + status
     const jobId =
@@ -848,22 +751,20 @@ function Home({
     };
 
     // Run a single clip cut. Returns null on success, or an error message.
-    // extraSec = headExtra for this clip (keyframe snap-back offset).
-    // The input-seek (-ss before -i) snaps to the prior keyframe, so the
-    // output must cover headExtra + cue-duration to reach the SRT end time.
-    const cutOnce = async (eng: FFmpeg, clip: ClipMeta, outName: string, extraSec = 0) => {
-      const duration = (clip.endSec - clip.startSec) + extraSec;
+    // Uses output-seek (-ss after -i) so the output is exactly the SRT
+    // cue duration — no keyframe snap-back inflation.
+    const cutOnce = async (eng: FFmpeg, clip: ClipMeta, outName: string) => {
       const args: string[] = [
         "-y",
         "-hide_banner",
         "-loglevel",
         "error",
-        "-ss",
-        clip.startSec.toFixed(3),
         "-i",
         inputName,
-        "-t",
-        duration.toFixed(3),
+        "-ss",
+        clip.startSec.toFixed(3),
+        "-to",
+        clip.endSec.toFixed(3),
         "-c",
         "copy",
         "-avoid_negative_ts",
@@ -921,12 +822,9 @@ function Home({
           );
 
           const outName = `out_${String(clip.index).padStart(padWidth, "0")}${ext}`;
-          // Pass the pre-computed headExtra so the clip covers from the
-          // keyframe snap-back all the way to the SRT cue end time.
-          const clipHeadExtra = clipExtrasRef.current.get(clip.index) ?? 0;
 
           // ── First attempt ─────────────────────────────────────────
-          let clipErr = await cutOnce(ffmpeg, clip, outName, clipHeadExtra);
+          let clipErr = await cutOnce(ffmpeg, clip, outName);
 
           // ── On memory error: recycle once and retry the same clip ─
           if (clipErr && isMemoryError(clipErr)) {
@@ -934,7 +832,7 @@ function Home({
               ffmpeg = await recycleFFmpeg();
               await reloadInput(ffmpeg);
               sinceRecycle = 0;
-              clipErr = await cutOnce(ffmpeg, clip, outName, clipHeadExtra);
+              clipErr = await cutOnce(ffmpeg, clip, outName);
             } catch (err) {
               clipErr = err instanceof Error ? err.message : String(err);
             }
@@ -1372,20 +1270,6 @@ function Home({
           </div>
         )}
 
-        {/* Keyframe scan status — needed for cue-accurate trim in Cutting+ */}
-        {scanningKeyframes && (
-          <div
-            className="mt-4 rounded-xl border border-amber-200 dark:border-amber-900/60 bg-amber-50/80 dark:bg-amber-950/30 backdrop-blur p-3 text-xs text-amber-900 dark:text-amber-200 flex items-center gap-2"
-            data-testid="splitter-scanning-keyframes"
-          >
-            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            <span>
-              Scanning keyframes for cue-accurate alignment… clips will carry a
-              head-extra value to Cutting+ for millisecond-perfect cuts.
-            </span>
-          </div>
-        )}
-
         {/* Job progress bar — only while processing */}
         {job && overallPct < 100 && (
           <div className="mt-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white/70 dark:bg-slate-900/60 backdrop-blur-md p-4 shadow-sm">
@@ -1531,19 +1415,6 @@ function Home({
                       <div className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded-md bg-black/70 text-white text-[10px] font-mono leading-none">
                         {duration.toFixed(1)}s
                       </div>
-                      {(() => {
-                        const extra = clipExtrasRef.current.get(clip.index) ?? 0;
-                        if (extra <= 0.001) return null;
-                        return (
-                          <div
-                            className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded-md bg-amber-500/90 text-white text-[10px] font-mono leading-none"
-                            title={`Head-extra ${extra.toFixed(3)}s — Cutting+ will trim this for cue-accurate alignment`}
-                            data-testid={`splitter-extra-${clip.index}`}
-                          >
-                            +{extra.toFixed(2)}s
-                          </div>
-                        );
-                      })()}
                     </button>
 
                     <div className="px-2 py-1.5 flex items-center gap-1.5">
