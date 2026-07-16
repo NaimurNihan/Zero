@@ -1027,9 +1027,19 @@ function VideoCutterApp({
 
   const runSpeed = async () => {
     setRunning(true);
-    const pendingArchive: Array<{ idx: number; url: string; name: string }> =
+    const pendingArchive: Array<{ idx: number; blob: Blob; name: string }> =
       [];
     try {
+      // Wait for any cards still reading their durations so we don't build
+      // a partial queue and leave settled cards unprocessed.
+      if (!allCardsSettledRef.current) {
+        let waited = 0;
+        while (!allCardsSettledRef.current && waited < 30000) {
+          await new Promise<void>((r) => setTimeout(r, 300));
+          waited += 300;
+        }
+      }
+
       // Build the queue of cards that need FFmpeg processing.
       const queue: number[] = [];
       // Build the queue of cards where video == audio (pass-through, no FFmpeg).

@@ -443,10 +443,6 @@ function Home({
   const clipBlobsRef = useRef<Map<number, Blob>>(new Map());
   // index → object URL (for download/preview); revoked on reset
   const clipUrlsRef = useRef<Map<number, string>>(new Map());
-  // index → "head extra" seconds (clip starts this much earlier than
-  // the SRT cue because of keyframe snap-back). Cutting+ trims this
-  // accurately to align the cue start exactly. 0 = perfect alignment.
-  const clipExtrasRef = useRef<Map<number, number>>(new Map());
   // Cancel signal for the in-flight cutting loop. Set to true by reset()
   // while a job is running so the loop can break out cleanly between
   // clips. Reset back to false when a new job starts.
@@ -469,7 +465,6 @@ function Home({
     }
     clipUrlsRef.current.clear();
     clipBlobsRef.current.clear();
-    clipExtrasRef.current.clear();
   }
 
   useEffect(() => {
@@ -675,8 +670,6 @@ function Home({
     }
 
     setUploading(false);
-
-    clipExtrasRef.current.clear();
 
     // Initialize job + status
     const jobId =
