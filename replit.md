@@ -59,18 +59,16 @@ User explicitly skipped the counter-accuracy fix ("D"); only A + B + C are imple
 - **Convert** works in both views: if `outputBlocks` exists, replaces in cards; otherwise replaces directly inside the raw `input` string. Case-insensitive global regex with proper escape. Emits a toast with replacement count or "no matches".
 - All find/replace state (find, replace, editedMap) is cleared on file load and Clear All.
 
-## Video Splitter → Cutting+ Cue-Accurate Pipeline
+## Video Splitter — Exact SRT-Cue Cuts
 
-Browser-only fix (no API cost) so SRT-cue cuts align to the millisecond:
+Video Splitter (`VideoSplitterTab.tsx`) produces clips that match SRT timestamps exactly using **output-seek + libx264 re-encode**:
 
-- **Problem**: `Video Splitter` cuts each clip with `-ss <startSec> -i input -c copy`, which snaps backward to the prior keyframe. Each clip starts up to ~GOP-size seconds *before* the cue (visible "extra" head content / freeze).
-- **Fix (Option B)**: Splitter scans master keyframes once after upload (`extractKeyframeTimes` via `-skip_frame nokey -vf showinfo`, parses `pts_time:`), then for each clip computes `headExtra = startSec - priorKeyframe(times, startSec)` and stores it in `clipExtrasRef` (Map<index, number>). Aligned `extras: number[]` are passed alongside files via `onSendToCutting(files, extras)`.
-- **Cutting+** (`CuttingPlusTab.tsx`): `IncomingVideoFiles.extras?` and `VideoItem.headExtra?` carry the value. `addFiles(files, extras?)` maps extras by original index (filter-safe). `runCut` switches per-item: items with `headExtra > 0` use `trimVideoHeadAccurateWithEngine` (full re-encode of the entire clip with output-seek `-ss` *after* `-i`, `libx264 ultrafast CRF 22`, `-c:a copy`, `+faststart`, MP4). Items without extras keep the original global fixed-cut path.
-- **Smart-cut bug fix (April 2026)**: An earlier optimization (`trimHeadSmartCut`) tried to re-encode only the first 3 s after `head` and concat-copy the rest. This produced **blank frames + freeze (pause) effects at the junction** because the re-encoded segment 1 (libx264 SPS/PPS, specific profile/timebase) and the stream-copied segment 2 (original codec params) had mismatched stream parameters that the concat demuxer can't bridge with `-c copy`. Reverted Cutting+ to the full re-encode `trimVideoHeadAccurateWithEngine` — slower but produces clean, artifact-free output. `trimHeadSmartCut*` exports remain in `lib/video-trim-ffmpeg.ts` but are unused; do not reuse them without first fixing the keyframe-aligned concat boundary.
-- **`lib/video-trim-ffmpeg.ts`**: adds `trimVideoHeadAccurate({headSeconds, onProgress})` + `headTrimmedFileName()` (always `.mp4`). Includes the standard recycle/memory-error retry. Output filename helper `outputName(item)` picks `headTrimmedFileName` for aligned items, `trimmedFileName` otherwise — used by single download, ZIP, and forward-send (Cutting++ / Speed +-).
-- **UI**:
-  - Splitter: amber `+X.XXs` badge on each clip card whose `headExtra > 0`. Amber "Scanning keyframes…" status banner shown between upload and per-clip cuts.
-  - Cutting+: amber `cue+X.XXs` badge on each aligned card; per-card duration calc subtracts `headExtra` (instead of `cutSeconds * mode`) for those items.
-- **Files touched**: `artifacts/srt-tools/src/lib/video-trim-ffmpeg.ts`, `artifacts/srt-tools/src/tabs/VideoSplitterTab.tsx`, `artifacts/srt-tools/src/tabs/CuttingPlusTab.tsx`, `artifacts/srt-tools/src/App.tsx`. `CuttingPlusPlusTab.tsx` is intentionally NOT touched.
+- **Approach**: Two-stage seek — input-seek (`-ss (startSec - 8)`) gets ffmpeg close to the target quickly, then output-seek (`-ss 8`) positions to exactly `startSec`. Re-encode (`-c:v libx264 -preset ultrafast -crf 22 -c:a aac -b:a 128k`) from `startSec` for exactly `(endSec - startSec)` seconds.
+- **Why not stream copy**: `-c copy` with input-seek snaps backward to the prior keyframe (GOP-size seconds before the cue), making clips longer than expected. Output-seek + stream copy causes blank/empty files at non-keyframe positions. Re-encode avoids both problems.
+- **Why not keyframe scanning**: `extractKeyframeTimes` (via `-skip_frame nokey -vf showinfo`) gives inaccurate results in WASM FFmpeg — it detects P-frames as keyframes, so the computed `headExtra` is smaller than the actual snap-back, and clips still come out wrong.
+- **Always outputs `.mp4`** regardless of input format (libx264 + AAC is universally compatible).
+- **Cutting+** (`CuttingPlusTab.tsx`): `VideoItem.headExtra?` is still supported for clips coming from external sources, but Video Splitter no longer sets `headExtra` (clips are already cue-accurate).
+- **Smart-cut bug note**: `trimHeadSmartCut*` exports remain in `lib/video-trim-ffmpeg.ts` but are unused. Do not reuse without fixing the keyframe-aligned concat boundary (mismatched SPS/PPS causes blank frames at junctions).
+- **Files touched**: `artifacts/srt-tools/src/tabs/VideoSplitterTab.tsx`.
 
 See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details.
