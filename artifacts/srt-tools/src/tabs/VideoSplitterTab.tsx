@@ -28,7 +28,7 @@ import {
 
 const queryClient = new QueryClient();
 
-const FFMPEG_BASE_URL = "https://unpkg.com/@ffmpeg/core-mt@0.12.10/dist/esm";
+const FFMPEG_BASE_URL = "https://unpkg.com/@ffmpeg/core@0.12.10/dist/esm";
 
 const BATCH_SIZE = 25;
 const RECYCLE_EVERY = 10;
@@ -484,11 +484,7 @@ function Home({
       `${FFMPEG_BASE_URL}/ffmpeg-core.wasm`,
       "application/wasm",
     );
-    const workerURL = await toBlobURL(
-      `${FFMPEG_BASE_URL}/ffmpeg-core.worker.js`,
-      "text/javascript",
-    );
-    await ffmpeg.load({ coreURL, wasmURL, workerURL });
+    await ffmpeg.load({ coreURL, wasmURL });
     ffmpegRef.current = ffmpeg;
     return ffmpeg;
   }
@@ -780,8 +776,6 @@ function Home({
         "ultrafast",
         "-crf",
         "22",
-        "-threads",
-        "0",
         "-an",
         "-movflags",
         "+faststart",
