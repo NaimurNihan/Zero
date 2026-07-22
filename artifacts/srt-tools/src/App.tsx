@@ -522,11 +522,11 @@ export default function App() {
                         onClick={() => downloadFolders(set.folders, set.filename)}
                         title={set.label}
                         style={{
-                          border: `2px solid ${set.color}`,
+                          border: `1px solid ${set.color}`,
                           color: set.color,
                           background: `${set.color}22`,
                         }}
-                        className="flex items-center justify-center w-10 h-10 rounded-lg text-[11px] font-bold transition-all duration-150 hover:brightness-110 active:brightness-90"
+                        className="flex items-center justify-center w-7 h-7 rounded-md text-[9px] font-bold transition-all duration-150 hover:brightness-110 active:brightness-90"
                       >
                         {set.short}
                       </button>
