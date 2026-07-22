@@ -508,20 +508,21 @@ export default function App() {
               {folderPopupOpen && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setFolderPopupOpen(false)} />
-                  <div className="absolute left-0 top-10 z-50 flex flex-row gap-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-2.5 shadow-xl">
+                  <div className="absolute left-0 top-10 z-50 grid grid-cols-3 gap-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-2.5 shadow-xl">
                     {[
-                      { short: "F5",  ...FOLDER_SETS[0] },
-                      { short: "A3",  ...FOLDER_SETS[1] },
-                      { short: "A6",  ...FOLDER_SETS[2] },
-                      { short: "A9",  ...FOLDER_SETS[3] },
-                      { short: "A12", ...FOLDER_SETS[4] },
-                      { short: "A15", ...FOLDER_SETS[5] },
+                      { short: "F5",  grad: "from-[#f97316] to-[#ea580c]", shadow: "rgba(234,88,12,0.35)",  ...FOLDER_SETS[0] },
+                      { short: "A3",  grad: "from-[#8b5cf6] to-[#7c3aed]", shadow: "rgba(124,58,237,0.35)", ...FOLDER_SETS[1] },
+                      { short: "A6",  grad: "from-[#3b82f6] to-[#2563eb]", shadow: "rgba(37,99,235,0.35)",  ...FOLDER_SETS[2] },
+                      { short: "A9",  grad: "from-[#22c55e] to-[#16a34a]", shadow: "rgba(22,163,74,0.35)",  ...FOLDER_SETS[3] },
+                      { short: "A12", grad: "from-[#ec4899] to-[#db2777]", shadow: "rgba(219,39,119,0.35)", ...FOLDER_SETS[4] },
+                      { short: "A15", grad: "from-[#14b8a6] to-[#0d9488]", shadow: "rgba(13,148,136,0.35)", ...FOLDER_SETS[5] },
                     ].map((set) => (
                       <button
                         key={set.short}
                         onClick={() => downloadFolders(set.folders, set.filename)}
                         title={set.label}
-                        className="flex items-center justify-center w-9 h-9 rounded-lg bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-[11px] font-bold transition-colors"
+                        style={{ boxShadow: `0 3px 10px ${set.shadow}` }}
+                        className={`flex items-center justify-center w-10 h-10 rounded-lg bg-gradient-to-b ${set.grad} ring-1 ring-white/20 text-white text-[11px] font-bold transition-all hover:-translate-y-px hover:brightness-110 active:brightness-90`}
                       >
                         {set.short}
                       </button>
