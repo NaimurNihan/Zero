@@ -245,9 +245,12 @@ export default function App() {
   };
 
   const FOLDER_SETS = [
-    { label: "Folder 5", filename: "folder-5.zip", folders: ["ARABIC", "GERMAN", "ENGLISH", "SPANISH", "FRENCH", "ROW VIDEO"] },
+    { label: "Folder 5",  filename: "folder-5.zip",  folders: ["ARABIC", "GERMAN", "ENGLISH", "SPANISH", "FRENCH", "ROW VIDEO"] },
     { label: "Folder A3", filename: "folder-a3.zip", folders: ["RV1", "RV2", "RV3", "AU1", "AU2", "AU3"] },
     { label: "Folder A6", filename: "folder-a6.zip", folders: ["RV4", "RV5", "RV6", "AU4", "AU5", "AU6"] },
+    { label: "Folder A9", filename: "folder-a9.zip", folders: ["RV7", "RV8", "RV9", "AU7", "AU8", "AU9"] },
+    { label: "Folder A12", filename: "folder-a12.zip", folders: ["RV10", "RV11", "RV12", "AU10", "AU11", "AU12"] },
+    { label: "Folder A15", filename: "folder-a15.zip", folders: ["RV13", "RV14", "RV15", "AU13", "AU14", "AU15"] },
   ];
 
   const toggleGroup = (group: Group) => {
@@ -508,8 +511,11 @@ export default function App() {
                   <div className="absolute left-0 top-10 z-50 flex flex-row gap-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-2.5 shadow-xl">
                     {[
                       { short: "F5",  ...FOLDER_SETS[0] },
-                      { short: "A3", ...FOLDER_SETS[1] },
-                      { short: "A6", ...FOLDER_SETS[2] },
+                      { short: "A3",  ...FOLDER_SETS[1] },
+                      { short: "A6",  ...FOLDER_SETS[2] },
+                      { short: "A9",  ...FOLDER_SETS[3] },
+                      { short: "A12", ...FOLDER_SETS[4] },
+                      { short: "A15", ...FOLDER_SETS[5] },
                     ].map((set) => (
                       <button
                         key={set.short}
