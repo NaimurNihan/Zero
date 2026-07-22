@@ -229,20 +229,26 @@ export default function App() {
 
   const toggleTheme = () => setTheme((t) => (t === "dark" ? "light" : "dark"));
 
-  const downloadLanguageFolders = async () => {
+  const [folderPopupOpen, setFolderPopupOpen] = useState(false);
+
+  const downloadFolders = async (folders: string[], filename: string) => {
     const zip = new JSZip();
-    const folders = ["ARABIC", "GERMAN", "ENGLISH", "SPANISH", "FRENCH", "ROW VIDEO"];
-    folders.forEach((name) => {
-      zip.folder(name);
-    });
+    folders.forEach((name) => { zip.folder(name); });
     const blob = await zip.generateAsync({ type: "blob" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "language-folders.zip";
+    a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
+    setFolderPopupOpen(false);
   };
+
+  const FOLDER_SETS = [
+    { label: "Folder A", filename: "folder-a.zip", folders: ["ARABIC", "GERMAN", "ENGLISH", "SPANISH", "FRENCH", "ROW VIDEO"] },
+    { label: "Folder B", filename: "folder-b.zip", folders: ["RV1", "RV2", "RV3", "AU1", "AU2", "AU3"] },
+    { label: "Folder C", filename: "folder-c.zip", folders: ["RV4", "RV5", "RV6", "AU4", "AU5", "AU6"] },
+  ];
 
   const toggleGroup = (group: Group) => {
     setActiveGroups((prev) => {
@@ -485,16 +491,41 @@ export default function App() {
               </svg>
             </div>
             <span className="text-base font-bold text-gray-900 dark:text-gray-100">SRT Tools</span>
-            <button
-              onClick={downloadLanguageFolders}
-              title="Download 6 language folders (Arabic, German, English, Spanish, French, Row Video)"
-              className="flex items-center justify-center w-8 h-8 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 13v4m0 0l-2-2m2 2l2-2" />
-              </svg>
-            </button>
+            <div className="relative">
+              <button
+                onClick={() => setFolderPopupOpen((v) => !v)}
+                title="Download folder sets"
+                className="flex items-center justify-center w-8 h-8 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 13v4m0 0l-2-2m2 2l2-2" />
+                </svg>
+              </button>
+              {folderPopupOpen && (
+                <>
+                  {/* backdrop */}
+                  <div className="fixed inset-0 z-40" onClick={() => setFolderPopupOpen(false)} />
+                  {/* popup */}
+                  <div className="absolute left-0 top-10 z-50 flex flex-col gap-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3 shadow-xl w-44">
+                    {FOLDER_SETS.map((set) => (
+                      <button
+                        key={set.label}
+                        onClick={() => downloadFolders(set.folders, set.filename)}
+                        className="flex items-center gap-2 rounded-lg bg-blue-600 hover:bg-blue-700 active:bg-blue-800 px-3 py-2 text-xs font-semibold text-white transition-colors"
+                      >
+                        <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 13v4m0 0l-2-2m2 2l2-2" />
+                        </svg>
+                        {set.label}
+                        <span className="ml-auto text-blue-200 text-[10px]">{set.folders.length} folders</span>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
             <button
               onClick={toggleTheme}
               aria-label={theme === "dark" ? "Switch to day mode" : "Switch to night mode"}
