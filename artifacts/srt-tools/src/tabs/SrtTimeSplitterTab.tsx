@@ -464,6 +464,29 @@ export default function SrtTimeSplitterTab({ incomingSrt, incomingFilename, inco
     }
   };
 
+  const handleMerge2 = () => {
+    if (outputBlocks.length < 2) return;
+    const merged: typeof outputBlocks = [];
+    for (let i = 0; i < outputBlocks.length; i += 2) {
+      const a = outputBlocks[i];
+      const b = outputBlocks[i + 1];
+      if (!b) {
+        merged.push(a);
+      } else {
+        merged.push({
+          ...a,
+          endTime: b.endTime,
+          text: a.text.trimEnd() + " " + b.text.trimStart(),
+        });
+      }
+    }
+    setOutputBlocks(merged);
+    toast({
+      title: "Merge 2 done",
+      description: `${outputBlocks.length} cards → ${merged.length} cards`,
+    });
+  };
+
   const splitRef = useRef(handleSplitLine);
   const dotRef = useRef(handleEmojiToDot);
   const trimRef = useRef(handleTrimEnd10);
@@ -581,6 +604,14 @@ export default function SrtTimeSplitterTab({ incomingSrt, incomingFilename, inco
               className="h-9 rounded-lg bg-slate-700 px-3.5 text-xs font-semibold tracking-wide text-white shadow-[0_3px_10px_rgba(15,23,42,0.18)] ring-1 ring-white/15 transition-all duration-200 hover:-translate-y-px hover:bg-slate-800 disabled:opacity-50"
             >
               Load Srtm
+            </Button>
+            <Button
+              onClick={handleMerge2}
+              disabled={outputBlocks.length < 2}
+              title="Merge every 2 consecutive cards into 1 (1000 → 500)"
+              className="h-9 rounded-lg bg-gradient-to-b from-[#8b5cf6] to-[#7c3aed] px-3.5 text-xs font-semibold tracking-wide text-white shadow-[0_3px_10px_rgba(124,58,237,0.28)] ring-1 ring-white/15 transition-all duration-200 hover:-translate-y-px hover:from-[#7c3aed] hover:to-[#6d28d9] hover:shadow-[0_5px_14px_rgba(124,58,237,0.32)] disabled:opacity-50"
+            >
+              Merge 2
             </Button>
             <Button
               onClick={handleRunAll}
