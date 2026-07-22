@@ -245,9 +245,9 @@ export default function App() {
   };
 
   const FOLDER_SETS = [
-    { label: "Folder A", filename: "folder-a.zip", folders: ["ARABIC", "GERMAN", "ENGLISH", "SPANISH", "FRENCH", "ROW VIDEO"] },
-    { label: "Folder B", filename: "folder-b.zip", folders: ["RV1", "RV2", "RV3", "AU1", "AU2", "AU3"] },
-    { label: "Folder C", filename: "folder-c.zip", folders: ["RV4", "RV5", "RV6", "AU4", "AU5", "AU6"] },
+    { label: "Folder 5", filename: "folder-5.zip", folders: ["ARABIC", "GERMAN", "ENGLISH", "SPANISH", "FRENCH", "ROW VIDEO"] },
+    { label: "Folder A3", filename: "folder-a3.zip", folders: ["RV1", "RV2", "RV3", "AU1", "AU2", "AU3"] },
+    { label: "Folder A6", filename: "folder-a6.zip", folders: ["RV4", "RV5", "RV6", "AU4", "AU5", "AU6"] },
   ];
 
   const toggleGroup = (group: Group) => {
