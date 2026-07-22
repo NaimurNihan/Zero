@@ -508,7 +508,7 @@ export default function App() {
               {folderPopupOpen && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setFolderPopupOpen(false)} />
-                  <div className="absolute right-0 top-10 z-[999] grid grid-cols-3 gap-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-2.5 shadow-xl">
+                  <div className="absolute right-0 top-10 z-[999] grid grid-cols-3 gap-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-2.5 shadow-xl" style={{width: "152px"}}>
                     {[
                       { short: "F5",  grad: "from-[#f97316] to-[#ea580c]", shadow: "rgba(234,88,12,0.35)",  ...FOLDER_SETS[0] },
                       { short: "A3",  grad: "from-[#8b5cf6] to-[#7c3aed]", shadow: "rgba(124,58,237,0.35)", ...FOLDER_SETS[1] },
