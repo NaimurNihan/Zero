@@ -510,19 +510,19 @@ export default function App() {
                   <div className="fixed inset-0 z-40" onClick={() => setFolderPopupOpen(false)} />
                   <div className="absolute right-0 top-10 z-[999] grid grid-cols-3 gap-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-2.5 shadow-xl" style={{width: "152px"}}>
                     {[
-                      { short: "F5",  grad: "from-[#f97316] to-[#ea580c]", shadow: "rgba(234,88,12,0.35)",  ...FOLDER_SETS[0] },
-                      { short: "A3",  grad: "from-[#8b5cf6] to-[#7c3aed]", shadow: "rgba(124,58,237,0.35)", ...FOLDER_SETS[1] },
-                      { short: "A6",  grad: "from-[#3b82f6] to-[#2563eb]", shadow: "rgba(37,99,235,0.35)",  ...FOLDER_SETS[2] },
-                      { short: "A9",  grad: "from-[#22c55e] to-[#16a34a]", shadow: "rgba(22,163,74,0.35)",  ...FOLDER_SETS[3] },
-                      { short: "A12", grad: "from-[#ec4899] to-[#db2777]", shadow: "rgba(219,39,119,0.35)", ...FOLDER_SETS[4] },
-                      { short: "A15", grad: "from-[#14b8a6] to-[#0d9488]", shadow: "rgba(13,148,136,0.35)", ...FOLDER_SETS[5] },
+                      { short: "F5",  bg: "bg-emerald-500 hover:bg-emerald-600", border: "border-emerald-400", shadow: "rgba(16,185,129,0.4)",  ...FOLDER_SETS[0] },
+                      { short: "A3",  bg: "bg-violet-500  hover:bg-violet-600",  border: "border-violet-400",  shadow: "rgba(139,92,246,0.4)",  ...FOLDER_SETS[1] },
+                      { short: "A6",  bg: "bg-orange-500  hover:bg-orange-600",  border: "border-orange-400",  shadow: "rgba(249,115,22,0.4)",  ...FOLDER_SETS[2] },
+                      { short: "A9",  bg: "bg-blue-500    hover:bg-blue-600",    border: "border-blue-400",    shadow: "rgba(59,130,246,0.4)",   ...FOLDER_SETS[3] },
+                      { short: "A12", bg: "bg-pink-500    hover:bg-pink-600",    border: "border-pink-400",    shadow: "rgba(236,72,153,0.4)",   ...FOLDER_SETS[4] },
+                      { short: "A15", bg: "bg-cyan-500    hover:bg-cyan-600",    border: "border-cyan-400",    shadow: "rgba(6,182,212,0.4)",    ...FOLDER_SETS[5] },
                     ].map((set) => (
                       <button
                         key={set.short}
                         onClick={() => downloadFolders(set.folders, set.filename)}
                         title={set.label}
                         style={{ boxShadow: `0 3px 10px ${set.shadow}` }}
-                        className={`flex items-center justify-center w-10 h-10 rounded-lg bg-gradient-to-b ${set.grad} ring-1 ring-white/20 text-white text-[11px] font-bold transition-all hover:-translate-y-px hover:brightness-110 active:brightness-90`}
+                        className={`flex items-center justify-center w-10 h-10 rounded-lg border ${set.bg} ${set.border} text-white text-[11px] font-bold transition-all duration-150 hover:-translate-y-px active:translate-y-0 active:brightness-90`}
                       >
                         {set.short}
                       </button>
