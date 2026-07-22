@@ -504,22 +504,20 @@ export default function App() {
               </button>
               {folderPopupOpen && (
                 <>
-                  {/* backdrop */}
                   <div className="fixed inset-0 z-40" onClick={() => setFolderPopupOpen(false)} />
-                  {/* popup */}
-                  <div className="absolute left-0 top-10 z-50 flex flex-col gap-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3 shadow-xl w-44">
-                    {FOLDER_SETS.map((set) => (
+                  <div className="absolute left-0 top-10 z-50 flex flex-row gap-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-2.5 shadow-xl">
+                    {[
+                      { short: "F5",  ...FOLDER_SETS[0] },
+                      { short: "A3", ...FOLDER_SETS[1] },
+                      { short: "A6", ...FOLDER_SETS[2] },
+                    ].map((set) => (
                       <button
-                        key={set.label}
+                        key={set.short}
                         onClick={() => downloadFolders(set.folders, set.filename)}
-                        className="flex items-center gap-2 rounded-lg bg-blue-600 hover:bg-blue-700 active:bg-blue-800 px-3 py-2 text-xs font-semibold text-white transition-colors"
+                        title={set.label}
+                        className="flex items-center justify-center w-9 h-9 rounded-lg bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-[11px] font-bold transition-colors"
                       >
-                        <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 13v4m0 0l-2-2m2 2l2-2" />
-                        </svg>
-                        {set.label}
-                        <span className="ml-auto text-blue-200 text-[10px]">{set.folders.length} folders</span>
+                        {set.short}
                       </button>
                     ))}
                   </div>
