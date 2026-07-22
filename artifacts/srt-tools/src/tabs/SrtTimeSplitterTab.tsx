@@ -759,6 +759,26 @@ export default function SrtTimeSplitterTab({ incomingSrt, incomingFilename, inco
                           );
                         }
                       }}
+                      onMergeUp={isOutputView && outputBlocks.findIndex(b => b.id === block.id) > 0 ? () => {
+                        setOutputBlocks(prev => {
+                          const idx = prev.findIndex(b => b.id === block.id);
+                          if (idx <= 0) return prev;
+                          const above = prev[idx - 1];
+                          const curr  = prev[idx];
+                          const merged = { ...above, endTime: curr.endTime, text: above.text.trimEnd() + " " + curr.text.trimStart() };
+                          return [...prev.slice(0, idx - 1), merged, ...prev.slice(idx + 1)];
+                        });
+                      } : undefined}
+                      onMergeDown={isOutputView && outputBlocks.findIndex(b => b.id === block.id) < outputBlocks.length - 1 ? () => {
+                        setOutputBlocks(prev => {
+                          const idx = prev.findIndex(b => b.id === block.id);
+                          if (idx >= prev.length - 1) return prev;
+                          const curr  = prev[idx];
+                          const below = prev[idx + 1];
+                          const merged = { ...curr, endTime: below.endTime, text: curr.text.trimEnd() + " " + below.text.trimStart() };
+                          return [...prev.slice(0, idx), merged, ...prev.slice(idx + 2)];
+                        });
+                      } : undefined}
                     />
                   </div>
                 ))}
@@ -851,11 +871,15 @@ function SubtitleRow({
   onTextChange,
   findText,
   replacedWith,
+  onMergeUp,
+  onMergeDown,
 }: {
   block: SubtitleBlock;
   onTextChange: (newText: string) => void;
   findText: string;
   replacedWith?: string;
+  onMergeUp?: () => void;
+  onMergeDown?: () => void;
 }) {
   const durationMs = block.endTime - block.startTime;
   const durationSec = durationMs / 1000;
@@ -972,8 +996,20 @@ function SubtitleRow({
             {durationSec.toFixed(2)}s
           </span>
           <div className="flex items-center gap-4 text-slate-300">
-            <ChevronUp className="h-4 w-4" />
-            <ChevronDown className="h-4 w-4" />
+            <span
+              onClick={onMergeUp}
+              title="Merge with card above"
+              className={`transition-colors ${onMergeUp ? "cursor-pointer hover:text-violet-500" : "opacity-30 cursor-not-allowed pointer-events-none"}`}
+            >
+              <ChevronUp className="h-4 w-4" />
+            </span>
+            <span
+              onClick={onMergeDown}
+              title="Merge with card below"
+              className={`transition-colors ${onMergeDown ? "cursor-pointer hover:text-violet-500" : "opacity-30 cursor-not-allowed pointer-events-none"}`}
+            >
+              <ChevronDown className="h-4 w-4" />
+            </span>
             <Plus className="h-4 w-4" />
             <Trash2 className="h-4 w-4 text-slate-300" />
           </div>
