@@ -386,6 +386,7 @@ export default function SrtEditorTab({ subtitles, filename, setSubtitles, setFil
   const [jumpTime, setJumpTime] = useState("00:00:00,000");
   const [highlightedJumpId, setHighlightedJumpId] = useState<number | null>(null);
   const [notepadOpen, setNotepadOpen] = useState(false);
+  const [filterShort, setFilterShort] = useState(false);
   const [editingIndexId, setEditingIndexId] = useState<number | null>(null);
   const [editingIndexVal, setEditingIndexVal] = useState("");
   const cardRefs = useRef(new Map<number, HTMLDivElement | null>());
@@ -909,12 +910,20 @@ export default function SrtEditorTab({ subtitles, filename, setSubtitles, setFil
           {(() => {
             const shortCount = subtitles.filter(s => (timeToMs(s.endTime) - timeToMs(s.startTime)) < 1000).length;
             return shortCount > 0 ? (
-              <span className="flex items-center gap-1 text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-semibold border border-red-200">
+              <button
+                onClick={() => setFilterShort(f => !f)}
+                title={filterShort ? "Show all cards" : "Show only <1s cards"}
+                className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-semibold border transition-colors cursor-pointer ${
+                  filterShort
+                    ? "bg-red-500 text-white border-red-600 shadow-md shadow-red-200 dark:shadow-red-900"
+                    : "bg-red-100 text-red-600 border-red-200 hover:bg-red-200 dark:bg-red-950 dark:text-red-400 dark:border-red-800"
+                }`}
+              >
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
                 {shortCount} card{shortCount > 1 ? "s" : ""} &lt;1s
-              </span>
+              </button>
             ) : null;
           })()}
           {converted && (
@@ -974,7 +983,15 @@ export default function SrtEditorTab({ subtitles, filename, setSubtitles, setFil
 
       {subtitles.length > 0 && (
         <div className="flex flex-col gap-2.5">
-          {subtitles.map((sub, idx) => {
+          {filterShort && (
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-xl text-xs text-red-600 dark:text-red-400 font-medium">
+              <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z" />
+              </svg>
+              Showing only &lt;1s cards — click the badge again to show all
+            </div>
+          )}
+          {(filterShort ? subtitles.filter(s => (timeToMs(s.endTime) - timeToMs(s.startTime)) < 1000) : subtitles).map((sub, idx) => {
             const hasOverlap = overlapSet.has(idx);
             const durationMs = timeToMs(sub.endTime) - timeToMs(sub.startTime);
             const isShort = durationMs < 1000;
