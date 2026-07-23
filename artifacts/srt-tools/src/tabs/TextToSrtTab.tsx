@@ -37,20 +37,25 @@ function cleanRawTranscript(raw: string): string {
     const trimmed = line.trim();
     if (!trimmed) { out.push(""); continue; }
 
-    // Match clean 2-digit-second timestamp at start, then any extra digits fused after
-    // e.g. "0:1313 seconds…" → ts="0:13", extra="13", rest=" seconds…"
-    const m = trimmed.match(/^(\d+:\d{2})(\d*)([\s\S]*)$/);
+    // Match H:MM:SS or M:SS timestamp at start, then any extra fused digits after
+    // e.g. "0:1313 seconds…" → ts="0:13", extra="13"
+    // e.g. "1:00:001 hour" → ts="1:00:00", extra="1"
+    const m = trimmed.match(/^(\d+:\d{2}(?::\d{2})?)(\d*)([\s\S]*)$/);
     if (!m) { out.push(trimmed); continue; }
 
     const ts = m[1];
     let rest = m[2] + m[3]; // extra fused digits + rest of line
 
-    // Remove duplicate time description at the very start of rest:
-    //   e.g. "13 seconds", "7 seconds", "1 minute, 7 seconds", "2 minutes, 34 seconds"
-    // Allow optional whitespace before the number (handles "7 seconds" and "13seconds")
+    // Remove duplicate time description at the very start of rest.
+    // Order matters: longest/most-specific first.
+    // Hours: "1 hour", "1 hour, 8 seconds", "1 hour, 2 minutes, 8 seconds"
+    rest = rest.replace(/^\s*\d+\s+hours?(?:,\s*\d+\s+minutes?(?:,\s*\d+\s+seconds?)?)?(?:,\s*\d+\s+seconds?)?/i, "");
+    // Minutes+seconds: "2 minutes, 34 seconds"
     rest = rest.replace(/^\s*\d+\s+minutes?,\s*\d+\s+seconds?/i, "");
+    // Minutes only: "1 minute"
+    rest = rest.replace(/^\s*\d+\s+minutes?/i, "");
+    // Seconds only: "13 seconds"
     rest = rest.replace(/^\s*\d+\s+seconds?/i, "");
-    rest = rest.replace(/^\s*\d+\s+minutes?(?:,\s*\d+\s+seconds?)?/i, "");
 
     // Strip leading " - " or just a dash
     rest = rest.replace(/^\s*[-–]\s*/, "").trim();
