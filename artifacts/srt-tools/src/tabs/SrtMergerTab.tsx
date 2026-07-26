@@ -597,7 +597,7 @@ export default function SrtMergerTab({ onSendToName, onTransform, clearKey, inco
                       () => toast({ title: "Copy failed", description: "Could not copy to clipboard", variant: "destructive" })
                     );
                   }}
-                  className="text-xs text-gray-400 dark:text-gray-500 hover:text-blue-600 transition-colors"
+                  className="text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 border border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600 bg-white dark:bg-gray-800 hover:bg-blue-50 dark:hover:bg-blue-950/40 px-2.5 py-1 rounded-md transition-colors"
                 >
                   Copy all
                 </button>
