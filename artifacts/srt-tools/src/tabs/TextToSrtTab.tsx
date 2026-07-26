@@ -173,6 +173,27 @@ export default function TextToSrtTab({ onLoadToMerger, onLoadToEditor }: Props) 
     toast({ title: "Generated!", description: `${result.length} subtitle${result.length !== 1 ? "s" : ""}` });
   };
 
+  const handleAutoGen = () => {
+    if (!input.trim()) {
+      toast({ title: "Nothing to process", description: "Add some timestamped lines first" });
+      return;
+    }
+    // Step 1: Clean
+    const cleaned = cleanRawTranscript(input);
+    setInput(cleaned);
+    setGeneratedEntries([]);
+    setIsGenerated(false);
+    // Step 2: Generate from the cleaned text directly (don't wait for state update)
+    const result = parseInput(cleaned);
+    if (result.length === 0) {
+      toast({ title: "Clean done", description: "No valid subtitle entries found after cleaning." });
+      return;
+    }
+    setGeneratedEntries(result);
+    setIsGenerated(true);
+    toast({ title: "Auto Gen done!", description: `Cleaned & generated ${result.length} subtitle${result.length !== 1 ? "s" : ""}` });
+  };
+
   const handleCopyAll = () => {
     if (!srtOutput) return;
     navigator.clipboard.writeText(srtOutput);
@@ -245,6 +266,7 @@ export default function TextToSrtTab({ onLoadToMerger, onLoadToEditor }: Props) 
             </button>
           )}
           <button
+            onClick={handleAutoGen}
             className="flex items-center gap-1.5 text-xs font-semibold text-white bg-orange-500 hover:bg-orange-600 rounded-lg px-3 py-1.5 shadow-sm transition-colors"
           >
             <Zap className="h-3.5 w-3.5" /> Auto Gen
