@@ -841,13 +841,13 @@ export default function App() {
                 // Step 6: trigger Split Lines
                 setTimeout(() => {
                   window.dispatchEvent(new CustomEvent("srt-tools:splitter-split"));
-                  // Step 7: trigger Load Srtm → SRT Merger
+                  // Step 7: trigger Load Srtm → SRT Merger (wait for React to re-render with new outputBlocks)
                   setTimeout(() => {
                     window.dispatchEvent(new CustomEvent("srt-tools:splitter-load-merger"));
                     setTimeout(() => {
                       handleSelectTab("merger");
                     }, 80);
-                  }, 150);
+                  }, 400);
                 }, 80);
               }, 80);
             }, 80);
