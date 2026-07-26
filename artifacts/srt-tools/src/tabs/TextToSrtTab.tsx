@@ -146,9 +146,10 @@ Last entry end time (3 ways):
 interface Props {
   onLoadToMerger?: (srt: string, filename: string) => void;
   onLoadToEditor?: (srt: string, filename: string) => void;
+  onAutoGen?: (srt: string, filename: string) => void;
 }
 
-export default function TextToSrtTab({ onLoadToMerger, onLoadToEditor }: Props) {
+export default function TextToSrtTab({ onLoadToMerger, onLoadToEditor, onAutoGen }: Props) {
   const { toast } = useToast();
   const [input, setInput] = useState("");
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
@@ -193,8 +194,8 @@ export default function TextToSrtTab({ onLoadToMerger, onLoadToEditor }: Props) 
     setIsGenerated(true);
     const srt = toSrt(result);
     toast({ title: "Auto Gen done!", description: `Cleaned & generated ${result.length} subtitle${result.length !== 1 ? "s" : ""}` });
-    // Step 3: Load into SRT Editor tab
-    onLoadToEditor?.(srt, "text-to-srt.srt");
+    // Step 3: Load into SRT Editor → Convert → SRT Time Splitter
+    onAutoGen?.(srt, "text-to-srt.srt");
   };
 
   const handleCopyAll = () => {

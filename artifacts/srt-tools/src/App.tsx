@@ -826,6 +826,21 @@ export default function App() {
           onLoadToMerger={(srt, filename) => {
             handleLoadSplitterToMerger(srt, filename);
           }}
+          onAutoGen={(srt, filename) => {
+            // Step 3: load into editor
+            const parsed = parseSrt(srt);
+            setSubtitles(parsed);
+            setFilename(filename);
+            handleSelectTab("editor");
+            // Step 4: trigger Convert in SRT Editor
+            setTimeout(() => {
+              window.dispatchEvent(new CustomEvent("srt-tools:editor-convert"));
+              // Step 5: navigate to SRT Time Splitter
+              setTimeout(() => {
+                handleSelectTab("splitter");
+              }, 80);
+            }, 80);
+          }}
         />
       </div>
 
