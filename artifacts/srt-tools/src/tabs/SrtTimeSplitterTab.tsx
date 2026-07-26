@@ -90,6 +90,18 @@ export default function SrtTimeSplitterTab({ incomingSrt, incomingFilename, inco
     [activeBlocks]
   );
 
+  const SENSITIVE_WORDS = [
+    "Deity","Creator","Almighty","Lord","Sovereign","God",
+    "দেবতা","সৃষ্টিকর্তা","সর্বশক্তিমান","প্রভু","সর্বময় অধিপতি","ঈশ্বর","ভগবান",
+  ];
+  const sensitiveMatchCount = useMemo(() => {
+    const re = new RegExp(
+      SENSITIVE_WORDS.map(w => `\\b${w}\\b`).join("|"),
+      "gi"
+    );
+    return activeBlocks.filter(b => re.test(b.text)).length;
+  }, [activeBlocks]);
+
   const loadSrtText = (text: string, name: string) => {
     setInput(text);
     setFileName(name);
@@ -558,6 +570,11 @@ export default function SrtTimeSplitterTab({ incomingSrt, incomingFilename, inco
             {hasInput && shortDurationCount > 0 && (
               <span className="rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-[13px] font-semibold text-red-600 shadow-sm">
                 ⚠ {shortDurationCount} card{shortDurationCount > 1 ? "s" : ""} under 1s
+              </span>
+            )}
+            {hasInput && sensitiveMatchCount > 0 && (
+              <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[13px] font-semibold text-amber-700 shadow-sm">
+                ⚠ {sensitiveMatchCount} card{sensitiveMatchCount > 1 ? "s" : ""} with sensitive words
               </span>
             )}
           </div>
