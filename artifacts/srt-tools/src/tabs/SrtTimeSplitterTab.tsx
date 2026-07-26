@@ -66,6 +66,7 @@ export default function SrtTimeSplitterTab({ incomingSrt, incomingFilename, inco
   const [jumpText, setJumpText] = useState("");
   const [highlightedJumpId, setHighlightedJumpId] = useState<number | null>(null);
   const [editedMap, setEditedMap] = useState<Record<number, string>>({});
+  const [filterSensitive, setFilterSensitive] = useState(false);
   const cardRefs = useRef(new Map<number, HTMLDivElement | null>());
   const finalSentRef = useRef(false);
 
@@ -573,9 +574,17 @@ export default function SrtTimeSplitterTab({ incomingSrt, incomingFilename, inco
               </span>
             )}
             {hasInput && sensitiveMatchCount > 0 && (
-              <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[13px] font-semibold text-amber-700 shadow-sm">
+              <button
+                onClick={() => setFilterSensitive(f => !f)}
+                title={filterSensitive ? "Show all cards" : "Show only cards with sensitive words"}
+                className={`rounded-full border px-2.5 py-1 text-[13px] font-semibold shadow-sm cursor-pointer transition-colors ${
+                  filterSensitive
+                    ? "bg-amber-500 text-white border-amber-600 shadow-amber-200"
+                    : "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100"
+                }`}
+              >
                 ⚠ {sensitiveMatchCount} card{sensitiveMatchCount > 1 ? "s" : ""} with sensitive words
-              </span>
+              </button>
             )}
           </div>
           <div className="flex items-center gap-2.5">
@@ -746,7 +755,16 @@ export default function SrtTimeSplitterTab({ incomingSrt, incomingFilename, inco
 
             <ScrollArea className="h-[calc(100vh-260px)]">
               <div className="space-y-4 pb-6">
-                {activeBlocks.map((block) => (
+                {filterSensitive && (
+                  <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-xl text-xs text-amber-700 dark:text-amber-400 font-medium">
+                    <span>⚠</span>
+                    Showing only cards with sensitive words — আবার click করলে সব দেখাবে
+                  </div>
+                )}
+                {(filterSensitive
+                  ? activeBlocks.filter(b => new RegExp(SENSITIVE_WORDS.map(w => `\\b${w}\\b`).join("|"), "gi").test(b.text))
+                  : activeBlocks
+                ).map((block) => (
                   <div
                     key={`${isOutputView ? "out" : "in"}-${block.id}`}
                     ref={(el) => {
