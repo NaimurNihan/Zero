@@ -191,7 +191,10 @@ export default function TextToSrtTab({ onLoadToMerger, onLoadToEditor }: Props) 
     }
     setGeneratedEntries(result);
     setIsGenerated(true);
+    const srt = toSrt(result);
     toast({ title: "Auto Gen done!", description: `Cleaned & generated ${result.length} subtitle${result.length !== 1 ? "s" : ""}` });
+    // Step 3: Load into SRT Editor tab
+    onLoadToEditor?.(srt, "text-to-srt.srt");
   };
 
   const handleCopyAll = () => {
