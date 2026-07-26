@@ -841,9 +841,9 @@ export default function App() {
               // Step 5: navigate to SRT Time Splitter
               setTimeout(() => {
                 handleSelectTab("splitter");
-                // Step 6: trigger Split Lines
+                // Step 6: trigger Split Lines (run-all = ✅→. + split + trim -10ms, same as button)
                 setTimeout(() => {
-                  window.dispatchEvent(new CustomEvent("srt-tools:splitter-split"));
+                  window.dispatchEvent(new CustomEvent("srt-tools:splitter-run-all"));
                   // Step 7: trigger Load Srtm → SRT Merger (wait for React to re-render with new outputBlocks)
                   setTimeout(() => {
                     window.dispatchEvent(new CustomEvent("srt-tools:splitter-load-merger"));
