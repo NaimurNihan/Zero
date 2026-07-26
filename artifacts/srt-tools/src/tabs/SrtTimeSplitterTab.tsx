@@ -510,20 +510,35 @@ export default function SrtTimeSplitterTab({ incomingSrt, incomingFilename, inco
   const splitRef = useRef(handleSplitLine);
   const dotRef = useRef(handleEmojiToDot);
   const trimRef = useRef(handleTrimEnd10);
+  const loadMergerRef = useRef(() => {
+    if (onSendToMerger && outputBlocks.length > 0) {
+      const srt = generateSrtString(outputBlocks);
+      onSendToMerger(srt, fileName || "Bangla.srt");
+    }
+  });
   splitRef.current = handleSplitLine;
   dotRef.current = handleEmojiToDot;
   trimRef.current = handleTrimEnd10;
+  loadMergerRef.current = () => {
+    if (onSendToMerger && outputBlocks.length > 0) {
+      const srt = generateSrtString(outputBlocks);
+      onSendToMerger(srt, fileName || "Bangla.srt");
+    }
+  };
   useEffect(() => {
     const hSplit = () => splitRef.current();
     const hDot = () => dotRef.current();
     const hTrim = () => trimRef.current();
+    const hLoadMerger = () => loadMergerRef.current();
     window.addEventListener("srt-tools:splitter-split", hSplit);
     window.addEventListener("srt-tools:splitter-dot", hDot);
     window.addEventListener("srt-tools:splitter-trim10", hTrim);
+    window.addEventListener("srt-tools:splitter-load-merger", hLoadMerger);
     return () => {
       window.removeEventListener("srt-tools:splitter-split", hSplit);
       window.removeEventListener("srt-tools:splitter-dot", hDot);
       window.removeEventListener("srt-tools:splitter-trim10", hTrim);
+      window.removeEventListener("srt-tools:splitter-load-merger", hLoadMerger);
     };
   }, []);
 

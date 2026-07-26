@@ -838,6 +838,17 @@ export default function App() {
               // Step 5: navigate to SRT Time Splitter
               setTimeout(() => {
                 handleSelectTab("splitter");
+                // Step 6: trigger Split Lines
+                setTimeout(() => {
+                  window.dispatchEvent(new CustomEvent("srt-tools:splitter-split"));
+                  // Step 7: trigger Load Srtm → SRT Merger
+                  setTimeout(() => {
+                    window.dispatchEvent(new CustomEvent("srt-tools:splitter-load-merger"));
+                    setTimeout(() => {
+                      handleSelectTab("merger");
+                    }, 80);
+                  }, 150);
+                }, 80);
               }, 80);
             }, 80);
           }}
