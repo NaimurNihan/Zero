@@ -161,6 +161,7 @@ export default function SrtMergerTab({ onSendToName, onTransform, clearKey, inco
   const [notepadText, setNotepadText] = useState("");
   const [notepadSplit, setNotepadSplit] = useState(false);
   const [copiedChunks, setCopiedChunks] = useState<Set<number>>(new Set());
+  const [copyAllFlash, setCopyAllFlash] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const lastIncomingKey = useRef<number | undefined>(undefined);
@@ -593,11 +594,19 @@ export default function SrtMergerTab({ onSendToName, onTransform, clearKey, inco
                   onClick={() => {
                     const text = srtEntries.map((e, i) => `(${i + 1}) { ${e.text.replace(/\n/g, " ")} }`).join("\n");
                     navigator.clipboard.writeText(text).then(
-                      () => toast({ title: "Copied", description: `Copied ${srtEntries.length} lines to clipboard` }),
+                      () => {
+                        toast({ title: "Copied", description: `Copied ${srtEntries.length} lines to clipboard` });
+                        setCopyAllFlash(true);
+                        setTimeout(() => setCopyAllFlash(false), 1200);
+                      },
                       () => toast({ title: "Copy failed", description: "Could not copy to clipboard", variant: "destructive" })
                     );
                   }}
-                  className="text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 border border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600 bg-white dark:bg-gray-800 hover:bg-blue-50 dark:hover:bg-blue-950/40 px-2.5 py-1 rounded-md transition-colors"
+                  className={`text-xs font-medium px-2.5 py-1 rounded-md border transition-colors ${
+                    copyAllFlash
+                      ? "text-green-700 dark:text-green-300 border-green-300 dark:border-green-700 bg-green-50 dark:bg-green-950/50"
+                      : "text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600 bg-white dark:bg-gray-800 hover:bg-blue-50 dark:hover:bg-blue-950/40"
+                  }`}
                 >
                   Copy all
                 </button>
