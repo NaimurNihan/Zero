@@ -92,8 +92,15 @@ export default function SrtTimeSplitterTab({ incomingSrt, incomingFilename, inco
   );
 
   const SENSITIVE_WORDS = [
-    "Deity","Creator","Almighty","Lord","Sovereign","God",
-    "দেবতা","সৃষ্টিকর্তা","সর্বশক্তিমান","প্রভু","সর্বময় অধিপতি","ঈশ্বর","ভগবান",
+    // English
+    "God","Deity","Almighty","Creator","Lord","Sovereign",
+    "Supreme Being","Divine One","Heavenly Father","Omnipotent One","Eternal One",
+    "Maker","Providence","Divine","Godly","Heavenly","Celestial",
+    "Holy","Sacred","Supreme","Omnipotent","Majestic","Exalted",
+    // বাংলা
+    "ঈশ্বর","সৃষ্টিকর্তা","পরমেশ্বর","ভগবান","প্রভু","বিধাতা",
+    "পরম সত্তা","সর্বশক্তিমান","জগদীশ","জগৎপতি","দয়াময়","পালনকর্তা",
+    "দেবতা","সর্বময় অধিপতি",
   ];
   const sensitiveMatchCount = useMemo(() => {
     const re = new RegExp(
