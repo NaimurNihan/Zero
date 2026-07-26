@@ -185,6 +185,9 @@ export default function App() {
   const [videoIncomingSrt, setVideoIncomingSrt] = useState("");
   const [videoIncomingSrtFilename, setVideoIncomingSrtFilename] = useState("");
   const [videoIncomingSrtKey, setVideoIncomingSrtKey] = useState(0);
+  const [mergerIncomingSrt, setMergerIncomingSrt] = useState("");
+  const [mergerIncomingSrtFilename, setMergerIncomingSrtFilename] = useState("");
+  const [mergerIncomingSrtKey, setMergerIncomingSrtKey] = useState(0);
   const [mergerClearKey, setMergerClearKey] = useState(0);
   const [noteIncomingText, setNoteIncomingText] = useState("");
   const [noteIncomingName, setNoteIncomingName] = useState("");
@@ -454,9 +457,9 @@ export default function App() {
 
   const handleLoadSplitterToMerger = useCallback((srt: string, filename: string) => {
     setActiveTab("merger");
-    setVideoIncomingSrt(srt);
-    setVideoIncomingSrtFilename(filename);
-    setVideoIncomingSrtKey((k) => k + 1);
+    setMergerIncomingSrt(srt);
+    setMergerIncomingSrtFilename(filename);
+    setMergerIncomingSrtKey((k) => k + 1);
   }, []);
 
   const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -738,9 +741,9 @@ export default function App() {
       <div style={{ display: activeTab === "merger" ? "flex" : "none" }} className="flex-col flex-1 overflow-y-auto">
         <SrtMergerTab
           clearKey={mergerClearKey}
-          incomingSrt={videoIncomingSrt}
-          incomingFilename={videoIncomingSrtFilename}
-          incomingKey={videoIncomingSrtKey}
+          incomingSrt={mergerIncomingSrt}
+          incomingFilename={mergerIncomingSrtFilename}
+          incomingKey={mergerIncomingSrtKey}
           onSendToName={(srt, name) => {
             const parsed = parseSrt(srt);
             setSubtitles(parsed);
