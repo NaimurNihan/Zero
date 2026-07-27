@@ -3,20 +3,18 @@ import { useAudioAnalysis } from "@/hooks/useAudioAnalysis";
 import UploadBox from "@/tabs/trimmer/UploadBox";
 import AudioCard from "@/tabs/trimmer/AudioCard";
 import DownloadPanel from "@/tabs/trimmer/DownloadPanel";
-import { Scissors, Trash2, FolderInput, Download, Check } from "lucide-react";
+import { Scissors, Trash2, Download, Check } from "lucide-react";
 import JSZip from "jszip";
 
 type SplitStage = "idle" | "preview" | "trimming" | "done";
 
 interface VoiceTrimmerTabProps {
-  onSendToSpeed?: (files: File[]) => void;
   incomingAudioFiles?: { files: File[]; key: number; autoSplit?: boolean; label?: string };
 }
 
-export default function VoiceTrimmerTab({ onSendToSpeed, incomingAudioFiles }: VoiceTrimmerTabProps = {}) {
+export default function VoiceTrimmerTab({ incomingAudioFiles }: VoiceTrimmerTabProps = {}) {
   const { audioFiles, addFiles, removeFile, trimAllFiles, resetTrim } = useAudioAnalysis();
   const [splitStage, setSplitStage] = useState<SplitStage>("idle");
-  const [loaded, setLoaded] = useState(false);
   const [zipDownloaded, setZipDownloaded] = useState(false);
   const [zipAnimating, setZipAnimating] = useState(false);
   const lastIncomingKeyRef = useRef<number | null>(null);
@@ -34,7 +32,6 @@ export default function VoiceTrimmerTab({ onSendToSpeed, incomingAudioFiles }: V
     if (incomingAudioFiles.label) currentLabelRef.current = incomingAudioFiles.label;
     resetTrim();
     setSplitStage("idle");
-    setLoaded(false);
     audioFilesRef.current.forEach((f) => removeFile(f.id));
     addFiles(incomingAudioFiles.files);
     if (incomingAudioFiles.autoSplit) {
@@ -98,7 +95,6 @@ export default function VoiceTrimmerTab({ onSendToSpeed, incomingAudioFiles }: V
   const handleClear = (broadcast: boolean = true) => {
     resetTrim();
     setSplitStage("idle");
-    setLoaded(false);
     setZipDownloaded(false);
     setZipAnimating(false);
     audioFilesRef.current.forEach((f) => removeFile(f.id));
@@ -117,7 +113,6 @@ export default function VoiceTrimmerTab({ onSendToSpeed, incomingAudioFiles }: V
       if (detail?.source === "audioSpliter") return;
       resetTrim();
       setSplitStage("idle");
-      setLoaded(false);
       setZipDownloaded(false);
       setZipAnimating(false);
       audioFilesRef.current.forEach((f) => removeFile(f.id));
@@ -156,26 +151,6 @@ export default function VoiceTrimmerTab({ onSendToSpeed, incomingAudioFiles }: V
   };
   handleDownloadZipRef.current = handleDownloadZip;
 
-  const handleLoadToSpeed = () => {
-    if (!onSendToSpeed) return;
-    const trimmed = audioFiles.filter((f) => f.isTrimmed && f.trimmedBlob);
-    if (trimmed.length === 0) return;
-    const files: File[] = trimmed.map((f) => {
-      const baseName = f.name.replace(/\.[^.]+$/, "") + "_trimmed.wav";
-      return new File([f.trimmedBlob as Blob], baseName, { type: "audio/wav" });
-    });
-    onSendToSpeed(files);
-    setLoaded(true);
-  };
-
-  // Auto Run 2: respond to external trigger to load trimmed audio to Speed+-
-  const handleLoadToSpeedRef = useRef(handleLoadToSpeed);
-  handleLoadToSpeedRef.current = handleLoadToSpeed;
-  useEffect(() => {
-    const onLoadToSpeed = () => { handleLoadToSpeedRef.current(); };
-    window.addEventListener("srt-tools:trimmer-load-to-speed", onLoadToSpeed);
-    return () => window.removeEventListener("srt-tools:trimmer-load-to-speed", onLoadToSpeed);
-  }, []);
 
   const splitLabel =
     splitStage === "idle" ? "Split" :
