@@ -151,6 +151,8 @@ export default function VoiceTrimmerTab({ onSendToSpeed, incomingAudioFiles }: V
     URL.revokeObjectURL(url);
     setZipDownloaded(true);
     window.setTimeout(() => setZipAnimating(false), 700);
+    // Auto clear after download — give browser time to start the download first
+    window.setTimeout(() => handleClear(true), 1500);
   };
   handleDownloadZipRef.current = handleDownloadZip;
 
