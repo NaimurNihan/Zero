@@ -252,33 +252,6 @@ export default function VoiceTrimmerTab({ onSendToSpeed, incomingAudioFiles }: V
               {zipDownloaded ? "ZIP ✓" : "ZIP"}
             </button>
           )}
-          {splitStage === "done" && trimmedCount > 0 && onSendToSpeed && (
-            <button
-              onClick={handleLoadToSpeed}
-              title="Send all trimmed audios to Speed+- Audio Pool"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
-              style={{
-                background: loaded ? "hsl(142,70%,40%)" : "hsl(220,90%,56%)",
-                color: "white",
-                boxShadow: loaded
-                  ? "0 1px 4px rgba(34,197,94,0.30)"
-                  : "0 1px 4px rgba(37,99,235,0.30)",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = loaded
-                  ? "hsl(142,70%,34%)"
-                  : "hsl(220,90%,48%)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = loaded
-                  ? "hsl(142,70%,40%)"
-                  : "hsl(220,90%,56%)";
-              }}
-            >
-              <FolderInput className="w-3 h-3" />
-              {loaded ? "Loaded ✓" : "Load to Speed+-"}
-            </button>
-          )}
           <button
             onClick={() => handleClear(true)}
             title={
