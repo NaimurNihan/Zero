@@ -812,6 +812,7 @@ export default function SrtTimeSplitterTab({ incomingSrt, incomingFilename, inco
                       block={block}
                       findText={findText}
                       replacedWith={editedMap[block.id]}
+                      sensitiveWords={filterSensitive ? SENSITIVE_WORDS : undefined}
                       onTextChange={(newText) => {
                         if (isOutputView) {
                           setOutputBlocks((prev) =>
@@ -939,6 +940,7 @@ function SubtitleRow({
   replacedWith,
   onMergeUp,
   onMergeDown,
+  sensitiveWords,
 }: {
   block: SubtitleBlock;
   onTextChange: (newText: string) => void;
@@ -946,6 +948,7 @@ function SubtitleRow({
   replacedWith?: string;
   onMergeUp?: () => void;
   onMergeDown?: () => void;
+  sensitiveWords?: string[];
 }) {
   const durationMs = block.endTime - block.startTime;
   const durationSec = durationMs / 1000;
@@ -971,10 +974,12 @@ function SubtitleRow({
   const trimmedFind = findText.trim();
   const hasFindHighlight = trimmedFind.length > 0;
   const hasReplaceHighlight = !!replacedWith && replacedWith.length > 0;
+  const hasSensitiveHighlight = !!sensitiveWords && sensitiveWords.length > 0;
 
   const renderHighlighted = useCallback(
     (text: string) => {
-      const segments: { text: string; type: "green" | "plain" }[] = [];
+      type SegType = "green" | "sensitive" | "plain";
+      const segments: { text: string; type: SegType }[] = [];
 
       if (hasReplaceHighlight) {
         const greenRegex = new RegExp(`(${escapeRegex(replacedWith!)})`, "gi");
@@ -1004,6 +1009,49 @@ function SubtitleRow({
               {seg.text}
             </span>,
           );
+        } else if (hasSensitiveHighlight) {
+          // Split by sensitive words first, then by find text
+          const sensRegex = new RegExp(
+            `(${sensitiveWords!.map(w => `\\b${escapeRegex(w)}\\b`).join("|")})`,
+            "gi",
+          );
+          const sensParts = seg.text.split(sensRegex);
+          sensParts.forEach((part) => {
+            if (!part) return;
+            const isSens = sensitiveWords!.some(
+              w => part.toLowerCase() === w.toLowerCase(),
+            );
+            if (isSens) {
+              finalNodes.push(
+                <span
+                  key={key++}
+                  className="rounded bg-red-100 px-1 font-semibold text-red-600 dark:bg-red-900/40 dark:text-red-300"
+                >
+                  {part}
+                </span>,
+              );
+            } else if (hasFindHighlight) {
+              const findRegex = new RegExp(`(${escapeRegex(trimmedFind)})`, "gi");
+              const subParts = part.split(findRegex);
+              subParts.forEach((sp) => {
+                if (!sp) return;
+                if (sp.toLowerCase() === trimmedFind.toLowerCase()) {
+                  finalNodes.push(
+                    <span
+                      key={key++}
+                      className="rounded bg-amber-100 px-1 font-semibold text-amber-700 dark:bg-amber-900/40 dark:text-amber-200"
+                    >
+                      {sp}
+                    </span>,
+                  );
+                } else {
+                  finalNodes.push(<span key={key++}>{sp}</span>);
+                }
+              });
+            } else {
+              finalNodes.push(<span key={key++}>{part}</span>);
+            }
+          });
         } else if (hasFindHighlight) {
           const findRegex = new RegExp(`(${escapeRegex(trimmedFind)})`, "gi");
           const subParts = seg.text.split(findRegex);
@@ -1029,10 +1077,10 @@ function SubtitleRow({
 
       return finalNodes;
     },
-    [hasFindHighlight, hasReplaceHighlight, replacedWith, trimmedFind],
+    [hasFindHighlight, hasReplaceHighlight, hasSensitiveHighlight, replacedWith, sensitiveWords, trimmedFind],
   );
 
-  const showHighlightedView = !isEditing && (hasFindHighlight || hasReplaceHighlight);
+  const showHighlightedView = !isEditing && (hasFindHighlight || hasReplaceHighlight || hasSensitiveHighlight);
 
   return (
     <article className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white dark:bg-gray-900 shadow-[0_2px_9px_rgba(15,23,42,0.08)]">
