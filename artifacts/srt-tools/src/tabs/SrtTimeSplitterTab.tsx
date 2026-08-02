@@ -110,6 +110,10 @@ export default function SrtTimeSplitterTab({ incomingSrt, incomingFilename, inco
     return activeBlocks.filter(b => re.test(b.text)).length;
   }, [activeBlocks]);
 
+  useEffect(() => {
+    if (sensitiveMatchCount === 0) setFilterSensitive(false);
+  }, [sensitiveMatchCount]);
+
   const loadSrtText = (text: string, name: string) => {
     setInput(text);
     setFileName(name);
