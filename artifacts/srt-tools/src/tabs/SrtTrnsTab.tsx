@@ -276,18 +276,6 @@ export default function SrtTrnsTab() {
             </select>
           </div>
 
-          {/* Clear All */}
-          {(file || translatedCount > 0) && (
-            <button
-              onClick={clearAll}
-              disabled={translating}
-              className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-red-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 disabled:opacity-40 disabled:cursor-not-allowed text-sm font-medium rounded-lg transition-colors"
-            >
-              <X className="w-3.5 h-3.5" />
-              Clear All
-            </button>
-          )}
-
           <div className="flex-1" />
 
           {/* Progress pill */}
@@ -351,6 +339,18 @@ export default function SrtTrnsTab() {
               </>
             )}
           </button>
+
+          {/* Clear All */}
+          {(file || translatedCount > 0) && (
+            <button
+              onClick={clearAll}
+              disabled={translating}
+              className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-red-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 disabled:opacity-40 disabled:cursor-not-allowed text-sm font-medium rounded-lg transition-colors"
+            >
+              <X className="w-3.5 h-3.5" />
+              Clear All
+            </button>
+          )}
         </div>
       </div>
 
