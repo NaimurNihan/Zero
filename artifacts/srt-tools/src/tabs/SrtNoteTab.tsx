@@ -267,12 +267,13 @@ interface SrtNoteTabProps {
   incomingText?: string;
   incomingName?: string;
   incomingKey?: number;
+  incomingLangIdx?: number;
   onRunToAiAudio?: (lines: string[], label?: string) => void;
   onAutoRunAll?: (langs: { label: string; lines: string[] }[]) => void;
   onAutoRun2?: (langs: { label: string; lines: string[] }[]) => void;
   onSendToSrtMaker?: (text: string, label: string) => void;
 }
-export default function SrtNoteTab({ incomingText, incomingName, incomingKey, onRunToAiAudio, onAutoRunAll, onAutoRun2, onSendToSrtMaker }: SrtNoteTabProps = {}) {
+export default function SrtNoteTab({ incomingText, incomingName, incomingKey, incomingLangIdx, onRunToAiAudio, onAutoRunAll, onAutoRun2, onSendToSrtMaker }: SrtNoteTabProps = {}) {
   const initialStateRef = useRef<SavedState | null>(null);
   if (initialStateRef.current === null) initialStateRef.current = readSavedState();
   const initialState = initialStateRef.current;
@@ -355,11 +356,12 @@ export default function SrtNoteTab({ incomingText, incomingName, incomingKey, on
     setProjects((prev) => {
       const baseName = (incomingName && incomingName.trim()) || `New Project ${prev.length + 1}`;
       const langs = DEFAULT_LANGS.map((l) => ({ ...l }));
-      langs[0] = { ...langs[0], content: incomingText };
+      const targetIdx = (incomingLangIdx !== undefined && incomingLangIdx >= 0 && incomingLangIdx < langs.length) ? incomingLangIdx : 0;
+      langs[targetIdx] = { ...langs[targetIdx], content: incomingText };
       return [{ id: newId, name: baseName, updatedAt: "Just now", langs }, ...prev];
     });
     setActiveId(newId);
-  }, [incomingKey, incomingText, incomingName]);
+  }, [incomingKey, incomingText, incomingName, incomingLangIdx]);
   function updateContent(langIdx: number, value: string) {
     setProjects((prev) => prev.map((p) => {
       if (p.id !== activeId) return p;

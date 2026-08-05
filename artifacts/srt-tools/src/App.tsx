@@ -202,6 +202,7 @@ export default function App() {
   const [noteIncomingText, setNoteIncomingText] = useState("");
   const [noteIncomingName, setNoteIncomingName] = useState("");
   const [noteIncomingKey, setNoteIncomingKey] = useState(0);
+  const [noteIncomingLangIdx, setNoteIncomingLangIdx] = useState(0);
   const [spliterIncomingAudio, setSpliterIncomingAudio] = useState<{ files: File[]; key: number; autoSplit?: boolean; label?: string }>({ files: [], key: 0 });
   const autoRunRef = useRef(false);
   const currentRunLabelRef = useRef<string>("");
@@ -696,6 +697,7 @@ export default function App() {
           incomingText={noteIncomingText}
           incomingName={noteIncomingName}
           incomingKey={noteIncomingKey}
+          incomingLangIdx={noteIncomingLangIdx}
           onSendToSrtMaker={(text, label) => {
             setMakerIncomingSentences({ text, label, key: Date.now() });
             handleSelectTab("maker");
@@ -749,7 +751,15 @@ export default function App() {
 
       {/* SRT Trns — full width, hidden when inactive */}
       <div style={{ display: activeTab === "srtTrns" ? "flex" : "none" }} className="flex-col flex-1 overflow-hidden">
-        <SrtTrnsTab />
+        <SrtTrnsTab
+          onSendToNote={(text, name, langIdx) => {
+            setNoteIncomingText(text);
+            setNoteIncomingName(name);
+            setNoteIncomingLangIdx(langIdx);
+            setNoteIncomingKey((k) => k + 1);
+            handleSelectTab("note");
+          }}
+        />
       </div>
 
       {/* SRT Marger — full width, hidden when inactive */}

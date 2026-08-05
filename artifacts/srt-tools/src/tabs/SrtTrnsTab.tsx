@@ -93,8 +93,21 @@ const LANGUAGES = [
   { code: "ur", label: "Urdu" },
 ];
 
+// ─── Note language slots (matches SrtNoteTab DEFAULT_LANGS order) ─────────────
+const NOTE_LANGS = [
+  { idx: 1, label: "AR" },
+  { idx: 2, label: "GR" },
+  { idx: 3, label: "EN" },
+  { idx: 4, label: "SP" },
+  { idx: 5, label: "FR" },
+];
+
+interface SrtTrnsTabProps {
+  onSendToNote?: (text: string, name: string, langIdx: number) => void;
+}
+
 // ─── Main Component ────────────────────────────────────────────────────────────
-export default function SrtTrnsTab() {
+export default function SrtTrnsTab({ onSendToNote }: SrtTrnsTabProps = {}) {
   const [file, setFile] = useState<File | null>(null);
   const [entries, setEntries] = useState<SrtEntry[]>([]);
   const [translations, setTranslations] = useState<(string | null)[]>([]);
@@ -453,9 +466,31 @@ export default function SrtTrnsTab() {
                 </span>
               )}
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
+              {/* Send to SRT Note language buttons */}
+              {translatedCount > 0 && !translating && onSendToNote && (
+                <div className="flex items-center gap-1">
+                  {NOTE_LANGS.map(({ idx, label }) => (
+                    <button
+                      key={idx}
+                      onClick={() => {
+                        const text = translations
+                          .map((t, i) => (t !== null ? t : entries[i]?.text) ?? "")
+                          .join("\n");
+                        const name = file?.name.replace(/\.srt$/i, "") ?? "translated";
+                        onSendToNote(text, name, idx);
+                      }}
+                      className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 border border-indigo-200 dark:border-indigo-800 transition-colors"
+                      title={`Send to SRT Note — ${label} card`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              )}
+
               {isDone && (
-                <span className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
+                <span className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1 ml-1">
                   <CheckCircle2 className="w-3.5 h-3.5" />
                   Done
                 </span>
