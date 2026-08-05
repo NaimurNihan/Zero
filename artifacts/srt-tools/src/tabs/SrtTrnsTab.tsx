@@ -238,157 +238,161 @@ export default function SrtTrnsTab() {
 
   // ─── Render ──────────────────────────────────────────────────────────────────
   return (
-    <div className="flex flex-col flex-1 h-full min-h-0 bg-gray-50 dark:bg-gray-950">
-      {/* ── Top bar ── */}
-      <div className="flex items-center gap-3 px-4 py-2.5 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 flex-shrink-0 flex-wrap">
-        {/* From lang */}
-        <div className="flex items-center gap-1.5">
-          <span className="text-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">From</span>
-          <select
-            value={fromLang}
-            onChange={(e) => setFromLang(e.target.value)}
-            disabled={translating}
-            className="text-sm border border-gray-200 dark:border-gray-700 rounded-md px-2 py-1 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-400 disabled:opacity-50"
-          >
-            {LANGUAGES.map((l) => (
-              <option key={l.code} value={l.code}>{l.label}</option>
-            ))}
-          </select>
-        </div>
+    <div className="flex flex-col flex-1 h-full min-h-0 bg-[#f1f5f9] dark:bg-gray-950 p-3 gap-3 overflow-hidden">
 
-        <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />
+      {/* ── TOP CONTROL CARD ── */}
+      <div className="flex-shrink-0 bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-800 px-4 py-3">
+        <div className="flex items-center gap-3 flex-wrap">
 
-        {/* To lang */}
-        <div className="flex items-center gap-1.5">
-          <span className="text-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">To</span>
-          <select
-            value={toLang}
-            onChange={(e) => setToLang(e.target.value)}
-            disabled={translating}
-            className="text-sm border border-gray-200 dark:border-gray-700 rounded-md px-2 py-1 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-400 disabled:opacity-50"
-          >
-            {LANGUAGES.filter((l) => l.code !== "auto").map((l) => (
-              <option key={l.code} value={l.code}>{l.label}</option>
-            ))}
-          </select>
-        </div>
+          {/* From lang */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide">From</span>
+            <select
+              value={fromLang}
+              onChange={(e) => setFromLang(e.target.value)}
+              disabled={translating}
+              className="text-sm border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-1.5 bg-gray-50 dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-400 disabled:opacity-50 cursor-pointer"
+            >
+              {LANGUAGES.map((l) => (
+                <option key={l.code} value={l.code}>{l.label}</option>
+              ))}
+            </select>
+          </div>
 
-        <div className="flex-1" />
+          <ChevronRight className="w-4 h-4 text-gray-300 dark:text-gray-600 flex-shrink-0" />
 
-        {/* Progress */}
-        {entries.length > 0 && (
-          <span className="text-xs text-gray-500 dark:text-gray-400 tabular-nums whitespace-nowrap">
-            {translatedCount} / {entries.length}
-            {errorCount > 0 && (
-              <span className="ml-1.5 text-red-500">{errorCount} error</span>
-            )}
-          </span>
-        )}
+          {/* To lang */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide">To</span>
+            <select
+              value={toLang}
+              onChange={(e) => setToLang(e.target.value)}
+              disabled={translating}
+              className="text-sm border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-1.5 bg-gray-50 dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-400 disabled:opacity-50 cursor-pointer"
+            >
+              {LANGUAGES.filter((l) => l.code !== "auto").map((l) => (
+                <option key={l.code} value={l.code}>{l.label}</option>
+              ))}
+            </select>
+          </div>
 
-        {/* Stop button */}
-        {translating && (
-          <button
-            onClick={stopTranslation}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg transition-colors"
-          >
-            <StopCircle className="w-3.5 h-3.5" />
-            Stop
-          </button>
-        )}
+          <div className="flex-1" />
 
-        {/* Download button */}
-        {translatedCount > 0 && !translating && (
-          <button
-            onClick={downloadSrt}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg transition-colors"
-          >
-            <Download className="w-3.5 h-3.5" />
-            Download SRT
-          </button>
-        )}
-
-        {/* Translate button */}
-        <button
-          onClick={startTranslation}
-          disabled={!entries.length || translating}
-          className="flex items-center gap-1.5 px-4 py-1.5 bg-orange-500 hover:bg-orange-600 disabled:bg-orange-300 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-lg transition-colors shadow-sm"
-        >
-          {translating ? (
-            <>
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              Translating…
-            </>
-          ) : (
-            <>
-              <Languages className="w-3.5 h-3.5" />
-              Translate
-            </>
+          {/* Progress pill */}
+          {entries.length > 0 && (translating || translatedCount > 0) && (
+            <div className="flex items-center gap-2">
+              {translating && (
+                <div className="w-28 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-orange-500 rounded-full transition-all duration-300"
+                    style={{ width: `${(translatedCount / entries.length) * 100}%` }}
+                  />
+                </div>
+              )}
+              <span className="text-xs font-medium text-gray-500 dark:text-gray-400 tabular-nums whitespace-nowrap">
+                {translatedCount} / {entries.length}
+                {errorCount > 0 && <span className="ml-1.5 text-red-500">{errorCount} err</span>}
+              </span>
+              {isDone && errorCount === 0 && (
+                <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+              )}
+            </div>
           )}
-        </button>
+
+          {/* Stop */}
+          {translating && (
+            <button
+              onClick={stopTranslation}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg transition-colors shadow-sm"
+            >
+              <StopCircle className="w-3.5 h-3.5" />
+              Stop
+            </button>
+          )}
+
+          {/* Download */}
+          {translatedCount > 0 && !translating && (
+            <button
+              onClick={downloadSrt}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg transition-colors shadow-sm"
+            >
+              <Download className="w-3.5 h-3.5" />
+              Download SRT
+            </button>
+          )}
+
+          {/* Translate */}
+          <button
+            onClick={startTranslation}
+            disabled={!entries.length || translating}
+            className="flex items-center gap-1.5 px-4 py-1.5 bg-orange-500 hover:bg-orange-600 disabled:bg-orange-300 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-lg transition-colors shadow-sm"
+          >
+            {translating ? (
+              <>
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                Translating…
+              </>
+            ) : (
+              <>
+                <Languages className="w-3.5 h-3.5" />
+                Translate
+              </>
+            )}
+          </button>
+        </div>
       </div>
 
-      {/* Progress bar */}
-      {translating && entries.length > 0 && (
-        <div className="h-0.5 bg-gray-200 dark:bg-gray-800 flex-shrink-0">
-          <div
-            className="h-full bg-orange-500 transition-all duration-300"
-            style={{ width: `${(translatedCount / entries.length) * 100}%` }}
-          />
-        </div>
-      )}
+      {/* ── TWO MAIN CARDS ── */}
+      <div className="flex flex-1 min-h-0 gap-3">
 
-      {/* ── Two panels ── */}
-      <div className="flex flex-1 min-h-0 gap-0 overflow-hidden">
-        {/* ── LEFT: INPUT ── */}
-        <div className="flex flex-col flex-1 min-w-0 border-r border-gray-200 dark:border-gray-800">
-          <div className="flex items-center justify-between px-4 py-2 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 flex-shrink-0">
-            <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-              INPUT
+        {/* ── LEFT: INPUT CARD ── */}
+        <div className="flex flex-col flex-1 min-w-0 bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-800 overflow-hidden">
+          {/* Card header */}
+          <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100 dark:border-gray-800 flex-shrink-0">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Input</span>
               {entries.length > 0 && (
-                <span className="ml-2 font-normal text-gray-400 normal-case tracking-normal">
-                  {entries.length} subtitles
+                <span className="text-xs bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 rounded-full px-2 py-0.5 font-medium">
+                  {entries.length}
                 </span>
               )}
-            </span>
+            </div>
             {file && (
               <button
                 onClick={clearAll}
                 disabled={translating}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 disabled:opacity-40 transition-colors"
+                className="w-6 h-6 flex items-center justify-center rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-40 transition-colors"
                 title="Clear"
               >
-                <X className="w-4 h-4" />
+                <X className="w-3.5 h-3.5" />
               </button>
             )}
           </div>
 
+          {/* Card body */}
           <div className="flex-1 overflow-y-auto p-3">
-            {/* Upload area */}
             {!file ? (
+              /* Upload zone */
               <div
                 onDrop={handleDrop}
                 onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
                 onDragLeave={() => setIsDragging(false)}
                 onClick={() => fileInputRef.current?.click()}
-                className={`flex flex-col items-center justify-center h-full min-h-[200px] border-2 border-dashed rounded-xl cursor-pointer transition-colors ${
+                className={`flex flex-col items-center justify-center h-full min-h-[200px] rounded-xl border-2 border-dashed cursor-pointer transition-all ${
                   isDragging
                     ? "border-orange-400 bg-orange-50 dark:bg-orange-950/30"
-                    : "border-gray-300 dark:border-gray-700 hover:border-orange-400 hover:bg-orange-50/50 dark:hover:bg-orange-950/20"
+                    : "border-gray-200 dark:border-gray-700 hover:border-orange-300 hover:bg-orange-50/40 dark:hover:bg-orange-950/10"
                 }`}
               >
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".srt"
-                  className="hidden"
-                  onChange={handleFileInput}
-                />
-                <Upload className="w-8 h-8 text-gray-400 mb-2" />
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">SRT file upload করুন</p>
-                <p className="text-xs text-gray-400 dark:text-gray-600 mt-1">Click or drag & drop</p>
+                <input ref={fileInputRef} type="file" accept=".srt" className="hidden" onChange={handleFileInput} />
+                <div className="w-12 h-12 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-3">
+                  <Upload className="w-5 h-5 text-gray-400" />
+                </div>
+                <p className="text-sm font-semibold text-gray-600 dark:text-gray-400">SRT file upload করুন</p>
+                <p className="text-xs text-gray-400 dark:text-gray-600 mt-1">Click করুন অথবা drag & drop</p>
                 {parseError && (
-                  <p className="mt-3 text-xs text-red-500 flex items-center gap-1">
-                    <AlertCircle className="w-3.5 h-3.5" />
+                  <p className="mt-3 text-xs text-red-500 flex items-center gap-1 px-4 text-center">
+                    <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
                     {parseError}
                   </p>
                 )}
@@ -399,16 +403,16 @@ export default function SrtTrnsTab() {
                 {entries.map((entry) => (
                   <div
                     key={entry.index}
-                    className="flex gap-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg px-3 py-2 text-sm"
+                    className="flex gap-2.5 bg-gray-50 dark:bg-gray-800/60 border border-gray-100 dark:border-gray-700/60 rounded-xl px-3 py-2 text-sm hover:border-gray-200 dark:hover:border-gray-600 transition-colors"
                   >
-                    <span className="text-xs font-bold text-gray-400 dark:text-gray-600 w-7 flex-shrink-0 pt-0.5 tabular-nums">
+                    <span className="text-[11px] font-bold text-gray-300 dark:text-gray-600 w-6 flex-shrink-0 pt-0.5 tabular-nums text-right">
                       {entry.index}
                     </span>
                     <div className="flex flex-col gap-0.5 min-w-0">
-                      <span className="text-[10px] text-gray-400 dark:text-gray-600 tabular-nums font-mono">
+                      <span className="text-[10px] text-gray-400 dark:text-gray-500 tabular-nums font-mono">
                         {entry.start} → {entry.end}
                       </span>
-                      <span className="text-gray-700 dark:text-gray-300 leading-snug break-words whitespace-pre-wrap">
+                      <span className="text-gray-700 dark:text-gray-300 leading-snug break-words whitespace-pre-wrap text-[13px]">
                         {entry.text}
                       </span>
                     </div>
@@ -419,37 +423,36 @@ export default function SrtTrnsTab() {
           </div>
         </div>
 
-        {/* ── RIGHT: OUTPUT ── */}
-        <div className="flex flex-col flex-1 min-w-0">
-          <div className="flex items-center justify-between px-4 py-2 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 flex-shrink-0">
-            <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-              OUTPUT
+        {/* ── RIGHT: OUTPUT CARD ── */}
+        <div className="flex flex-col flex-1 min-w-0 bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-800 overflow-hidden">
+          {/* Card header */}
+          <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100 dark:border-gray-800 flex-shrink-0">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Output</span>
               {translatedCount > 0 && (
-                <span className="ml-2 font-normal text-gray-400 normal-case tracking-normal">
-                  {translatedCount} translated
-                  {isDone && errorCount === 0 && (
-                    <CheckCircle2 className="inline w-3 h-3 ml-1 text-emerald-500" />
-                  )}
+                <span className="text-xs bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 rounded-full px-2 py-0.5 font-medium">
+                  {translatedCount}
                 </span>
               )}
-            </span>
+            </div>
             {isDone && (
-              <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
+              <span className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
                 <CheckCircle2 className="w-3.5 h-3.5" />
                 Done
               </span>
             )}
           </div>
 
+          {/* Card body */}
           <div className="flex-1 overflow-y-auto p-3">
             {translatedCount === 0 && !translating ? (
               /* Empty state */
               <div className="flex flex-col items-center justify-center h-full min-h-[200px] text-center">
-                <FileText className="w-8 h-8 text-gray-300 dark:text-gray-700 mb-2" />
-                <p className="text-sm text-gray-400 dark:text-gray-600">
-                  {entries.length > 0
-                    ? "Translate button চাপুন"
-                    : "SRT file upload করলে এখানে translation দেখাবে"}
+                <div className="w-12 h-12 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-3">
+                  <FileText className="w-5 h-5 text-gray-300 dark:text-gray-600" />
+                </div>
+                <p className="text-sm font-medium text-gray-400 dark:text-gray-600">
+                  {entries.length > 0 ? "Translate button চাপুন" : "SRT file upload করলে এখানে translation দেখাবে"}
                 </p>
               </div>
             ) : (
@@ -463,34 +466,30 @@ export default function SrtTrnsTab() {
                   return (
                     <div
                       key={entry.index}
-                      className={`flex gap-2 border rounded-lg px-3 py-2 text-sm transition-colors ${
+                      className={`flex gap-2.5 rounded-xl px-3 py-2 text-sm border transition-colors ${
                         hasError
                           ? "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-900"
                           : isLoading
-                          ? "bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-800 animate-pulse"
-                          : "bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800"
+                          ? "bg-orange-50 dark:bg-orange-950/20 border-orange-200 dark:border-orange-800/60"
+                          : "bg-gray-50 dark:bg-gray-800/60 border-gray-100 dark:border-gray-700/60 hover:border-gray-200 dark:hover:border-gray-600"
                       }`}
                     >
-                      <span className="text-xs font-bold text-gray-400 dark:text-gray-600 w-7 flex-shrink-0 pt-0.5 tabular-nums">
+                      <span className="text-[11px] font-bold text-gray-300 dark:text-gray-600 w-6 flex-shrink-0 pt-0.5 tabular-nums text-right">
                         {entry.index}
                       </span>
                       <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-                        <span className="text-[10px] text-gray-400 dark:text-gray-600 tabular-nums font-mono">
+                        <span className="text-[10px] text-gray-400 dark:text-gray-500 tabular-nums font-mono">
                           {entry.start} → {entry.end}
                         </span>
                         {isLoading ? (
-                          <div className="flex items-center gap-1.5 text-orange-500">
+                          <div className="flex items-center gap-1.5 text-orange-500 py-0.5">
                             <Loader2 className="w-3 h-3 animate-spin flex-shrink-0" />
                             <span className="text-xs">Translating…</span>
                           </div>
                         ) : (
-                          <span
-                            className={`leading-snug break-words whitespace-pre-wrap ${
-                              hasError
-                                ? "text-red-600 dark:text-red-400"
-                                : "text-gray-800 dark:text-gray-200"
-                            }`}
-                          >
+                          <span className={`leading-snug break-words whitespace-pre-wrap text-[13px] ${
+                            hasError ? "text-red-600 dark:text-red-400" : "text-gray-700 dark:text-gray-300"
+                          }`}>
                             {t ?? entry.text}
                           </span>
                         )}
@@ -509,6 +508,7 @@ export default function SrtTrnsTab() {
             )}
           </div>
         </div>
+
       </div>
     </div>
   );
