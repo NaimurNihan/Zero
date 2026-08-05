@@ -232,6 +232,12 @@ export default function SrtTrnsTab() {
     setParseError(null);
   }, []);
 
+  const clearOutput = useCallback(() => {
+    setTranslations([]);
+    setErrors([]);
+    setProgress(0);
+  }, []);
+
   const translatedCount = translations.filter((t) => t !== null).length;
   const errorCount = errors.filter(Boolean).length;
   const isDone = !translating && translatedCount > 0 && translatedCount === entries.length;
@@ -447,12 +453,23 @@ export default function SrtTrnsTab() {
                 </span>
               )}
             </div>
-            {isDone && (
-              <span className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                Done
-              </span>
-            )}
+            <div className="flex items-center gap-2">
+              {isDone && (
+                <span className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  Done
+                </span>
+              )}
+              {translatedCount > 0 && !translating && (
+                <button
+                  onClick={clearOutput}
+                  className="w-6 h-6 flex items-center justify-center rounded-md text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors"
+                  title="Clear output"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Card body */}
