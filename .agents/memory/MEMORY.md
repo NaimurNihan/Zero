@@ -1,0 +1,1 @@
+- [TTS engine boundaries](tts-engine-boundaries.md) — Browser SpeechSynthesis is for live playback; downloadable audio should use the server-side Microsoft TTS path.

@@ -14,7 +14,47 @@ const LOCKED_LABELS_STORAGE_KEY = "tts-locked-labels";
 const VOICE_SLOTS_STORAGE_KEY = "tts-voice-slot-labels";
 const SLOT_COUNT = 6;
 
-function findVoiceForLabel(label: string, map: Record<string, string>): string | null {
+type TtsEngine = "microsoft" | "browser";
+
+interface BrowserVoiceConfig {
+  voiceURI: string;
+  name: string;
+  lang: string;
+}
+
+interface SlotVoiceConfig {
+  engine: TtsEngine;
+  voice: string | null;
+  browserVoice?: BrowserVoiceConfig | null;
+}
+
+type VoiceByLabel = Record<string, SlotVoiceConfig>;
+
+function normalizeSlotConfig(value: unknown): SlotVoiceConfig | null {
+  // Existing projects stored Microsoft voice names as plain strings.
+  if (typeof value === "string" && value) {
+    return { engine: "microsoft", voice: value };
+  }
+  if (!value || typeof value !== "object") return null;
+  const raw = value as Partial<SlotVoiceConfig>;
+  if (raw.engine !== "microsoft" && raw.engine !== "browser") return null;
+  if (raw.engine === "microsoft") {
+    return { engine: "microsoft", voice: typeof raw.voice === "string" ? raw.voice : null };
+  }
+  const browserVoice =
+    raw.browserVoice &&
+    typeof raw.browserVoice === "object" &&
+    typeof raw.browserVoice.voiceURI === "string"
+      ? {
+          voiceURI: raw.browserVoice.voiceURI,
+          name: typeof raw.browserVoice.name === "string" ? raw.browserVoice.name : raw.browserVoice.voiceURI,
+          lang: typeof raw.browserVoice.lang === "string" ? raw.browserVoice.lang : "",
+        }
+      : null;
+  return { engine: "browser", voice: null, browserVoice };
+}
+
+function findSlotConfigForLabel(label: string, map: VoiceByLabel): SlotVoiceConfig | null {
   if (!label) return null;
   const direct = map[label];
   if (direct) return direct;
@@ -24,6 +64,26 @@ function findVoiceForLabel(label: string, map: Record<string, string>): string |
     if (k.trim().toLowerCase() === target) return v;
   }
   return null;
+}
+
+function useBrowserVoices(): BrowserVoiceConfig[] {
+  const [voices, setVoices] = useState<BrowserVoiceConfig[]>([]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    const readVoices = () => {
+      const next = window.speechSynthesis
+        .getVoices()
+        .map((voice) => ({ voiceURI: voice.voiceURI, name: voice.name, lang: voice.lang }))
+        .sort((a, b) => `${a.lang} ${a.name}`.localeCompare(`${b.lang} ${b.name}`));
+      setVoices(next);
+    };
+    readVoices();
+    window.speechSynthesis.addEventListener("voiceschanged", readVoices);
+    return () => window.speechSynthesis.removeEventListener("voiceschanged", readVoices);
+  }, []);
+
+  return voices;
 }
 
 function escapeHtml(text: string) {
@@ -184,11 +244,19 @@ function getAudioDuration(url: string): Promise<number> {
 
 interface AudioPoolProps {
   lines: string[];
+  engine: TtsEngine;
   selectedVoice: string | null;
+  browserVoice: BrowserVoiceConfig | null;
   onSendToSpliter?: (files: File[]) => void;
 }
 
-function AudioPool({ lines, selectedVoice, onSendToSpliter }: AudioPoolProps) {
+function AudioPool({
+  lines,
+  engine,
+  selectedVoice,
+  browserVoice,
+  onSendToSpliter,
+}: AudioPoolProps) {
   const [poolAudio, setPoolAudio] = useState<Record<number, AudioEntry>>({});
   const [playingIndex, setPlayingIndex] = useState<number | null>(null);
   const [loadingIndex, setLoadingIndex] = useState<number | null>(null);
@@ -202,6 +270,23 @@ function AudioPool({ lines, selectedVoice, onSendToSpliter }: AudioPoolProps) {
   const poolAudioRef = useRef<Record<number, AudioEntry>>({});
 
   const validLines = lines.filter((l) => l.trim());
+
+  useEffect(() => {
+    autoPlayRef.current = false;
+    loadPoolRef.current = false;
+    setIsAutoPlaying(false);
+    setIsLoadingPool(false);
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.src = "";
+      audioRef.current = null;
+    }
+    if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+    Object.values(poolAudioRef.current).forEach((entry) => URL.revokeObjectURL(entry.url));
+    poolAudioRef.current = {};
+    setPoolAudio({});
+    setLoadProgress({ done: 0, total: 0 });
+  }, [engine, selectedVoice, browserVoice?.voiceURI]);
 
   useEffect(() => {
     return () => {
@@ -225,11 +310,13 @@ function AudioPool({ lines, selectedVoice, onSendToSpliter }: AudioPoolProps) {
       audioRef.current.src = "";
       audioRef.current = null;
     }
+    if ("speechSynthesis" in window) window.speechSynthesis.cancel();
     setPlayingIndex(null);
     setLoadingIndex(null);
   };
 
   const fetchAudio = async (index: number, text: string): Promise<string | null> => {
+    if (engine !== "microsoft") return null;
     if (poolAudioRef.current[index]) return poolAudioRef.current[index].url;
     const res = await fetch(`${import.meta.env.BASE_URL}api/tts`, {
       method: "POST",
@@ -247,6 +334,10 @@ function AudioPool({ lines, selectedVoice, onSendToSpliter }: AudioPoolProps) {
   };
 
   const loadPool = async () => {
+    if (engine !== "microsoft") {
+      toast.info("Browser SpeechSynthesis is available for live playback only. Select Microsoft to load audio files.");
+      return;
+    }
     if (isLoadingPool) {
       loadPoolRef.current = false;
       setIsLoadingPool(false);
@@ -296,6 +387,35 @@ function AudioPool({ lines, selectedVoice, onSendToSpliter }: AudioPoolProps) {
     if (playingIndex === index && !isAutoPlaying) { stopAll(); return; }
     stopAll();
     setLoadingIndex(index);
+    if (engine === "browser") {
+      if (!("speechSynthesis" in window)) {
+        toast.error("Browser SpeechSynthesis is not available in this browser");
+        stopAll();
+        return;
+      }
+      const utterance = new SpeechSynthesisUtterance(line.trim());
+      const voices = window.speechSynthesis.getVoices();
+      const selected = browserVoice
+        ? voices.find((voice) => voice.voiceURI === browserVoice.voiceURI)
+        : undefined;
+      if (selected) utterance.voice = selected;
+      if (browserVoice?.lang) utterance.lang = browserVoice.lang;
+      utterance.onend = () => {
+        setPlayingIndex(null);
+        setLoadingIndex(null);
+      };
+      utterance.onerror = (event) => {
+        if (event.error !== "canceled" && event.error !== "interrupted") {
+          toast.error("Browser voice playback failed");
+        }
+        stopAll();
+      };
+      window.speechSynthesis.speak(utterance);
+      setLoadingIndex(null);
+      setPlayingIndex(index);
+      itemRefs.current[index]?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      return;
+    }
     try {
       const url = await fetchAudio(index, line);
       if (!url) return;
@@ -324,6 +444,43 @@ function AudioPool({ lines, selectedVoice, onSendToSpliter }: AudioPoolProps) {
     itemRefs.current[index]?.scrollIntoView({ behavior: "smooth", block: "center" });
 
     try {
+      if (engine === "browser") {
+        if (!("speechSynthesis" in window)) {
+          toast.error("Browser SpeechSynthesis is not available in this browser");
+          stopAll();
+          return;
+        }
+        const utterance = new SpeechSynthesisUtterance(entry.text.trim());
+        const voices = window.speechSynthesis.getVoices();
+        const selected = browserVoice
+          ? voices.find((voice) => voice.voiceURI === browserVoice.voiceURI)
+          : undefined;
+        if (selected) utterance.voice = selected;
+        if (browserVoice?.lang) utterance.lang = browserVoice.lang;
+        utterance.onend = () => {
+          if (!autoPlayRef.current) {
+            setPlayingIndex(null);
+            setLoadingIndex(null);
+            return;
+          }
+          const nextEntry = realLines.find((x) => x.i > index);
+          if (nextEntry) playNextAuto(nextEntry.i);
+          else {
+            stopAll();
+            toast.success("All lines played!");
+          }
+        };
+        utterance.onerror = (event) => {
+          if (event.error !== "canceled" && event.error !== "interrupted") {
+            toast.error("Browser voice playback failed");
+          }
+          stopAll();
+        };
+        window.speechSynthesis.speak(utterance);
+        setLoadingIndex(null);
+        setPlayingIndex(index);
+        return;
+      }
       const url = await fetchAudio(index, entry.text);
       if (!url || !autoPlayRef.current) { stopAll(); return; }
       const audio = new Audio(url);
@@ -591,12 +748,13 @@ function AudioPool({ lines, selectedVoice, onSendToSpliter }: AudioPoolProps) {
 interface VoiceSlotPillProps {
   index: number;
   label: string;
-  voice: string | null;
+  config: SlotVoiceConfig | null;
   locked: boolean;
   isActive: boolean;
   allVoices: EdgeVoice[] | null;
+  browserVoices: BrowserVoiceConfig[];
   onLabelChange: (s: string) => void;
-  onVoiceChange: (v: string | null) => void;
+  onConfigChange: (config: SlotVoiceConfig) => void;
   onToggleLock: () => void;
   onClear: () => void;
 }
@@ -604,12 +762,13 @@ interface VoiceSlotPillProps {
 function VoiceSlotPill({
   index,
   label,
-  voice,
+  config,
   locked,
   isActive,
   allVoices,
+  browserVoices = [],
   onLabelChange,
-  onVoiceChange,
+  onConfigChange,
   onToggleLock,
   onClear,
 }: VoiceSlotPillProps) {
@@ -621,15 +780,20 @@ function VoiceSlotPill({
   }, [label]);
 
   const voiceShort = useMemo(() => {
-    if (!voice) return null;
-    if (!allVoices) return voice;
-    const v = allVoices.find((x) => x.ShortName === voice);
-    return v ? getVoiceShortDisplay(v) : voice;
-  }, [voice, allVoices]);
+    if (!config) return null;
+    if (config.engine === "browser") {
+      return config.browserVoice?.name || "Browser default";
+    }
+    if (!config.voice) return null;
+    if (!allVoices) return config.voice;
+    const v = allVoices.find((x) => x.ShortName === config.voice);
+    return v ? getVoiceShortDisplay(v) : config.voice;
+  }, [config, allVoices]);
 
   const trimmed = label.trim();
   const displayLabel = trimmed || `Slot ${index + 1}`;
-  const hasContent = !!trimmed || !!voice;
+  const hasContent = !!trimmed || !!config;
+  const selectedBrowserVoice = config?.browserVoice?.voiceURI ?? "";
 
   const commitLabel = () => {
     const next = localLabel.trim();
@@ -651,7 +815,7 @@ function VoiceSlotPill({
           className={`group relative inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider px-2 py-1 rounded-md border transition-colors min-w-[88px] max-w-[170px] ${
             isActive
               ? "bg-emerald-100 border-emerald-500 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400 shadow-sm"
-              : voice && trimmed
+              : config && trimmed
               ? "bg-emerald-50/70 border-emerald-300/70 text-emerald-700/90 dark:bg-emerald-950/40 dark:text-emerald-400/80 hover:brightness-110"
               : trimmed
               ? "bg-muted border-border text-muted-foreground hover:bg-accent"
@@ -699,12 +863,65 @@ function VoiceSlotPill({
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">
+              Engine
+            </label>
+            <select
+              value={config?.engine ?? "microsoft"}
+              onChange={(e) => {
+                const engine = e.target.value as TtsEngine;
+                if (engine === "browser") {
+                  onConfigChange({
+                    engine,
+                    voice: null,
+                    browserVoice: browserVoices[0] ?? null,
+                  });
+                } else {
+                  onConfigChange({
+                    engine,
+                    voice: allVoices?.[0]?.ShortName ?? null,
+                    browserVoice: null,
+                  });
+                }
+              }}
+              className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs text-foreground outline-none focus:ring-2 focus:ring-ring"
+              data-testid={`select-voice-slot-engine-${index}`}
+            >
+              <option value="microsoft">Microsoft Edge TTS</option>
+              <option value="browser">Browser SpeechSynthesis</option>
+            </select>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">
               Voice
             </label>
-            <VoicePicker
-              selectedVoice={voice}
-              onSelect={(v) => onVoiceChange(v)}
-            />
+            {config?.engine === "browser" ? (
+              <select
+                value={selectedBrowserVoice}
+                onChange={(e) => {
+                  const selected = browserVoices.find((v) => v.voiceURI === e.target.value) ?? null;
+                  onConfigChange({ engine: "browser", voice: null, browserVoice: selected });
+                }}
+                className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs text-foreground outline-none focus:ring-2 focus:ring-ring"
+                data-testid={`select-voice-slot-browser-voice-${index}`}
+              >
+                {browserVoices.length === 0 ? (
+                  <option value="">No browser voices found</option>
+                ) : (
+                  browserVoices.map((v) => (
+                    <option key={v.voiceURI} value={v.voiceURI}>
+                      {v.name} · {v.lang}
+                    </option>
+                  ))
+                )}
+              </select>
+            ) : (
+              <VoicePicker
+                selectedVoice={config?.voice ?? null}
+                onSelect={(v) =>
+                  onConfigChange({ engine: "microsoft", voice: v, browserVoice: null })
+                }
+              />
+            )}
           </div>
           <div className="flex items-center justify-between gap-2 pt-2 border-t border-border">
             <button
@@ -754,21 +971,24 @@ export function Editor({ onSendToSpliter }: EditorProps = {}) {
   const [playingIndex, setPlayingIndex] = useState<number | null>(null);
   const [loadingIndex, setLoadingIndex] = useState<number | null>(null);
   const [downloadingIndex, setDownloadingIndex] = useState<number | null>(null);
+  const [selectedEngine, setSelectedEngine] = useState<TtsEngine>("microsoft");
   const [selectedVoice, setSelectedVoice] = useState<string | null>(() => {
     if (typeof window === "undefined") return null;
     const stored = localStorage.getItem(VOICE_STORAGE_KEY);
     return stored && stored !== "null" ? stored : null;
   });
-  const [voiceByLabel, setVoiceByLabel] = useState<Record<string, string>>(() => {
+  const [selectedBrowserVoice, setSelectedBrowserVoice] = useState<BrowserVoiceConfig | null>(null);
+  const [voiceByLabel, setVoiceByLabel] = useState<VoiceByLabel>(() => {
     if (typeof window === "undefined") return {};
     try {
       const stored = localStorage.getItem(VOICE_BY_LABEL_STORAGE_KEY);
       if (!stored) return {};
       const parsed = JSON.parse(stored);
       if (parsed && typeof parsed === "object") {
-        const out: Record<string, string> = {};
+        const out: VoiceByLabel = {};
         for (const [k, v] of Object.entries(parsed)) {
-          if (typeof v === "string" && v) out[k] = v;
+          const config = normalizeSlotConfig(v);
+          if (config) out[k] = config;
         }
         return out;
       }
@@ -815,9 +1035,25 @@ export function Editor({ onSendToSpliter }: EditorProps = {}) {
     }
   });
   const allVoices = useVoices();
+  const browserVoices = useBrowserVoices();
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioUrlRef = useRef<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  const activeSlotConfig = useMemo(
+    () => findSlotConfigForLabel(cardLabel, voiceByLabel),
+    [cardLabel, voiceByLabel],
+  );
+
+  useEffect(() => {
+    if (activeSlotConfig) {
+      setSelectedEngine(activeSlotConfig.engine);
+      setSelectedVoice(activeSlotConfig.engine === "microsoft" ? activeSlotConfig.voice : null);
+      setSelectedBrowserVoice(
+        activeSlotConfig.engine === "browser" ? activeSlotConfig.browserVoice ?? null : null,
+      );
+    }
+  }, [activeSlotConfig]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -865,10 +1101,10 @@ export function Editor({ onSendToSpliter }: EditorProps = {}) {
           // Migrate the saved voice / lock from the old label to the new one
           setVoiceByLabel((prevMap) => {
             const nextMap = { ...prevMap };
-            const savedVoice = nextMap[oldLabel];
-            if (savedVoice) {
+            const savedConfig = nextMap[oldLabel];
+            if (savedConfig) {
               delete nextMap[oldLabel];
-              if (newLabel.trim()) nextMap[newLabel.trim()] = savedVoice;
+              if (newLabel.trim()) nextMap[newLabel.trim()] = savedConfig;
             }
             return nextMap;
           });
@@ -888,8 +1124,8 @@ export function Editor({ onSendToSpliter }: EditorProps = {}) {
     [],
   );
 
-  const setSlotVoice = React.useCallback(
-    (index: number, voice: string | null) => {
+  const setSlotConfig = React.useCallback(
+    (index: number, config: SlotVoiceConfig) => {
       const label = (voiceSlotLabels[index] ?? "").trim();
       if (!label) {
         toast.error("Set a name for this slot first");
@@ -897,12 +1133,13 @@ export function Editor({ onSendToSpliter }: EditorProps = {}) {
       }
       setVoiceByLabel((prev) => {
         const next = { ...prev };
-        if (voice) next[label] = voice;
-        else delete next[label];
+        next[label] = config;
         return next;
       });
       if (label.toLowerCase() === cardLabel.trim().toLowerCase()) {
-        setSelectedVoice(voice);
+        setSelectedEngine(config.engine);
+        setSelectedVoice(config.engine === "microsoft" ? config.voice : null);
+        setSelectedBrowserVoice(config.engine === "browser" ? config.browserVoice ?? null : null);
       }
     },
     [voiceSlotLabels, cardLabel],
@@ -953,6 +1190,7 @@ export function Editor({ onSendToSpliter }: EditorProps = {}) {
 
   const handleVoiceSelect = React.useCallback(
     (voice: string | null) => {
+      if (selectedEngine !== "microsoft") return;
       setSelectedVoice(voice);
       if (lockedLabels[cardLabel]) {
         // Locked: keep the saved binding for this label untouched.
@@ -961,14 +1199,14 @@ export function Editor({ onSendToSpliter }: EditorProps = {}) {
       setVoiceByLabel((prev) => {
         const next = { ...prev };
         if (voice) {
-          next[cardLabel] = voice;
+          next[cardLabel] = { engine: "microsoft", voice, browserVoice: null };
         } else {
           delete next[cardLabel];
         }
         return next;
       });
     },
-    [cardLabel, lockedLabels],
+    [cardLabel, lockedLabels, selectedEngine],
   );
 
   const stopPlayback = React.useCallback(() => {
@@ -982,6 +1220,9 @@ export function Editor({ onSendToSpliter }: EditorProps = {}) {
     if (audioUrlRef.current) {
       URL.revokeObjectURL(audioUrlRef.current);
       audioUrlRef.current = null;
+    }
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
     }
     setPlayingIndex(null);
     setLoadingIndex(null);
@@ -1003,9 +1244,11 @@ export function Editor({ onSendToSpliter }: EditorProps = {}) {
         const label = detail.label;
         setCardLabel(label);
         setVoiceByLabel((prevMap) => {
-          const saved = findVoiceForLabel(label, prevMap);
+          const saved = findSlotConfigForLabel(label, prevMap);
           if (saved) {
-            setSelectedVoice(saved);
+            setSelectedEngine(saved.engine);
+            setSelectedVoice(saved.engine === "microsoft" ? saved.voice : null);
+            setSelectedBrowserVoice(saved.engine === "browser" ? saved.browserVoice ?? null : null);
           }
           return prevMap;
         });
@@ -1027,6 +1270,10 @@ export function Editor({ onSendToSpliter }: EditorProps = {}) {
     if (downloadingIndex !== null) return;
     const trimmed = text.trim();
     if (!trimmed) { toast.error("Nothing to download"); return; }
+    if (selectedEngine !== "microsoft") {
+      toast.info("Browser SpeechSynthesis is for live playback. Select Microsoft to download MP3.");
+      return;
+    }
     setDownloadingIndex(index);
     try {
       const res = await fetch(`${import.meta.env.BASE_URL}api/tts`, {
@@ -1060,6 +1307,31 @@ export function Editor({ onSendToSpliter }: EditorProps = {}) {
     const trimmed = text.trim();
     if (!trimmed) { toast.error("Nothing to read"); return; }
     setLoadingIndex(index);
+    if (selectedEngine === "browser") {
+      if (!("speechSynthesis" in window)) {
+        toast.error("Browser SpeechSynthesis is not available in this browser");
+        stopPlayback();
+        return;
+      }
+      const utterance = new SpeechSynthesisUtterance(trimmed);
+      const available = window.speechSynthesis.getVoices();
+      const selected = selectedBrowserVoice
+        ? available.find((voice) => voice.voiceURI === selectedBrowserVoice.voiceURI)
+        : undefined;
+      if (selected) utterance.voice = selected;
+      if (selectedBrowserVoice?.lang) utterance.lang = selectedBrowserVoice.lang;
+      utterance.onend = () => stopPlayback();
+      utterance.onerror = (event) => {
+        if (event.error !== "canceled" && event.error !== "interrupted") {
+          toast.error("Browser voice playback failed");
+        }
+        stopPlayback();
+      };
+      window.speechSynthesis.speak(utterance);
+      setLoadingIndex(null);
+      setPlayingIndex(index);
+      return;
+    }
     try {
       const res = await fetch(`${import.meta.env.BASE_URL}api/tts`, {
         method: "POST",
@@ -1302,7 +1574,7 @@ export function Editor({ onSendToSpliter }: EditorProps = {}) {
         <div className="flex items-center gap-2 flex-wrap min-w-0">
           {voiceSlotLabels.map((slotLabel, i) => {
             const trimmed = slotLabel.trim();
-            const slotVoice = trimmed ? findVoiceForLabel(trimmed, voiceByLabel) : null;
+            const slotConfig = trimmed ? findSlotConfigForLabel(trimmed, voiceByLabel) : null;
             const isLocked = trimmed
               ? !!(lockedLabels[trimmed] ||
                   Object.keys(lockedLabels).some(
@@ -1317,19 +1589,20 @@ export function Editor({ onSendToSpliter }: EditorProps = {}) {
                 key={i}
                 index={i}
                 label={slotLabel}
-                voice={slotVoice}
+                config={slotConfig}
                 locked={isLocked}
                 isActive={isActive}
                 allVoices={allVoices}
+                browserVoices={browserVoices}
                 onLabelChange={(s) => updateSlotLabel(i, s)}
-                onVoiceChange={(v) => setSlotVoice(i, v)}
+                onConfigChange={(config) => setSlotConfig(i, config)}
                 onToggleLock={() => toggleSlotLock(i)}
                 onClear={() => clearSlot(i)}
               />
             );
           })}
           <VoicePicker
-            selectedVoice={selectedVoice}
+            selectedVoice={selectedEngine === "microsoft" ? selectedVoice : null}
             onSelect={handleVoiceSelect}
             trigger={
               <Button
@@ -1340,7 +1613,11 @@ export function Editor({ onSendToSpliter }: EditorProps = {}) {
               >
                 <Mic className="h-3 w-3 shrink-0 text-primary" />
                 <span className="truncate normal-case tracking-normal font-medium text-[11px]">
-                  {selectedVoice ? selectedVoice.split("-").slice(-1)[0].replace(/Neural$/, "") : "Auto"}
+                  {selectedEngine === "browser"
+                    ? selectedBrowserVoice?.name || "Browser"
+                    : selectedVoice
+                    ? selectedVoice.split("-").slice(-1)[0].replace(/Neural$/, "")
+                    : "Auto"}
                 </span>
                 <ChevronDown className="h-3 w-3 shrink-0 opacity-60" />
               </Button>
@@ -1426,8 +1703,12 @@ export function Editor({ onSendToSpliter }: EditorProps = {}) {
                       size="icon"
                       className="h-8 w-8 rounded-md shrink-0 text-muted-foreground hover:text-foreground"
                       onClick={() => downloadLine(index, line)}
-                      disabled={disabled || isDownloading}
-                      title="Download MP3"
+                      disabled={disabled || isDownloading || selectedEngine !== "microsoft"}
+                      title={
+                        selectedEngine === "microsoft"
+                          ? "Download MP3"
+                          : "Browser SpeechSynthesis is for live playback only"
+                      }
                     >
                       {isDownloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
                     </Button>
@@ -1448,7 +1729,13 @@ export function Editor({ onSendToSpliter }: EditorProps = {}) {
 
       {/* Audio Pool Card */}
       {isCutView && (
-        <AudioPool lines={content} selectedVoice={selectedVoice} onSendToSpliter={onSendToSpliter} />
+        <AudioPool
+          lines={content}
+          engine={selectedEngine}
+          selectedVoice={selectedVoice}
+          browserVoice={selectedBrowserVoice}
+          onSendToSpliter={onSendToSpliter}
+        />
       )}
     </div>
   );
