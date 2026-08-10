@@ -160,6 +160,7 @@ export default function SrtMergerTab({ onSendToName, onTransform, clearKey, inco
   const [showNotepad, setShowNotepad] = useState(false);
   const [notepadText, setNotepadText] = useState("");
   const [notepadSplit, setNotepadSplit] = useState(false);
+  const [notepadChunkSize, setNotepadChunkSize] = useState<50 | 100>(100);
   const [copiedChunks, setCopiedChunks] = useState<Set<number>>(new Set());
   const [copyAllFlash, setCopyAllFlash] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -491,6 +492,7 @@ export default function SrtMergerTab({ onSendToName, onTransform, clearKey, inco
     setIsGenerated(false);
     setNotepadText("");
     setNotepadSplit(false);
+    setNotepadChunkSize(100);
     setCopiedChunks(new Set());
     toast({ title: "Cleared", description: "All merger data removed" });
   };
@@ -1004,9 +1006,36 @@ export default function SrtMergerTab({ onSendToName, onTransform, clearKey, inco
                 })()}
                 {notepadText && (
                   <button
-                    onClick={() => setNotepadSplit((v) => !v)}
-                    className={`p-1 rounded transition-colors ${notepadSplit ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300" : "hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400"}`}
-                    title={notepadSplit ? "Exit split view" : "Split into 100-line chunks"}
+                    onClick={() => {
+                      if (notepadSplit && notepadChunkSize === 50) {
+                        setNotepadSplit(false);
+                      } else {
+                        setNotepadChunkSize(50);
+                        setNotepadSplit(true);
+                      }
+                    }}
+                    className={`px-1.5 py-0.5 rounded text-[11px] font-medium transition-colors ${
+                      notepadSplit && notepadChunkSize === 50
+                        ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
+                        : "hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400"
+                    }`}
+                    title={notepadSplit && notepadChunkSize === 50 ? "Exit split view" : "Split into 50-line chunks"}
+                  >
+                    50 Lines
+                  </button>
+                )}
+                {notepadText && (
+                  <button
+                    onClick={() => {
+                      if (notepadSplit && notepadChunkSize === 100) {
+                        setNotepadSplit(false);
+                      } else {
+                        setNotepadChunkSize(100);
+                        setNotepadSplit(true);
+                      }
+                    }}
+                    className={`p-1 rounded transition-colors ${notepadSplit && notepadChunkSize === 100 ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300" : "hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400"}`}
+                    title={notepadSplit && notepadChunkSize === 100 ? "Exit split view" : "Split into 100-line chunks"}
                   >
                     <Scissors className="w-4 h-4" />
                   </button>
@@ -1033,7 +1062,7 @@ export default function SrtMergerTab({ onSendToName, onTransform, clearKey, inco
                 <div className="flex flex-col gap-3">
                   {(() => {
                     const lines = notepadText.split("\n");
-                    const CHUNK = 100;
+                    const CHUNK = notepadChunkSize;
                     const chunks: { start: number; end: number; text: string }[] = [];
                     for (let i = 0; i < lines.length; i += CHUNK) {
                       const slice = lines.slice(i, i + CHUNK);
