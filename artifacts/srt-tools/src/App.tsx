@@ -846,12 +846,16 @@ export default function App() {
                 // Step 6: trigger Split Lines (run-all = ✅→. + split + trim -10ms, same as button)
                 setTimeout(() => {
                   window.dispatchEvent(new CustomEvent("srt-tools:splitter-run-all"));
-                  // Step 7: trigger Load Srtm → SRT Merger (wait for React to re-render with new outputBlocks)
+                  // Step 7: merge every two generated subtitle cards into one.
                   setTimeout(() => {
-                    window.dispatchEvent(new CustomEvent("srt-tools:splitter-load-merger"));
+                    window.dispatchEvent(new CustomEvent("srt-tools:splitter-merge-2"));
+                    // Step 8: trigger Load Srtm → SRT Merger after merged output is ready.
                     setTimeout(() => {
-                      handleSelectTab("merger");
-                    }, 80);
+                      window.dispatchEvent(new CustomEvent("srt-tools:splitter-load-merger"));
+                      setTimeout(() => {
+                        handleSelectTab("merger");
+                      }, 80);
+                    }, 400);
                   }, 400);
                 }, 80);
               }, 80);

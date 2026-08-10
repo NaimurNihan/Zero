@@ -513,6 +513,7 @@ export default function SrtTimeSplitterTab({ incomingSrt, incomingFilename, inco
 
   const splitRef = useRef(handleSplitLine);
   const runAllRef = useRef(handleRunAll);
+  const merge2Ref = useRef(handleMerge2);
   const dotRef = useRef(handleEmojiToDot);
   const trimRef = useRef(handleTrimEnd10);
   const loadMergerRef = useRef(() => {
@@ -523,6 +524,7 @@ export default function SrtTimeSplitterTab({ incomingSrt, incomingFilename, inco
   });
   splitRef.current = handleSplitLine;
   runAllRef.current = handleRunAll;
+  merge2Ref.current = handleMerge2;
   dotRef.current = handleEmojiToDot;
   trimRef.current = handleTrimEnd10;
   loadMergerRef.current = () => {
@@ -534,17 +536,20 @@ export default function SrtTimeSplitterTab({ incomingSrt, incomingFilename, inco
   useEffect(() => {
     const hSplit = () => splitRef.current();
     const hRunAll = () => runAllRef.current();
+    const hMerge2 = () => merge2Ref.current();
     const hDot = () => dotRef.current();
     const hTrim = () => trimRef.current();
     const hLoadMerger = () => loadMergerRef.current();
     window.addEventListener("srt-tools:splitter-split", hSplit);
     window.addEventListener("srt-tools:splitter-run-all", hRunAll);
+    window.addEventListener("srt-tools:splitter-merge-2", hMerge2);
     window.addEventListener("srt-tools:splitter-dot", hDot);
     window.addEventListener("srt-tools:splitter-trim10", hTrim);
     window.addEventListener("srt-tools:splitter-load-merger", hLoadMerger);
     return () => {
       window.removeEventListener("srt-tools:splitter-split", hSplit);
       window.removeEventListener("srt-tools:splitter-run-all", hRunAll);
+      window.removeEventListener("srt-tools:splitter-merge-2", hMerge2);
       window.removeEventListener("srt-tools:splitter-dot", hDot);
       window.removeEventListener("srt-tools:splitter-trim10", hTrim);
       window.removeEventListener("srt-tools:splitter-load-merger", hLoadMerger);
