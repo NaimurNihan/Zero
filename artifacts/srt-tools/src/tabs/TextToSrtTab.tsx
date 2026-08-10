@@ -161,7 +161,7 @@ interface Props {
 export default function TextToSrtTab({ onLoadToMerger, onLoadToEditor, onAutoGen }: Props) {
   const { toast } = useToast();
   const [input, setInput] = useState("");
-  const [lastTime, setLastTime] = useState("");
+  const [lastTime, setLastTime] = useState("00:00:00");
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
   const [generatedEntries, setGeneratedEntries] = useState<Entry[]>([]);
   const [isGenerated, setIsGenerated] = useState(false);
@@ -310,15 +310,13 @@ export default function TextToSrtTab({ onLoadToMerger, onLoadToEditor, onAutoGen
               </label>
               <input
                 id="text-to-srt-last-time"
-                type="text"
-                inputMode="numeric"
-                maxLength={8}
-                placeholder="HH:MM:SS"
+                type="time"
+                step="1"
                 value={lastTime}
                 onChange={(e) => setLastTime(e.target.value)}
                 aria-label="Last subtitle time"
                 aria-invalid={hasInvalidLastTime}
-                className={`w-[82px] rounded-md border px-2 py-0.5 text-[11px] font-mono outline-none transition-colors ${
+                className={`w-[92px] rounded-md border px-2 py-0.5 text-[11px] font-mono outline-none transition-colors ${
                   hasInvalidLastTime
                     ? "border-red-300 bg-red-50 text-red-700 placeholder:text-red-300 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300"
                     : "border-gray-200 bg-white text-gray-600 placeholder:text-gray-300 focus:border-blue-300 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-300 dark:placeholder:text-gray-600"
