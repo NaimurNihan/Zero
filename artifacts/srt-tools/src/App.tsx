@@ -14,13 +14,12 @@ import AiAudioTab from "@/tabs/AiAudioTab";
 import TextToSrtTab from "@/tabs/TextToSrtTab";
 import AudioSrtSplitterTab from "@/tabs/AudioSrtSplitterTab";
 import AudioPlusMinusTab from "@/tabs/AudioPlusMinusTab";
-import SrtTrnsTab from "@/tabs/SrtTrnsTab";
 
-type Tab = "editor" | "maker" | "note" | "splitter" | "srtTrns" | "merger" | "aiAudio" | "audio" | "video" | "speed" | "textToSrt" | "audioSrtSplitter" | "audioPlusMinus";
+type Tab = "editor" | "maker" | "note" | "splitter" | "merger" | "aiAudio" | "audio" | "video" | "speed" | "textToSrt" | "audioSrtSplitter" | "audioPlusMinus";
 type Group = "A" | "B" | "C";
 
 const GROUP_TABS: Record<Group, Tab[]> = {
-  A: ["textToSrt", "merger", "editor", "splitter", "srtTrns", "note"],
+  A: ["textToSrt", "merger", "editor", "splitter", "note"],
   B: ["note", "aiAudio", "audio", "audioSrtSplitter", "audioPlusMinus", "maker"],
   C: ["video", "speed"],
 };
@@ -59,15 +58,6 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
     icon: (
       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.121 14.121L19 19m-7-7l7-7m-7 7l-2.879 2.879M12 12L9.121 9.121m0 5.758a3 3 0 10-4.243 4.243 3 3 0 004.243-4.243zm0-5.758a3 3 0 10-4.243-4.243 3 3 0 004.243 4.243z" />
-      </svg>
-    ),
-  },
-  {
-    id: "srtTrns",
-    label: "SRT Trns",
-    icon: (
-      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
       </svg>
     ),
   },
@@ -749,19 +739,6 @@ export default function App() {
         />
       </div>
 
-      {/* SRT Trns — full width, hidden when inactive */}
-      <div style={{ display: activeTab === "srtTrns" ? "flex" : "none" }} className="flex-col flex-1 overflow-hidden">
-        <SrtTrnsTab
-          onSendToNote={(text, name, langIdx) => {
-            setNoteIncomingText(text);
-            setNoteIncomingName(name);
-            setNoteIncomingLangIdx(langIdx);
-            setNoteIncomingKey((k) => k + 1);
-            handleSelectTab("note");
-          }}
-        />
-      </div>
-
       {/* SRT Marger — full width, hidden when inactive */}
       <div style={{ display: activeTab === "merger" ? "flex" : "none" }} className="flex-col flex-1 overflow-y-auto">
         <SrtMergerTab
@@ -885,7 +862,7 @@ export default function App() {
 
       {/* Other tabs */}
       <main
-        style={{ display: activeTab === "maker" || activeTab === "note" || activeTab === "splitter" || activeTab === "srtTrns" || activeTab === "merger" || activeTab === "aiAudio" || activeTab === "audio" || activeTab === "video" || activeTab === "speed" || activeTab === "textToSrt" || activeTab === "audioSrtSplitter" || activeTab === "audioPlusMinus" ? "none" : "block" }}
+        style={{ display: activeTab === "maker" || activeTab === "note" || activeTab === "splitter" || activeTab === "merger" || activeTab === "aiAudio" || activeTab === "audio" || activeTab === "video" || activeTab === "speed" || activeTab === "textToSrt" || activeTab === "audioSrtSplitter" || activeTab === "audioPlusMinus" ? "none" : "block" }}
         className="max-w-5xl mx-auto px-4 py-5 flex-1 overflow-y-auto w-full min-h-0"
       >
         {activeTab === "editor" && (
