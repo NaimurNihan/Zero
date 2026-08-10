@@ -506,21 +506,14 @@ export default function SrtMergerTab({ onSendToName, onTransform, clearKey, inco
           <button
             onClick={() => {
               if (srtEntries.length > 0) {
-                setNotepadText((prev) => {
-                  const existing = prev.trimEnd();
-                  const numberMatches = existing.match(/\((\d+)\)/g);
-                  const lastNum = numberMatches
-                    ? Math.max(...numberMatches.map((m) => parseInt(m.slice(1, -1), 10) || 0))
-                    : 0;
-                  const converted = srtEntries
-                    .map((entry, i) => `(${lastNum + i + 1}) { ${entry.text.replace(/\n/g, " ")} }`)
-                    .join("\n");
-                  return existing ? existing + "\n" + converted : converted;
-                });
+                const converted = srtEntries
+                  .map((entry, i) => `(${i + 1}) { ${entry.text.replace(/\n/g, " ")} }`)
+                  .join("\n");
+                setNotepadText(converted);
               }
               setShowNotepad(true);
             }}
-            title="Open notepad — appends current SRT with continued numbering"
+            title="Open notepad — syncs current SRT lines"
             className="p-1 -m-1 rounded hover:bg-emerald-50 transition-colors"
           >
             <FileText className="w-5 h-5 text-emerald-500" />
