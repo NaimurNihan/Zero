@@ -179,6 +179,25 @@ function NotepadPopup({
 
 const CHECK_MARK = "✅";
 
+function isDecimalPoint(text: string, index: number) {
+  return (
+    text[index] === "." &&
+    /\d/.test(text[index - 1] ?? "") &&
+    /\d/.test(text[index + 1] ?? "")
+  );
+}
+
+function countConvertiblePunctuation(text: string) {
+  let count = 0;
+  for (let i = 0; i < text.length; i++) {
+    const mark = text[i];
+    if (mark === "?" || mark === "!" || mark === "।" || (mark === "." && !isDecimalPoint(text, i))) {
+      count++;
+    }
+  }
+  return count;
+}
+
 const ABBR_MAP: Record<string, string> = {
   "Mr.": "Mister", "Mrs.": "Mistress", "Ms.": "Ms", "Dr.": "Doctor",
   "Prof.": "Professor", "Ltd.": "Limited", "Co.": "Company",
@@ -635,10 +654,12 @@ export default function SrtEditorTab({ subtitles, filename, setSubtitles, setFil
       const multiMatches = (text.match(/[.?!।]{2,}/g) || []);
       removed += multiMatches.length;
       text = text.replace(/[.?!।]{2,}/g, "");
-      // Step 3: replace remaining single punctuation with ✅
-      const singleMatches = (text.match(/[.?!।]/g) || []);
-      marks += singleMatches.length;
-      text = text.replace(/[.?!।]/g, CHECK_MARK);
+      // Step 3: replace punctuation with ✅, but keep decimal points such as "5.5"
+      text = text.replace(/[.?!।]/g, (mark, offset: number, source: string) => {
+        if (isDecimalPoint(source, offset)) return mark;
+        marks++;
+        return CHECK_MARK;
+      });
       return { ...s, text, edited: text !== s.originalText };
     });
     setSubtitles(result);
@@ -693,7 +714,7 @@ export default function SrtEditorTab({ subtitles, filename, setSubtitles, setFil
   }, [jumpTime, subtitles]);
 
   const punctCount = subtitles.reduce(
-    (acc, s) => acc + (s.text.match(/[.?!।]/g) || []).length, 0
+    (acc, s) => acc + countConvertiblePunctuation(s.text), 0
   );
 
   const partBoundaries = dividedParts
