@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight, Copy, Download, FileText, Send, Sparkles, Wand2, X, Zap } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -17,6 +17,114 @@ function parseLastTimeMs(s: string): number | null {
   const match = s.trim().match(/^(\d{2}):([0-5]\d):([0-5]\d)$/);
   if (!match) return null;
   return (Number(match[1]) * 3600 + Number(match[2]) * 60 + Number(match[3])) * 1000;
+}
+
+function parseLastTimeParts(value: string): [string, string, string] {
+  const match = value.match(/^(\d{2}):(\d{2}):(\d{2})$/);
+  return match ? [match[1], match[2], match[3]] : ["00", "00", "00"];
+}
+
+function buildLastTime(parts: string[]): string {
+  return parts.map((part) => part.padStart(2, "0")).join(":");
+}
+
+function LastTimeInput({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const [parts, setParts] = useState<[string, string, string]>(() => parseLastTimeParts(value));
+  const focusedRef = useRef(false);
+  const refs = [useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null)];
+
+  useEffect(() => {
+    if (!focusedRef.current) {
+      setParts(parseLastTimeParts(value));
+    }
+  }, [value]);
+
+  function handleChange(index: number, raw: string) {
+    const next = [...parts] as [string, string, string];
+    next[index] = raw.replace(/\D/g, "").slice(0, 2);
+    setParts(next);
+    onChange(buildLastTime(next));
+
+    if (next[index].length === 2 && index < 2) {
+      setTimeout(() => {
+        refs[index + 1].current?.focus();
+        refs[index + 1].current?.select();
+      }, 0);
+    }
+  }
+
+  function handleFocus(index: number, event: React.FocusEvent<HTMLInputElement>) {
+    focusedRef.current = true;
+    event.target.select();
+    const next = [...parts] as [string, string, string];
+    next[index] = "";
+    setParts(next);
+  }
+
+  function handleBlur(index: number) {
+    const next = [...parts] as [string, string, string];
+    next[index] = next[index].padStart(2, "0");
+    setParts(next);
+    onChange(buildLastTime(next));
+    setTimeout(() => {
+      if (!refs.some((ref) => ref.current === document.activeElement)) {
+        focusedRef.current = false;
+      }
+    }, 0);
+  }
+
+  function handleKeyDown(index: number, event: React.KeyboardEvent<HTMLInputElement>) {
+    if (event.key === "Backspace" && parts[index] === "" && index > 0) {
+      refs[index - 1].current?.focus();
+    }
+    if (event.key === "ArrowRight" && index < 2) {
+      const input = refs[index].current;
+      if (input && input.selectionStart === input.value.length) {
+        event.preventDefault();
+        refs[index + 1].current?.focus();
+        refs[index + 1].current?.select();
+      }
+    }
+    if (event.key === "ArrowLeft" && index > 0) {
+      const input = refs[index].current;
+      if (input && input.selectionStart === 0) {
+        event.preventDefault();
+        refs[index - 1].current?.focus();
+        refs[index - 1].current?.select();
+      }
+    }
+  }
+
+  const base = "w-5 text-xs font-mono bg-transparent border-none outline-none focus:outline-none text-center text-gray-600 dark:text-gray-300";
+  const separator = "text-xs font-mono select-none text-gray-400 dark:text-gray-500";
+
+  return (
+    <div className="flex items-center border border-gray-200 dark:border-gray-700 rounded px-1 py-0.5 focus-within:ring-1 focus-within:ring-emerald-300">
+      {parts.map((part, index) => (
+        <span key={index} className="flex items-center">
+          {index > 0 && <span className={separator}>:</span>}
+          <input
+            ref={refs[index]}
+            className={base}
+            value={part}
+            maxLength={2}
+            inputMode="numeric"
+            aria-label={index === 0 ? "Last time hours" : index === 1 ? "Last time minutes" : "Last time seconds"}
+            onChange={(event) => handleChange(index, event.target.value)}
+            onKeyDown={(event) => handleKeyDown(index, event)}
+            onFocus={(event) => handleFocus(index, event)}
+            onBlur={() => handleBlur(index)}
+          />
+        </span>
+      ))}
+    </div>
+  );
 }
 
 function msToSrtTime(ms: number): string {
@@ -161,7 +269,7 @@ interface Props {
 export default function TextToSrtTab({ onLoadToMerger, onLoadToEditor, onAutoGen }: Props) {
   const { toast } = useToast();
   const [input, setInput] = useState("");
-  const [lastTime, setLastTime] = useState("");
+  const [lastTime, setLastTime] = useState("00:00:00");
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
   const [generatedEntries, setGeneratedEntries] = useState<Entry[]>([]);
   const [isGenerated, setIsGenerated] = useState(false);
@@ -308,23 +416,7 @@ export default function TextToSrtTab({ onLoadToMerger, onLoadToEditor, onAutoGen
               >
                 Last time
               </label>
-              <input
-                id="text-to-srt-last-time"
-                type="text"
-                inputMode="numeric"
-                maxLength={8}
-                placeholder="HH:MM:SS"
-                value={lastTime}
-                onChange={(e) => setLastTime(e.target.value)}
-                aria-label="Last subtitle time"
-                aria-invalid={hasInvalidLastTime}
-                className={`w-[82px] rounded-md border px-2 py-0.5 text-[11px] font-mono outline-none transition-colors ${
-                  hasInvalidLastTime
-                    ? "border-red-300 bg-red-50 text-red-700 placeholder:text-red-300 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300"
-                    : "border-gray-200 bg-white text-gray-600 placeholder:text-gray-300 focus:border-blue-300 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-300 dark:placeholder:text-gray-600"
-                }`}
-                title="Set the end time for the last subtitle"
-              />
+              <LastTimeInput value={lastTime} onChange={setLastTime} />
               {input.trim() && (
                 <button
                   onClick={() => {
