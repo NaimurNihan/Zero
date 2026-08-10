@@ -13,6 +13,12 @@ function parseTimestampMs(s: string): number | null {
   return null;
 }
 
+function parseLastTimeMs(s: string): number | null {
+  const match = s.trim().match(/^(\d{2}):([0-5]\d):([0-5]\d)$/);
+  if (!match) return null;
+  return (Number(match[1]) * 3600 + Number(match[2]) * 60 + Number(match[3])) * 1000;
+}
+
 function msToSrtTime(ms: number): string {
   const h = Math.floor(ms / 3600000);
   const m = Math.floor((ms % 3600000) / 60000);
@@ -74,7 +80,7 @@ interface Entry {
   text: string;
 }
 
-function parseInput(raw: string): Entry[] {
+function parseInput(raw: string, lastTimeMs: number | null = null): Entry[] {
   const lines = raw.split("\n").map((l) => l.trim()).filter(Boolean);
   const parsed: { startMs: number; text: string; trailingMs: number | null }[] = [];
   let standaloneEnd: number | null = null;
@@ -111,7 +117,9 @@ function parseInput(raw: string): Entry[] {
     if (i < parsed.length - 1) {
       endMs = parsed[i + 1].startMs;
     } else {
-      if (p.trailingMs !== null && p.trailingMs > p.startMs) {
+      if (lastTimeMs !== null && lastTimeMs > p.startMs) {
+        endMs = lastTimeMs;
+      } else if (p.trailingMs !== null && p.trailingMs > p.startMs) {
         endMs = p.trailingMs;
       } else if (standaloneEnd !== null && standaloneEnd > p.startMs) {
         endMs = standaloneEnd;
@@ -141,7 +149,8 @@ Each entry's end time = next entry's start time
 Last entry end time (3 ways):
   1. At end of line: "0:18 - text 0:25"
   2. Separate line: "0:25"
-  3. Omit: +5 seconds added automatically`;
+  3. Use the Last time box above (HH:MM:SS)
+  4. Omit: +5 seconds added automatically`;
 
 interface Props {
   onLoadToMerger?: (srt: string, filename: string) => void;
@@ -152,11 +161,14 @@ interface Props {
 export default function TextToSrtTab({ onLoadToMerger, onLoadToEditor, onAutoGen }: Props) {
   const { toast } = useToast();
   const [input, setInput] = useState("");
+  const [lastTime, setLastTime] = useState("");
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
   const [generatedEntries, setGeneratedEntries] = useState<Entry[]>([]);
   const [isGenerated, setIsGenerated] = useState(false);
 
-  const parsedEntries = useMemo(() => parseInput(input), [input]);
+  const parsedLastTimeMs = useMemo(() => parseLastTimeMs(lastTime), [lastTime]);
+  const hasInvalidLastTime = lastTime.trim().length > 0 && parsedLastTimeMs === null;
+  const parsedEntries = useMemo(() => parseInput(input, parsedLastTimeMs), [input, parsedLastTimeMs]);
   const entries = isGenerated ? generatedEntries : [];
   const srtOutput = useMemo(
     () => (generatedEntries.length > 0 ? toSrt(generatedEntries) : ""),
@@ -164,7 +176,11 @@ export default function TextToSrtTab({ onLoadToMerger, onLoadToEditor, onAutoGen
   );
 
   const handleGenerate = () => {
-    const result = parseInput(input);
+    if (hasInvalidLastTime) {
+      toast({ title: "Invalid last time", description: "Use the HH:MM:SS format, for example 00:01:30." });
+      return;
+    }
+    const result = parseInput(input, parsedLastTimeMs);
     if (result.length === 0) {
       toast({ title: "Nothing to generate", description: "Add some timestamped lines first" });
       return;
@@ -185,7 +201,7 @@ export default function TextToSrtTab({ onLoadToMerger, onLoadToEditor, onAutoGen
     setGeneratedEntries([]);
     setIsGenerated(false);
     // Step 2: Generate from the cleaned text directly (don't wait for state update)
-    const result = parseInput(cleaned);
+    const result = parseInput(cleaned, parsedLastTimeMs);
     if (result.length === 0) {
       toast({ title: "Clean done", description: "No valid subtitle entries found after cleaning." });
       return;
@@ -286,6 +302,29 @@ export default function TextToSrtTab({ onLoadToMerger, onLoadToEditor, onAutoGen
           <div className="px-3 py-2 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between shrink-0">
             <span className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Input</span>
             <div className="flex items-center gap-1.5">
+              <label
+                htmlFor="text-to-srt-last-time"
+                className="text-[11px] text-gray-400 dark:text-gray-500 whitespace-nowrap"
+              >
+                Last time
+              </label>
+              <input
+                id="text-to-srt-last-time"
+                type="text"
+                inputMode="numeric"
+                maxLength={8}
+                placeholder="HH:MM:SS"
+                value={lastTime}
+                onChange={(e) => setLastTime(e.target.value)}
+                aria-label="Last subtitle time"
+                aria-invalid={hasInvalidLastTime}
+                className={`w-[82px] rounded-md border px-2 py-0.5 text-[11px] font-mono outline-none transition-colors ${
+                  hasInvalidLastTime
+                    ? "border-red-300 bg-red-50 text-red-700 placeholder:text-red-300 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300"
+                    : "border-gray-200 bg-white text-gray-600 placeholder:text-gray-300 focus:border-blue-300 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-300 dark:placeholder:text-gray-600"
+                }`}
+                title="Set the end time for the last subtitle"
+              />
               {input.trim() && (
                 <button
                   onClick={() => {
