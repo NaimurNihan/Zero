@@ -104,10 +104,18 @@ const NOTE_LANGS = [
 
 interface SrtTrnsTabProps {
   onSendToNote?: (text: string, name: string, langIdx: number) => void;
+  incomingSrt?: string;
+  incomingFilename?: string;
+  incomingKey?: number;
 }
 
 // ─── Main Component ────────────────────────────────────────────────────────────
-export default function SrtTrnsTab({ onSendToNote }: SrtTrnsTabProps = {}) {
+export default function SrtTrnsTab({
+  onSendToNote,
+  incomingSrt,
+  incomingFilename,
+  incomingKey,
+}: SrtTrnsTabProps = {}) {
   const [file, setFile] = useState<File | null>(null);
   const [entries, setEntries] = useState<SrtEntry[]>([]);
   const [translations, setTranslations] = useState<(string | null)[]>([]);
@@ -120,6 +128,8 @@ export default function SrtTrnsTab({ onSendToNote }: SrtTrnsTabProps = {}) {
   const [isDragging, setIsDragging] = useState(false);
 
   const cancelRef = useRef(false);
+  const translationRunRef = useRef(0);
+  const lastIncomingKeyRef = useRef<number | undefined>(undefined);
   const outputEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -130,26 +140,39 @@ export default function SrtTrnsTab({ onSendToNote }: SrtTrnsTabProps = {}) {
     }
   }, [progress, translating]);
 
-  const loadFile = useCallback(async (f: File) => {
+  const loadSrtText = useCallback((text: string, filename: string) => {
+    cancelRef.current = true;
+    translationRunRef.current += 1;
+    setTranslating(false);
     setParseError(null);
     setTranslations([]);
     setErrors([]);
     setProgress(0);
+    const parsed = parseSrtRaw(text);
+    if (parsed.length === 0) {
+      setParseError("কোনো valid subtitle পাওয়া যায়নি। SRT file টি সঠিক কিনা দেখুন।");
+      setFile(null);
+      setEntries([]);
+      return;
+    }
+    setFile(new File([text], filename || "input.srt", { type: "text/plain" }));
+    setEntries(parsed);
+  }, []);
+
+  const loadFile = useCallback(async (f: File) => {
     try {
-      const text = await f.text();
-      const parsed = parseSrtRaw(text);
-      if (parsed.length === 0) {
-        setParseError("কোনো valid subtitle পাওয়া যায়নি। SRT file টি সঠিক কিনা দেখুন।");
-        setFile(null);
-        setEntries([]);
-        return;
-      }
-      setFile(f);
-      setEntries(parsed);
+      loadSrtText(await f.text(), f.name);
     } catch {
       setParseError("File পড়তে সমস্যা হয়েছে।");
     }
-  }, []);
+  }, [loadSrtText]);
+
+  useEffect(() => {
+    if (incomingKey === undefined || incomingSrt === undefined) return;
+    if (lastIncomingKeyRef.current === incomingKey || !incomingSrt.trim()) return;
+    lastIncomingKeyRef.current = incomingKey;
+    loadSrtText(incomingSrt, incomingFilename || "input.srt");
+  }, [incomingSrt, incomingFilename, incomingKey, loadSrtText]);
 
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
@@ -172,6 +195,7 @@ export default function SrtTrnsTab({ onSendToNote }: SrtTrnsTabProps = {}) {
 
   const startTranslation = useCallback(async () => {
     if (!entries.length || translating) return;
+    const runId = ++translationRunRef.current;
     cancelRef.current = false;
     setTranslating(true);
     setProgress(0);
@@ -182,13 +206,18 @@ export default function SrtTrnsTab({ onSendToNote }: SrtTrnsTabProps = {}) {
     const errs: boolean[] = new Array(entries.length).fill(false);
 
     for (let i = 0; i < entries.length; i++) {
-      if (cancelRef.current) break;
+      if (cancelRef.current || translationRunRef.current !== runId) break;
 
       const entry = entries[i];
       let attempt = 0;
       let success = false;
 
-      while (attempt < 3 && !success && !cancelRef.current) {
+      while (
+        attempt < 3 &&
+        !success &&
+        !cancelRef.current &&
+        translationRunRef.current === runId
+      ) {
         try {
           const translated = await gtTranslate(entry.text, fromLang, toLang);
           results[i] = translated;
@@ -198,6 +227,8 @@ export default function SrtTrnsTab({ onSendToNote }: SrtTrnsTabProps = {}) {
           if (attempt < 3) await sleep(800 * attempt);
         }
       }
+
+      if (cancelRef.current || translationRunRef.current !== runId) break;
 
       if (!success) {
         errs[i] = true;
@@ -214,7 +245,7 @@ export default function SrtTrnsTab({ onSendToNote }: SrtTrnsTabProps = {}) {
       }
     }
 
-    setTranslating(false);
+    if (translationRunRef.current === runId) setTranslating(false);
   }, [entries, fromLang, toLang, translating]);
 
   const stopTranslation = useCallback(() => {
@@ -236,6 +267,7 @@ export default function SrtTrnsTab({ onSendToNote }: SrtTrnsTabProps = {}) {
 
   const clearAll = useCallback(() => {
     cancelRef.current = true;
+    translationRunRef.current += 1;
     setFile(null);
     setEntries([]);
     setTranslations([]);

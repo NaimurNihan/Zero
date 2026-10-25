@@ -1,11 +1,12 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { Upload, Download, Sparkles, X, ChevronUp, ChevronDown, Plus, Trash2, FileText, Scissors, Copy } from "lucide-react";
+import { Upload, Download, Sparkles, X, ChevronUp, ChevronDown, Plus, Trash2, FileText, Scissors, Copy, Languages } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 
 interface SrtMergerTabProps {
   onSendToName?: (srt: string, filename: string) => void;
+  onSendToTrns?: (srt: string, filename: string) => void;
   onTransform?: () => void;
   clearKey?: number;
   incomingSrt?: string;
@@ -148,7 +149,7 @@ function generateSRT(entries: SRTEntry[], sentences: string[]): string {
   return lines.join("\n");
 }
 
-export default function SrtMergerTab({ onSendToName, onTransform, clearKey, incomingSrt, incomingFilename, incomingKey }: SrtMergerTabProps = {}) {
+export default function SrtMergerTab({ onSendToName, onSendToTrns, onTransform, clearKey, incomingSrt, incomingFilename, incomingKey }: SrtMergerTabProps = {}) {
   const [srtEntries, setSrtEntries] = useState<SRTEntry[]>([]);
   const [sentenceText, setSentenceText] = useState("");
   const [addMoreText, setAddMoreText] = useState("");
@@ -542,6 +543,25 @@ export default function SrtMergerTab({ onSendToName, onTransform, clearKey, inco
           >
             <Sparkles className="w-3 h-3" />
             Generate
+          </Button>
+          <Button
+            onClick={() => {
+              if (srtEntries.length === 0 || !onSendToTrns) return;
+              const srt = srtEntries
+                .map((entry, index) => `${index + 1}\n${entry.startTime} --> ${entry.endTime}\n${entry.text.trim()}`)
+                .join("\n\n");
+              onSendToTrns(srt, fileName || "input.srt");
+              toast({
+                title: "Loaded in SRT Trns",
+                description: `${srtEntries.length} input subtitles sent to translation.`,
+              });
+            }}
+            disabled={srtEntries.length === 0 || !onSendToTrns}
+            title="Send every subtitle from the SRT Input card to SRT Trns"
+            className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs h-7 px-2.5 gap-1 rounded-md shadow-sm disabled:opacity-50"
+          >
+            <Languages className="w-3 h-3" />
+            Load Trns
           </Button>
           <Button
             onClick={handleDownload}

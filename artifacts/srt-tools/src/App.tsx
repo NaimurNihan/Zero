@@ -199,6 +199,9 @@ export default function App() {
   const [mergerIncomingSrtFilename, setMergerIncomingSrtFilename] = useState("");
   const [mergerIncomingSrtKey, setMergerIncomingSrtKey] = useState(0);
   const [mergerClearKey, setMergerClearKey] = useState(0);
+  const [trnsIncomingSrt, setTrnsIncomingSrt] = useState("");
+  const [trnsIncomingFilename, setTrnsIncomingFilename] = useState("");
+  const [trnsIncomingKey, setTrnsIncomingKey] = useState(0);
   const [noteIncomingText, setNoteIncomingText] = useState("");
   const [noteIncomingName, setNoteIncomingName] = useState("");
   const [noteIncomingKey, setNoteIncomingKey] = useState(0);
@@ -752,6 +755,9 @@ export default function App() {
       {/* SRT Trns — restored tab, kept separate from other tools */}
       <div style={{ display: activeTab === "srtTrns" ? "flex" : "none" }} className="flex-col flex-1 overflow-hidden">
         <SrtTrnsTab
+          incomingSrt={trnsIncomingSrt}
+          incomingFilename={trnsIncomingFilename}
+          incomingKey={trnsIncomingKey}
           onSendToNote={(text, name, langIdx) => {
             setNoteIncomingText(text);
             setNoteIncomingName(name);
@@ -774,6 +780,12 @@ export default function App() {
             setSubtitles(parsed);
             setFilename(name);
             handleSelectTab("editor");
+          }}
+          onSendToTrns={(srt, name) => {
+            setTrnsIncomingSrt(srt);
+            setTrnsIncomingFilename(name);
+            setTrnsIncomingKey((key) => key + 1);
+            handleSelectTab("srtTrns");
           }}
           onTransform={runTransformSequence}
         />
