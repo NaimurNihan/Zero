@@ -431,6 +431,21 @@ export default function SrtTrnsTab({
             </button>
           )}
         </div>
+
+        {errorCount > 0 && (
+          <div
+            role="alert"
+            className="mt-3 flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300"
+          >
+            <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
+            <div>
+              <p className="text-sm font-semibold">Some translations failed</p>
+              <p className="text-xs">
+                {errorCount} subtitle{errorCount === 1 ? "" : "s"} could not be translated. Original text was kept; review the red output cards.
+              </p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── TWO MAIN CARDS ── */}
