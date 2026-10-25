@@ -22,7 +22,10 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- `pnpm --filter @workspace/api-server run dev` — run API server locally
+- `PORT=8080 pnpm --filter @workspace/api-server run dev` — run the API server and TTS endpoint
+- `PORT=5000 BASE_PATH=/ pnpm --filter @workspace/srt-tools run dev` — run the React frontend
+
+Run the API server and frontend in separate workflows. Both workflows are configured in this Replit project.
 
 ## AI Audio Tab (cloned from Ai-Audio2 repo)
 

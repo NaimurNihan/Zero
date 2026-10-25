@@ -1,8 +1,11 @@
 import { Router, type IRouter } from "express";
 import { MsEdgeTTS, OUTPUT_FORMAT, type Voice } from "msedge-tts";
 import { logger } from "../lib/logger";
+import { configureEdgeTtsV2Handshake } from "../lib/edge-tts-v2-token";
 
 const router: IRouter = Router();
+
+configureEdgeTtsV2Handshake();
 
 const MAX_TEXT_LENGTH = 5000;
 const DEFAULT_VOICE_EN = "en-US-AriaNeural";
@@ -33,9 +36,7 @@ function detectVoice(text: string): string {
   return /[\u0980-\u09FF]/.test(text) ? DEFAULT_VOICE_BN : DEFAULT_VOICE_EN;
 }
 
-function streamToBuffer(
-  stream: NodeJS.ReadableStream,
-): Promise<Buffer> {
+function streamToBuffer(stream: NodeJS.ReadableStream): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
     stream.on("data", (chunk: Buffer) => chunks.push(chunk));
@@ -69,13 +70,12 @@ router.post("/tts", async (req, res) => {
   }
 
   const voice = voiceArg.trim() || detectVoice(text);
+  const tts = new MsEdgeTTS();
 
   try {
-    const tts = new MsEdgeTTS();
     await tts.setMetadata(voice, OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3);
     const { audioStream } = tts.toStream(text);
     const buffer = await streamToBuffer(audioStream);
-    tts.close();
 
     res.setHeader("Content-Type", "audio/mpeg");
     res.setHeader("Content-Length", buffer.length);
@@ -83,6 +83,8 @@ router.post("/tts", async (req, res) => {
   } catch (err) {
     logger.error({ err, voice }, "TTS synthesis failed");
     res.status(500).json({ error: "TTS synthesis failed" });
+  } finally {
+    tts.close();
   }
 });
 
