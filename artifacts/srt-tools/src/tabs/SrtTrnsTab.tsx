@@ -286,6 +286,22 @@ export default function SrtTrnsTab({
   const translatedCount = translations.filter((t) => t !== null).length;
   const errorCount = errors.filter(Boolean).length;
   const isDone = !translating && translatedCount > 0 && translatedCount === entries.length;
+  const loadToEnglishNote = useCallback(() => {
+    if (!isDone || errorCount > 0 || !onSendToNote) return;
+
+    const text = entries
+      .map((entry, i) => ({
+        index: entry.index,
+        text: (translations[i] ?? "").replace(/\r?\n/g, " ").trim(),
+      }))
+      .sort((a, b) => a.index - b.index)
+      .map((entry) => entry.text)
+      .join("\n");
+    if (!text.trim()) return;
+
+    const projectName = file?.name.replace(/\.srt$/i, "") || "Translated subtitles";
+    onSendToNote(text, projectName, 3); // SRT Note language slot 3 is English.
+  }, [isDone, errorCount, onSendToNote, entries, translations, file]);
 
   // ─── Render ──────────────────────────────────────────────────────────────────
   return (
@@ -369,6 +385,18 @@ export default function SrtTrnsTab({
             >
               <Download className="w-3.5 h-3.5" />
               Download SRT
+            </button>
+          )}
+
+          {/* Send only a fully successful, subtitle-number-ordered translation */}
+          {isDone && errorCount === 0 && onSendToNote && (
+            <button
+              onClick={loadToEnglishNote}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors shadow-sm"
+              title="Send all translated subtitles, in subtitle-number order, to a new SRT Note English card"
+            >
+              <FileText className="w-3.5 h-3.5" />
+              Load Note
             </button>
           )}
 
