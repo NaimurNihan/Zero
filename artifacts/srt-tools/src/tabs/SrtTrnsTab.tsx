@@ -37,6 +37,46 @@ interface SrtEntry {
   text: string;  // possibly multi-line
 }
 
+function getBatchMarkers(position: number) {
+  const id = String(position).padStart(4, "0");
+  return { start: `ZXQSTART${id}QXZ`, end: `ZXQEND${id}QXZ` };
+}
+
+function parseBatchTranslation(text: string, count: number): string[] | null {
+  const translations: string[] = [];
+
+  for (let i = 0; i < count; i++) {
+    const { start, end } = getBatchMarkers(i);
+    if (text.split(start).length !== 2 || text.split(end).length !== 2) return null;
+
+    const startAt = text.indexOf(start) + start.length;
+    const endAt = text.indexOf(end);
+    if (endAt <= startAt) return null;
+
+    const translated = text.slice(startAt, endAt).trim();
+    if (!translated) return null;
+    translations.push(translated);
+  }
+
+  return translations;
+}
+
+async function gtTranslateBatch(
+  entries: SrtEntry[],
+  from: string,
+  to: string
+): Promise<string[] | null> {
+  const text = entries
+    .map((entry, i) => {
+      const { start, end } = getBatchMarkers(i);
+      return `${start}\n${entry.text}\n${end}`;
+    })
+    .join("\n\n");
+
+  const translated = await gtTranslate(text, from, to);
+  return parseBatchTranslation(translated, entries.length);
+}
+
 function parseSrtRaw(content: string): SrtEntry[] {
   const blocks = content.replace(/\r\n/g, "\n").trim().split(/\n{2,}/);
   const entries: SrtEntry[] = [];
@@ -205,23 +245,28 @@ export default function SrtTrnsTab({
     const results: (string | null)[] = new Array(entries.length).fill(null);
     const errs: boolean[] = new Array(entries.length).fill(false);
 
-    for (let i = 0; i < entries.length; i++) {
+    for (let batchStart = 0; batchStart < entries.length; batchStart += 2) {
       if (cancelRef.current || translationRunRef.current !== runId) break;
 
-      const entry = entries[i];
+      const batch = entries.slice(batchStart, batchStart + 2);
+      let translatedBatch: string[] | null = null;
+      let markerMismatch = false;
       let attempt = 0;
-      let success = false;
 
       while (
         attempt < 3 &&
-        !success &&
+        translatedBatch === null &&
+        !markerMismatch &&
         !cancelRef.current &&
         translationRunRef.current === runId
       ) {
         try {
-          const translated = await gtTranslate(entry.text, fromLang, toLang);
-          results[i] = translated;
-          success = true;
+          if (batch.length === 1) {
+            translatedBatch = [await gtTranslate(batch[0].text, fromLang, toLang)];
+          } else {
+            translatedBatch = await gtTranslateBatch(batch, fromLang, toLang);
+            markerMismatch = translatedBatch === null;
+          }
         } catch {
           attempt++;
           if (attempt < 3) await sleep(800 * attempt);
@@ -230,17 +275,48 @@ export default function SrtTrnsTab({
 
       if (cancelRef.current || translationRunRef.current !== runId) break;
 
-      if (!success) {
-        errs[i] = true;
-        results[i] = entry.text; // keep original on failure
+      // If the translation service altered a separator, translate these two
+      // cards separately rather than risk assigning text to the wrong card.
+      if (markerMismatch) {
+        for (let offset = 0; offset < batch.length; offset++) {
+          const entry = batch[offset];
+          let translated: string | null = null;
+
+          for (let singleAttempt = 0; singleAttempt < 3 && translated === null; singleAttempt++) {
+            if (cancelRef.current || translationRunRef.current !== runId) break;
+            try {
+              translated = await gtTranslate(entry.text, fromLang, toLang);
+            } catch {
+              if (singleAttempt < 2) await sleep(800 * (singleAttempt + 1));
+            }
+          }
+
+          if (cancelRef.current || translationRunRef.current !== runId) break;
+          if (translated === null) {
+            errs[batchStart + offset] = true;
+            results[batchStart + offset] = entry.text;
+          } else {
+            results[batchStart + offset] = translated;
+          }
+        }
+      } else if (translatedBatch === null) {
+        for (let offset = 0; offset < batch.length; offset++) {
+          errs[batchStart + offset] = true;
+          results[batchStart + offset] = batch[offset].text;
+        }
+      } else {
+        for (let offset = 0; offset < batch.length; offset++) {
+          results[batchStart + offset] = translatedBatch[offset];
+        }
       }
 
+      if (cancelRef.current || translationRunRef.current !== runId) break;
       setTranslations([...results]);
       setErrors([...errs]);
-      setProgress(i + 1);
+      setProgress(batchStart + batch.length);
 
-      // Small delay to avoid rate limiting
-      if (!cancelRef.current && i < entries.length - 1) {
+      // Small delay between batches to avoid rate limiting.
+      if (!cancelRef.current && batchStart + batch.length < entries.length) {
         await sleep(120);
       }
     }
